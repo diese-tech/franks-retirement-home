@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id         String   @id @default(cuid())
+  name       String
+  role       String   // Solo, Jungle, Mid, Support, Carry
+  pointValue Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  draftPicks DraftPick[]
+}
+
+model God {
+  id        String   @id @default(cuid())
+  name      String
+  role      String   // Warrior, Assassin, Mage, Guardian, Hunter
+  godClass  String   // Physical, Magical
+  createdAt DateTime @default(now())
+
+  draftPicks DraftPick[]
+}
+
+model Draft {
+  id        String   @id @default(cuid())
+  name      String   @default("Draft")
+  status    String   @default("pending") // pending, active, complete
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  picks DraftPick[]
+}
+
+model DraftPick {
+  id        String   @id @default(cuid())
+  draftId   String
+  playerId  String
+  team      String   // A or B
+  godId     String?
+  pickOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  draft  Draft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  player Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  god    God?    @relation(fields: [godId], references: [id], onDelete: SetNull)
+
+  @@unique([draftId, playerId])
+}

@@ -1,0 +1,29 @@
+{
+  "name": "smite2-draft-league",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push",
+    "db:seed": "node prisma/seed.mjs",
+    "db:reset": "npx prisma db push --force-reset && node prisma/seed.mjs",
+    "db:studio": "npx prisma studio",
+    "setup": "npm install && npx prisma generate && npx prisma db push && node prisma/seed.mjs"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@prisma/client": "^5.14.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.14.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
