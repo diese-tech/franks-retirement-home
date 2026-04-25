@@ -9,10 +9,9 @@ datasource db {
 
 model Player {
   id         String   @id @default(cuid())
-  name       String
-  role       String   // Solo, Jungle, Mid, Support, Carry
-  pointValue Int      @default(1)
-  createdAt  DateTime @default(now())
+  name      String
+  role      String   // Solo, Jungle, Mid, Support, Carry
+  createdAt DateTime @default(now())
 
   draftPicks DraftPick[]
 }

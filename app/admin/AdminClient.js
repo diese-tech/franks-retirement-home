@@ -219,10 +219,10 @@ function DraftsPanel({ drafts, onRefresh }) {
 function PlayersPanel({ players, onRefresh }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: '', role: 'Mid', pointValue: 3 });
+  const [form, setForm] = useState({ name: '', role: 'Mid' });
   const [busy, setBusy] = useState(false);
 
-  const reset = () => { setForm({ name: '', role: 'Mid', pointValue: 3 }); setEditId(null); setShowForm(false); };
+  const reset = () => { setForm({ name: '', role: 'Mid' }); setEditId(null); setShowForm(false); };
 
   const submit = async () => {
     if (!form.name.trim()) return;
@@ -233,7 +233,7 @@ function PlayersPanel({ players, onRefresh }) {
     setBusy(false);
   };
 
-  const edit = (p) => { setForm({ name: p.name, role: p.role, pointValue: p.pointValue }); setEditId(p.id); setShowForm(true); };
+  const edit = (p) => { setForm({ name: p.name, role: p.role }); setEditId(p.id); setShowForm(true); };
 
   const remove = async (id) => {
     if (!confirm('Delete this player?')) return;
@@ -252,15 +252,9 @@ function PlayersPanel({ players, onRefresh }) {
       {showForm && (
         <div className="mb-4 p-4 bg-brand-950/60 rounded-lg border border-brand-600/30 space-y-3 animate-fade-in">
           <input placeholder="Player name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
-          <div className="grid grid-cols-2 gap-3">
-            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="select-field">
-              {PLAYER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 font-display shrink-0">Points:</label>
-              <input type="number" min={0} max={10} value={form.pointValue} onChange={(e) => setForm({ ...form, pointValue: parseInt(e.target.value) || 0 })} className="input-field text-center" />
-            </div>
-          </div>
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="select-field">
+            {PLAYER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
           <button onClick={submit} disabled={busy || !form.name.trim()} className="btn-primary w-full text-xs">{busy ? 'Saving…' : editId ? 'Update Player' : 'Add Player'}</button>
         </div>
       )}
@@ -271,7 +265,6 @@ function PlayersPanel({ players, onRefresh }) {
             <tr className="text-[10px] font-display uppercase tracking-wider text-gray-500 border-b border-brand-600/30">
               <th className="text-left py-2 px-2">Name</th>
               <th className="text-left py-2 px-2">Role</th>
-              <th className="text-center py-2 px-2">Pts</th>
               <th className="text-right py-2 px-2">Actions</th>
             </tr>
           </thead>
@@ -280,7 +273,6 @@ function PlayersPanel({ players, onRefresh }) {
               <tr key={p.id} className="border-b border-brand-700/30 hover:bg-brand-700/20 transition-colors">
                 <td className="py-2 px-2 font-display font-medium text-gray-300">{p.name}</td>
                 <td className="py-2 px-2"><span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[p.role]}`}>{p.role}</span></td>
-                <td className="py-2 px-2 text-center font-mono text-gold-400 font-bold">{p.pointValue}</td>
                 <td className="py-2 px-2 text-right">
                   <button onClick={() => edit(p)} className="text-xs text-frost-400 hover:text-frost-300 mr-3">Edit</button>
                   <button onClick={() => remove(p.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>

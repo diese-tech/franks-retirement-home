@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { PLAYER_ROLES, POINT_RANGE } from '@/lib/constants';
+import { PLAYER_ROLES } from '@/lib/constants';
 
 const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
 
@@ -15,7 +15,7 @@ export async function GET(request) {
   try {
     const players = await prisma.player.findMany({
       where: role ? { role } : undefined,
-      orderBy: { pointValue: 'desc' },
+      orderBy: { name: 'asc' },
     });
     return NextResponse.json(players);
   } catch {
@@ -29,7 +29,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { id, name, role, pointValue } = body;
+  const { id, name, role } = body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
     return NextResponse.json({ error: 'name must be a non-empty string (max 100 chars)' }, { status: 400 });
@@ -37,24 +37,17 @@ export async function POST(request) {
   if (!PLAYER_ROLES.includes(role)) {
     return NextResponse.json({ error: `role must be one of: ${PLAYER_ROLES.join(', ')}` }, { status: 400 });
   }
-  const pv = Number(pointValue);
-  if (!Number.isInteger(pv) || pv < POINT_RANGE.min || pv > POINT_RANGE.max) {
-    return NextResponse.json(
-      { error: `pointValue must be an integer between ${POINT_RANGE.min} and ${POINT_RANGE.max}` },
-      { status: 400 }
-    );
-  }
 
   try {
     if (id) {
       const player = await prisma.player.update({
         where: { id },
-        data: { name: name.trim(), role, pointValue: pv },
+        data: { name: name.trim(), role },
       });
       return NextResponse.json(player);
     }
     const player = await prisma.player.create({
-      data: { name: name.trim(), role, pointValue: pv },
+      data: { name: name.trim(), role },
     });
     return NextResponse.json(player, { status: 201 });
   } catch {

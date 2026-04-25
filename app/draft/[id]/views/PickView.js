@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { evaluateDraft } from '@/lib/rules';
 import { ROLE_COLORS, GOD_ROLES } from '@/lib/constants';
 import { PICK_ORDER, currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
 
@@ -21,8 +20,6 @@ export default function PickView({ state, role, callApi }) {
   const bannedIds = useMemo(() => new Set(bans.map((b) => b.godId)), [bans]);
   const pickedIds = useMemo(() => new Set(picks.map((p) => p.godId).filter(Boolean)), [picks]);
   const unavailableIds = useMemo(() => new Set([...bannedIds, ...pickedIds]), [bannedIds, pickedIds]);
-
-  const evaluation = useMemo(() => evaluateDraft(picks), [picks]);
 
   const availableGods = useMemo(() => {
     return gods.filter((g) => {
@@ -94,8 +91,14 @@ export default function PickView({ state, role, callApi }) {
         <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">{error}</div>
       )}
 
-      {/* Teams + scoreboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_200px_1fr] gap-4">
+      {/* Pick counter */}
+      <div className="card text-center py-2">
+        <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Picks</div>
+        <div className="font-mono text-2xl font-bold text-gray-300">{completedCount}<span className="text-gray-600 text-base">/{TOTAL_PICKS}</span></div>
+      </div>
+
+      {/* Teams */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PickTeamColumn
           team="A"
           picks={teamA}
@@ -105,26 +108,6 @@ export default function PickView({ state, role, callApi }) {
           godPickFor={godPickFor}
           onSelectPick={(pickId) => setGodPickFor(pickId === godPickFor ? null : pickId)}
         />
-
-        {/* Scoreboard */}
-        <div className="flex flex-col gap-4">
-          <div className="card text-center">
-            <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Point Diff</div>
-            <div className={`font-mono text-4xl font-bold ${evaluation.diff >= 3 ? 'text-red-400' : evaluation.diff >= 2 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {evaluation.diff}
-            </div>
-            <div className="flex items-center justify-center gap-3 mt-3 text-xs font-mono">
-              <span className="text-blue-400">{evaluation.teamA.points} A</span>
-              <span className="text-gray-600">vs</span>
-              <span className="text-red-400">{evaluation.teamB.points} B</span>
-            </div>
-          </div>
-          <div className="card text-center">
-            <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Picks</div>
-            <div className="font-mono text-2xl font-bold text-gray-300">{completedCount}<span className="text-gray-600 text-base">/{TOTAL_PICKS}</span></div>
-          </div>
-        </div>
-
         <PickTeamColumn
           team="B"
           picks={teamB}
@@ -175,11 +158,9 @@ export default function PickView({ state, role, callApi }) {
 function PickTeamColumn({ team, picks, isMyTurn, canInteract, activeTeam, godPickFor, onSelectPick }) {
   const isA = team === 'A';
   const accent = isA ? 'text-blue-400' : 'text-red-400';
-  const accentBg = isA ? 'bg-blue-500/15' : 'bg-red-500/15';
   const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
   const colBg = isA ? 'bg-[#0d1225]' : 'bg-[#1a0d0d]';
 
-  const pendingPicks = picks.filter((p) => !p.godId);
   const isActive = activeTeam === team;
 
   return (
@@ -217,9 +198,6 @@ function PickTeamColumn({ team, picks, isMyTurn, canInteract, activeTeam, godPic
                     : <div className="text-[10px] text-gray-600 mt-0.5">—</div>
                 }
               </div>
-              <span className={`shrink-0 w-7 h-7 rounded flex items-center justify-center font-mono font-bold text-xs ${accentBg} ${accent}`}>
-                {pick.player?.pointValue}
-              </span>
             </div>
           );
         })}

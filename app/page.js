@@ -13,12 +13,12 @@ export default async function HomePage() {
       <div className="text-center mb-12">
         <h1 className="font-display text-4xl sm:text-5xl font-bold uppercase tracking-wider mb-3">
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-ember-400">
-            Smite 2
+            Frank's
           </span>{' '}
-          Draft League
+          Retirement Home
         </h1>
         <p className="text-gray-400 font-body text-lg max-w-lg mx-auto">
-          Competitive team drafting with real-time balance tracking and penalty enforcement.
+          Competitive Smite 2 draft league — real-time bans, picks, and team assembly.
         </p>
       </div>
 

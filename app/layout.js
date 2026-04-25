@@ -3,8 +3,8 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 
 export const metadata = {
-  title: 'Smite 2 Draft League',
-  description: 'Competitive draft management for Smite 2 leagues',
+  title: "Frank's Retirement Home",
+  description: "Frank's Retirement Home — Smite 2 draft league",
 };
 
 export default function RootLayout({ children }) {
