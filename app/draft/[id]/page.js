@@ -1,10 +1,13 @@
 import prisma from '@/lib/db';
+import { resolveRole } from '@/lib/draftAuth';
+import { buildDraftState } from '@/lib/draftState';
 import DraftClient from './DraftClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DraftPage({ params }) {
+export default async function DraftPage({ params, searchParams }) {
   const { id } = await params;
+  const key = searchParams?.key ?? null;
 
   const draft = await prisma.draft.findUnique({ where: { id } });
   if (!draft) {
@@ -16,21 +19,14 @@ export default async function DraftPage({ params }) {
     );
   }
 
-  const picks = await prisma.draftPick.findMany({
-    where: { draftId: id },
-    include: { player: true, god: true },
-    orderBy: { pickOrder: 'asc' },
-  });
-
-  const players = await prisma.player.findMany({ orderBy: { pointValue: 'desc' } });
-  const gods = await prisma.god.findMany({ orderBy: { name: 'asc' } });
+  const role = resolveRole(key, draft);
+  const state = await buildDraftState(id);
 
   return (
     <DraftClient
-      initialDraft={JSON.parse(JSON.stringify(draft))}
-      initialPicks={JSON.parse(JSON.stringify(picks))}
-      initialPlayers={JSON.parse(JSON.stringify(players))}
-      initialGods={JSON.parse(JSON.stringify(gods))}
+      initialState={JSON.parse(JSON.stringify(state))}
+      role={role}
+      draftKey={key}
     />
   );
 }
