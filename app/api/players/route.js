@@ -29,7 +29,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { id, name, role } = body;
+  const { id, name, role, discordUsername, division } = body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
     return NextResponse.json({ error: 'name must be a non-empty string (max 100 chars)' }, { status: 400 });
@@ -38,17 +38,19 @@ export async function POST(request) {
     return NextResponse.json({ error: `role must be one of: ${PLAYER_ROLES.join(', ')}` }, { status: 400 });
   }
 
+  const data = {
+    name: name.trim(),
+    role,
+    discordUsername: discordUsername?.trim() || null,
+    division: division?.trim() || null,
+  };
+
   try {
     if (id) {
-      const player = await prisma.player.update({
-        where: { id },
-        data: { name: name.trim(), role },
-      });
+      const player = await prisma.player.update({ where: { id }, data });
       return NextResponse.json(player);
     }
-    const player = await prisma.player.create({
-      data: { name: name.trim(), role },
-    });
+    const player = await prisma.player.create({ data });
     return NextResponse.json(player, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to save player' }, { status: 500 });

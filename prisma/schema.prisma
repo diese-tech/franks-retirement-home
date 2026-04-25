@@ -8,10 +8,12 @@ datasource db {
 }
 
 model Player {
-  id         String   @id @default(cuid())
-  name      String
-  role      String   // Solo, Jungle, Mid, Support, Carry
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  role            String   // Solo, Jungle, Mid, Support, Carry, Fill
+  discordUsername String?
+  division        String?  // e.g. Canes, Walker, Rollator, Scooter
+  createdAt       DateTime @default(now())
 
   draftPicks DraftPick[]
 }
