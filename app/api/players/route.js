@@ -1,42 +1,69 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { PLAYER_ROLES, POINT_RANGE } from '@/lib/constants';
 
 // GET /api/players — list all, optional ?role=Mid filter
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const role = searchParams.get('role');
 
-  const players = await prisma.player.findMany({
-    where: role ? { role } : undefined,
-    orderBy: { pointValue: 'desc' },
-  });
-  return NextResponse.json(players);
+  if (role && !PLAYER_ROLES.includes(role)) {
+    return NextResponse.json({ error: `role must be one of: ${PLAYER_ROLES.join(', ')}` }, { status: 400 });
+  }
+
+  try {
+    const players = await prisma.player.findMany({
+      where: role ? { role } : undefined,
+      orderBy: { pointValue: 'desc' },
+    });
+    return NextResponse.json(players);
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch players' }, { status: 500 });
+  }
 }
 
 // POST /api/players — create or update player
 // Body: { id?, name, role, pointValue }
 export async function POST(request) {
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
   const { id, name, role, pointValue } = body;
 
-  if (!name || !role) {
-    return NextResponse.json({ error: 'name and role required' }, { status: 400 });
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+    return NextResponse.json({ error: 'name must be a non-empty string (max 100 chars)' }, { status: 400 });
+  }
+  if (!PLAYER_ROLES.includes(role)) {
+    return NextResponse.json({ error: `role must be one of: ${PLAYER_ROLES.join(', ')}` }, { status: 400 });
+  }
+  const pv = Number(pointValue);
+  if (!Number.isInteger(pv) || pv < POINT_RANGE.min || pv > POINT_RANGE.max) {
+    return NextResponse.json(
+      { error: `pointValue must be an integer between ${POINT_RANGE.min} and ${POINT_RANGE.max}` },
+      { status: 400 }
+    );
   }
 
-  if (id) {
-    // Update
-    const player = await prisma.player.update({
-      where: { id },
-      data: { name, role, pointValue: Number(pointValue) },
+  try {
+    if (id) {
+      const player = await prisma.player.update({
+        where: { id },
+        data: { name: name.trim(), role, pointValue: pv },
+      });
+      return NextResponse.json(player);
+    }
+
+    const player = await prisma.player.create({
+      data: { name: name.trim(), role, pointValue: pv },
     });
-    return NextResponse.json(player);
+    return NextResponse.json(player, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: 'Failed to save player' }, { status: 500 });
   }
-
-  // Create
-  const player = await prisma.player.create({
-    data: { name, role, pointValue: Number(pointValue) || 1 },
-  });
-  return NextResponse.json(player, { status: 201 });
 }
 
 // DELETE /api/players?id=xxx
@@ -45,6 +72,20 @@ export async function DELETE(request) {
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  await prisma.player.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    const activePick = await prisma.draftPick.findFirst({
+      where: { playerId: id, draft: { status: 'active' } },
+    });
+    if (activePick) {
+      return NextResponse.json(
+        { error: 'Cannot delete a player who is part of an active draft. Finalize or remove them from the draft first.' },
+        { status: 409 }
+      );
+    }
+
+    await prisma.player.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete player' }, { status: 500 });
+  }
 }

@@ -26,6 +26,7 @@ export default function DraftClient({ initialDraft, initialPicks, initialPlayers
   const [resetConfirm, setResetConfirm] = useState(false);
 
   const active = draft.status === 'active';
+  const complete = draft.status === 'complete';
   const evaluation = useMemo(() => evaluateDraft(picks), [picks]);
   const draftedIds = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
   const penalizedTeam = evaluation.violations.find((v) => v.severity === 'critical')?.penalizedTeam ?? null;
@@ -99,45 +100,56 @@ export default function DraftClient({ initialDraft, initialPicks, initialPlayers
         {draft.status === 'complete' && <button onClick={() => setStatus('active')} className="btn-secondary text-xs">Reopen Draft</button>}
       </div>
 
-      {/* ── Main Grid ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_200px_1fr] gap-4">
-        {/* Player Pool */}
-        <div className="card max-h-[75vh] flex flex-col overflow-hidden">
-          <h3 className="font-display font-bold text-xs uppercase tracking-wider text-gray-400 mb-2">Player Pool</h3>
-          <input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="input-field mb-2 text-xs" />
-          <div className="flex flex-wrap gap-1 mb-2">
-            {['All', ...PLAYER_ROLES].map((r) => (
-              <button key={r} onClick={() => setRoleFilter(r)}
-                className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
-                  roleFilter === r ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
-                }`}>{r}</button>
-            ))}
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-            {available.length === 0 ? (
-              <p className="text-xs text-gray-600 text-center py-6">No available players</p>
-            ) : available.map((player) => (
-              <div key={player.id} className="group flex items-center gap-2 px-2 py-1.5 rounded bg-brand-950/40 border border-brand-600/20 hover:border-brand-600/40 transition-all">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-display font-medium text-sm text-gray-300 truncate">{player.name}</span>
-                    <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[player.role]}`}>{player.role}</span>
-                  </div>
-                </div>
-                <span className="font-mono text-xs text-gold-400 font-bold w-5 text-center">{player.pointValue}</span>
-                {active && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => draftPlayer(player.id, 'A')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">A</button>
-                    <button onClick={() => draftPlayer(player.id, 'B')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-red-500/15 text-red-400 hover:bg-red-500/25">B</button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 pt-2 border-t border-brand-600/30 text-[10px] text-gray-600 font-mono text-center">
-            {available.length} available · {draftedIds.size} drafted
-          </div>
+      {complete && (
+        <div className="mb-6 px-4 py-3 bg-gray-500/10 border border-gray-500/30 rounded-lg flex items-center justify-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0" />
+          <span className="font-display font-bold text-xs uppercase tracking-widest text-gray-400">
+            Draft Finalized — {picks.length} picks · {evaluation.teamA.points} vs {evaluation.teamB.points} pts
+          </span>
         </div>
+      )}
+
+      {/* ── Main Grid ─────────────────────────── */}
+      <div className={`grid grid-cols-1 gap-4 ${complete ? 'lg:grid-cols-[1fr_200px_1fr]' : 'lg:grid-cols-[260px_1fr_200px_1fr]'}`}>
+        {/* Player Pool — hidden when draft is complete */}
+        {!complete && (
+          <div className="card max-h-[75vh] flex flex-col overflow-hidden">
+            <h3 className="font-display font-bold text-xs uppercase tracking-wider text-gray-400 mb-2">Player Pool</h3>
+            <input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="input-field mb-2 text-xs" />
+            <div className="flex flex-wrap gap-1 mb-2">
+              {['All', ...PLAYER_ROLES].map((r) => (
+                <button key={r} onClick={() => setRoleFilter(r)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
+                    roleFilter === r ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
+                  }`}>{r}</button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+              {available.length === 0 ? (
+                <p className="text-xs text-gray-600 text-center py-6">No available players</p>
+              ) : available.map((player) => (
+                <div key={player.id} className="group flex items-center gap-2 px-2 py-1.5 rounded bg-brand-950/40 border border-brand-600/20 hover:border-brand-600/40 transition-all">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-display font-medium text-sm text-gray-300 truncate">{player.name}</span>
+                      <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[player.role]}`}>{player.role}</span>
+                    </div>
+                  </div>
+                  <span className="font-mono text-xs text-gold-400 font-bold w-5 text-center">{player.pointValue}</span>
+                  {active && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => draftPlayer(player.id, 'A')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">A</button>
+                      <button onClick={() => draftPlayer(player.id, 'B')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-red-500/15 text-red-400 hover:bg-red-500/25">B</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 pt-2 border-t border-brand-600/30 text-[10px] text-gray-600 font-mono text-center">
+              {available.length} available · {draftedIds.size} drafted
+            </div>
+          </div>
+        )}
 
         {/* Team A */}
         <TeamColumn team="A" stats={evaluation.teamA} gods={gods} penalized={penalizedTeam === 'A'} active={active} onGodChange={changeGod} onRemove={removePick} />
