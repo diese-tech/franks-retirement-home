@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
 
-// ─── API helpers ─────────────────────────────────────
 async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 function del(url) { return api(url, { method: 'DELETE' }); }
@@ -32,7 +31,6 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         <p className="text-sm text-gray-500">Manage players, gods, and draft sessions.</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-brand-800 rounded-lg p-1 border border-brand-600/30 w-fit">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -42,9 +40,88 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         ))}
       </div>
 
-      {tab === 'drafts' && <DraftsPanel drafts={drafts} onRefresh={refreshDrafts} />}
+      {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
       {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
-      {tab === 'gods' && <GodsPanel gods={gods} onRefresh={refreshGods} />}
+      {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
+    </div>
+  );
+}
+
+// ─── Share Modal ─────────────────────────────────────
+
+function ShareModal({ draft, onClose }) {
+  const [copied, setCopied] = useState(null);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const links = [
+    { label: 'Admin Link',    key: 'adminKey',    description: 'Full override access' },
+    { label: 'Captain A',     key: 'captainAKey', description: 'Team Alpha captain' },
+    { label: 'Captain B',     key: 'captainBKey', description: 'Team Bravo captain' },
+    { label: 'Spectator',     key: null,          description: 'Read-only, no key needed' },
+  ];
+
+  const getUrl = (keyField) => {
+    if (!keyField) return `${origin}/draft/${draft.id}`;
+    const val = draft[keyField];
+    if (!val) return null;
+    return `${origin}/draft/${draft.id}?key=${val}`;
+  };
+
+  const copy = async (keyField) => {
+    const url = getUrl(keyField);
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    setCopied(keyField ?? 'spectator');
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-brand-800 border border-brand-600/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">Share Links</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{draft.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
+        </div>
+
+        <div className="space-y-3">
+          {links.map(({ label, key, description }) => {
+            const url = getUrl(key);
+            const wasCopied = copied === (key ?? 'spectator');
+            return (
+              <div key={label} className="flex items-center gap-3 p-3 bg-brand-900/60 rounded-lg border border-brand-600/20">
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-semibold text-xs text-gray-300">{label}</div>
+                  <div className="text-[10px] text-gray-600">{description}</div>
+                  {url
+                    ? <div className="text-[10px] font-mono text-gray-500 truncate mt-0.5">{url}</div>
+                    : <div className="text-[10px] text-gray-700 mt-0.5">No key assigned (legacy draft)</div>
+                  }
+                </div>
+                <button
+                  onClick={() => copy(key)}
+                  disabled={!url}
+                  className={`shrink-0 px-3 py-1.5 rounded text-[10px] font-display font-bold uppercase tracking-wider transition-all ${
+                    wasCopied
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : url
+                        ? 'bg-brand-600/50 text-gray-300 border border-brand-500/40 hover:bg-frost-500/15 hover:text-frost-400 hover:border-frost-500/40'
+                        : 'opacity-30 cursor-not-allowed bg-brand-700 text-gray-600 border border-brand-600/20'
+                  }`}
+                >
+                  {wasCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-[10px] text-gray-600 mt-4 text-center">
+          Share Admin, Captain A, and Captain B links privately. The spectator link is safe to post publicly.
+        </p>
+      </div>
     </div>
   );
 }
@@ -54,12 +131,14 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
 function DraftsPanel({ drafts, onRefresh }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [shareTarget, setShareTarget] = useState(null);
 
   const create = async () => {
     setBusy(true);
-    await postJson('/api/drafts', { name: name.trim() || `Draft ${drafts.length + 1}` });
+    const draft = await postJson('/api/drafts', { name: name.trim() || `Draft ${drafts.length + 1}` });
     setName('');
     await onRefresh();
+    setShareTarget(draft);
     setBusy(false);
   };
 
@@ -70,37 +149,68 @@ function DraftsPanel({ drafts, onRefresh }) {
   };
 
   const setStatus = async (id, status) => {
-    await postJson('/api/drafts', { id, status });
+    const result = await postJson('/api/drafts', { id, status });
+    if (result.error) { alert(result.error); return; }
     onRefresh();
   };
 
+  // Find the latest version of a draft (post-refresh) for share modal
+  const findDraft = (id) => drafts.find((d) => d.id === id) ?? shareTarget;
+
   return (
-    <div className="card">
-      <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200 mb-4">Drafts</h2>
-      <div className="flex gap-2 mb-4">
-        <input placeholder="New draft name…" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && create()} className="input-field flex-1" />
-        <button onClick={create} disabled={busy} className="btn-primary text-xs shrink-0">{busy ? 'Creating…' : 'Create Draft'}</button>
-      </div>
-      <div className="space-y-2">
-        {drafts.length === 0 ? <p className="text-sm text-gray-600 text-center py-6">No drafts yet</p> : drafts.map((d) => (
-          <div key={d.id} className="flex items-center gap-3 px-3 py-3 bg-brand-950/40 rounded-lg border border-brand-600/20 hover:border-brand-600/40 transition-all">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-display font-semibold text-sm text-gray-300 truncate">{d.name}</span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-display font-bold uppercase tracking-wider border ${STATUS_COLORS[d.status]}`}>{d.status}</span>
+    <>
+      {shareTarget && (
+        <ShareModal
+          draft={findDraft(shareTarget.id)}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+      <div className="card">
+        <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200 mb-4">Drafts</h2>
+        <div className="flex gap-2 mb-4">
+          <input
+            placeholder="New draft name…"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && create()}
+            className="input-field flex-1"
+          />
+          <button onClick={create} disabled={busy} className="btn-primary text-xs shrink-0">
+            {busy ? 'Creating…' : 'Create Draft'}
+          </button>
+        </div>
+        <div className="space-y-2">
+          {drafts.length === 0
+            ? <p className="text-sm text-gray-600 text-center py-6">No drafts yet</p>
+            : drafts.map((d) => (
+              <div key={d.id} className="flex items-center gap-3 px-3 py-3 bg-brand-950/40 rounded-lg border border-brand-600/20 hover:border-brand-600/40 transition-all">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display font-semibold text-sm text-gray-300 truncate">{d.name}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-display font-bold uppercase tracking-wider border ${STATUS_COLORS[d.status] ?? STATUS_COLORS.pending}`}>{d.status}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-600 font-mono">{new Date(d.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <Link href={`/draft/${d.id}${d.adminKey ? `?key=${d.adminKey}` : ''}`}
+                    className="text-xs text-frost-400 hover:text-frost-300 font-display font-semibold">Open →</Link>
+                  <button onClick={() => setShareTarget(d)} className="text-xs text-gold-400 hover:text-gold-300 font-display font-semibold">Share</button>
+                  {d.status === 'pending' && (
+                    <button onClick={() => setStatus(d.id, 'lobby')} className="text-xs text-blue-400 hover:text-blue-300">Open Lobby</button>
+                  )}
+                  {d.status === 'active' && (
+                    <button onClick={() => setStatus(d.id, 'complete')} className="text-xs text-yellow-400 hover:text-yellow-300">Finalize</button>
+                  )}
+                  {d.status === 'complete' && (
+                    <button onClick={() => setStatus(d.id, 'picking')} className="text-xs text-gray-400 hover:text-gray-300">Reopen</button>
+                  )}
+                  <button onClick={() => remove(d.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                </div>
               </div>
-              <span className="text-[10px] text-gray-600 font-mono">{new Date(d.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link href={`/draft/${d.id}`} className="text-xs text-frost-400 hover:text-frost-500 font-display font-semibold">Open →</Link>
-              {d.status === 'pending' && <button onClick={() => setStatus(d.id, 'active')} className="text-xs text-green-400 hover:text-green-300">Start</button>}
-              {d.status === 'active' && <button onClick={() => setStatus(d.id, 'complete')} className="text-xs text-yellow-400 hover:text-yellow-300">Finalize</button>}
-              <button onClick={() => remove(d.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
-            </div>
-          </div>
-        ))}
+            ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -127,7 +237,8 @@ function PlayersPanel({ players, onRefresh }) {
 
   const remove = async (id) => {
     if (!confirm('Delete this player?')) return;
-    await del(`/api/players?id=${id}`);
+    const result = await del(`/api/players?id=${id}`);
+    if (result.error) { alert(result.error); return; }
     onRefresh();
   };
 
@@ -207,7 +318,8 @@ function GodsPanel({ gods, onRefresh }) {
 
   const remove = async (id) => {
     if (!confirm('Delete this god?')) return;
-    await del(`/api/gods?id=${id}`);
+    const result = await del(`/api/gods?id=${id}`);
+    if (result.error) { alert(result.error); return; }
     onRefresh();
   };
 
@@ -235,7 +347,6 @@ function GodsPanel({ gods, onRefresh }) {
         </div>
       )}
 
-      {/* Role filter */}
       <div className="flex flex-wrap gap-1 mb-3">
         {['All', ...GOD_ROLES].map((r) => (
           <button key={r} onClick={() => setFilterRole(r)}

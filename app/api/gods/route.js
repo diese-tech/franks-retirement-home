@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
 
-// GET /api/gods — list all, optional ?role=Mage
+const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const role = searchParams.get('role');
@@ -22,13 +23,9 @@ export async function GET(request) {
   }
 }
 
-// POST /api/gods — create or update
-// Body: { id?, name, role, godClass }
 export async function POST(request) {
   let body;
-  try {
-    body = await request.json();
-  } catch {
+  try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
@@ -46,13 +43,9 @@ export async function POST(request) {
 
   try {
     if (id) {
-      const god = await prisma.god.update({
-        where: { id },
-        data: { name: name.trim(), role, godClass },
-      });
+      const god = await prisma.god.update({ where: { id }, data: { name: name.trim(), role, godClass } });
       return NextResponse.json(god);
     }
-
     const god = await prisma.god.create({ data: { name: name.trim(), role, godClass } });
     return NextResponse.json(god, { status: 201 });
   } catch {
@@ -60,23 +53,30 @@ export async function POST(request) {
   }
 }
 
-// DELETE /api/gods?id=xxx
 export async function DELETE(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   try {
-    const activePick = await prisma.draftPick.findFirst({
-      where: { godId: id, draft: { status: 'active' } },
+    const activeBan = await prisma.draftBan.findFirst({
+      where: { godId: id, draft: { status: { in: LIVE_STATUSES } } },
     });
-    if (activePick) {
+    if (activeBan) {
       return NextResponse.json(
-        { error: 'Cannot delete a god that is selected in an active draft. Finalize the draft first.' },
+        { error: 'Cannot delete a god that is banned in a live draft.' },
         { status: 409 }
       );
     }
-
+    const activePick = await prisma.draftPick.findFirst({
+      where: { godId: id, draft: { status: { in: LIVE_STATUSES } } },
+    });
+    if (activePick) {
+      return NextResponse.json(
+        { error: 'Cannot delete a god that is picked in a live draft.' },
+        { status: 409 }
+      );
+    }
     await prisma.god.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {

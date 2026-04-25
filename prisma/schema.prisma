@@ -25,16 +25,25 @@ model God {
   createdAt DateTime @default(now())
 
   draftPicks DraftPick[]
+  draftBans  DraftBan[]
 }
 
 model Draft {
-  id        String   @id @default(cuid())
-  name      String   @default("Draft")
-  status    String   @default("pending") // pending, active, complete
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String   @default("Draft")
+  status         String   @default("pending") // pending | lobby | banning | picking | complete | active (legacy)
+  captainAKey    String?  @unique
+  captainBKey    String?  @unique
+  adminKey       String?  @unique
+  captainAReady  Boolean  @default(false)
+  captainBReady  Boolean  @default(false)
+  version        Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   picks DraftPick[]
+  bans  DraftBan[]
+  chats DraftChat[]
 }
 
 model DraftPick {
@@ -51,4 +60,29 @@ model DraftPick {
   god    God?    @relation(fields: [godId], references: [id], onDelete: SetNull)
 
   @@unique([draftId, playerId])
+}
+
+model DraftBan {
+  id        String   @id @default(cuid())
+  draftId   String
+  godId     String
+  team      String   // A or B — which team submitted the ban
+  banOrder  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  god   God   @relation(fields: [godId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, godId])
+}
+
+model DraftChat {
+  id         String   @id @default(cuid())
+  draftId    String
+  team       String   // A | B | admin | spectator
+  senderName String
+  message    String
+  createdAt  DateTime @default(now())
+
+  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 }

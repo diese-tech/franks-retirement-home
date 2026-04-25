@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { PLAYER_ROLES, POINT_RANGE } from '@/lib/constants';
 
-// GET /api/players — list all, optional ?role=Mid filter
+const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const role = searchParams.get('role');
@@ -22,13 +23,9 @@ export async function GET(request) {
   }
 }
 
-// POST /api/players — create or update player
-// Body: { id?, name, role, pointValue }
 export async function POST(request) {
   let body;
-  try {
-    body = await request.json();
-  } catch {
+  try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
@@ -56,7 +53,6 @@ export async function POST(request) {
       });
       return NextResponse.json(player);
     }
-
     const player = await prisma.player.create({
       data: { name: name.trim(), role, pointValue: pv },
     });
@@ -66,7 +62,6 @@ export async function POST(request) {
   }
 }
 
-// DELETE /api/players?id=xxx
 export async function DELETE(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
@@ -74,15 +69,14 @@ export async function DELETE(request) {
 
   try {
     const activePick = await prisma.draftPick.findFirst({
-      where: { playerId: id, draft: { status: 'active' } },
+      where: { playerId: id, draft: { status: { in: LIVE_STATUSES } } },
     });
     if (activePick) {
       return NextResponse.json(
-        { error: 'Cannot delete a player who is part of an active draft. Finalize or remove them from the draft first.' },
+        { error: 'Cannot delete a player who is part of a live draft. Finalize or remove them from the draft first.' },
         { status: 409 }
       );
     }
-
     await prisma.player.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
