@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { evaluateDraft } from '@/lib/rules';
 import { ROLE_COLORS, PLAYER_ROLES } from '@/lib/constants';
 
 export default function PendingView({ state, role, draftId }) {
@@ -10,10 +9,9 @@ export default function PendingView({ state, role, draftId }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const { picks, players, gods } = state;
+  const { picks, players } = state;
   const isAdmin = role === 'admin';
 
-  const evaluation = useMemo(() => evaluateDraft(picks), [picks]);
   const draftedIds = useMemo(() => new Set(picks.map((p) => p.playerId)), [picks]);
 
   const available = useMemo(() => {
@@ -83,7 +81,7 @@ export default function PendingView({ state, role, draftId }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_180px_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_1fr] gap-4">
         {/* Player Pool */}
         <div className="card max-h-[75vh] flex flex-col overflow-hidden">
           <h3 className="font-display font-bold text-xs uppercase tracking-wider text-gray-400 mb-2">Player Pool</h3>
@@ -112,7 +110,6 @@ export default function PendingView({ state, role, draftId }) {
                       <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[player.role]}`}>{player.role}</span>
                     </div>
                   </div>
-                  <span className="font-mono text-xs text-gold-400 font-bold w-5 text-center">{player.pointValue}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => addPlayer(player.id, 'A')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">A</button>
                     <button onClick={() => addPlayer(player.id, 'B')} className="px-1.5 py-0.5 text-[10px] font-display font-bold uppercase rounded bg-red-500/15 text-red-400 hover:bg-red-500/25">B</button>
@@ -126,23 +123,10 @@ export default function PendingView({ state, role, draftId }) {
         </div>
 
         {/* Team A */}
-        <TeamColumn team="A" picks={evaluation.teamA.picks} onRemove={removePlayer} />
-
-        {/* Scoreboard */}
-        <div className="card text-center">
-          <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-1">Point Diff</div>
-          <div className={`font-mono text-4xl font-bold ${evaluation.diff >= 3 ? 'text-red-400' : evaluation.diff >= 2 ? 'text-yellow-400' : 'text-green-400'}`}>
-            {evaluation.diff}
-          </div>
-          <div className="flex items-center justify-center gap-3 mt-3 text-xs font-mono">
-            <span className="text-blue-400">{evaluation.teamA.points} A</span>
-            <span className="text-gray-600">vs</span>
-            <span className="text-red-400">{evaluation.teamB.points} B</span>
-          </div>
-        </div>
+        <TeamColumn team="A" picks={picks.filter((p) => p.team === 'A')} onRemove={removePlayer} />
 
         {/* Team B */}
-        <TeamColumn team="B" picks={evaluation.teamB.picks} onRemove={removePlayer} />
+        <TeamColumn team="B" picks={picks.filter((p) => p.team === 'B')} onRemove={removePlayer} />
       </div>
     </div>
   );
@@ -172,12 +156,9 @@ function TeamColumn({ team, picks, onRemove }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="font-display font-semibold text-sm text-gray-200 truncate">{pick.player?.name}</span>
-                  <span className="text-[9px] font-mono text-gray-500 uppercase">{pick.player?.role}</span>
+                  <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[pick.player?.role] ?? ''}`}>{pick.player?.role}</span>
                 </div>
               </div>
-              <span className={`shrink-0 w-7 h-7 rounded flex items-center justify-center font-mono font-bold text-xs ${accentBg} ${accent}`}>
-                {pick.player?.pointValue}
-              </span>
               <button onClick={() => onRemove(pick.id)}
                 className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
                 ✕

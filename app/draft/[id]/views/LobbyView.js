@@ -144,7 +144,6 @@ export default function LobbyView({ state, role, callApi }) {
                         <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[player.role]}`}>{player.role}</span>
                       </div>
                     </div>
-                    <span className="font-mono text-xs text-gold-400 font-bold">{player.pointValue} pts</span>
                   </button>
                 ))}
             </div>
@@ -194,9 +193,6 @@ function TeamRoster({ team, picks, myTeam, isAdmin, onSwap }) {
                 <span className="text-[9px] font-mono text-gray-500 uppercase">{pick.player?.role}</span>
               </div>
             </div>
-            <span className={`shrink-0 w-7 h-7 rounded flex items-center justify-center font-mono font-bold text-xs ${accentBg} ${accent}`}>
-              {pick.player?.pointValue}
-            </span>
             {canSwap && (
               <button onClick={() => onSwap(pick)}
                 className="shrink-0 px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase text-frost-400 border border-frost-500/30 hover:bg-frost-500/10 transition-colors">
