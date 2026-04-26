@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
 
@@ -8,11 +8,65 @@ async function api(url, opts) { const r = await fetch(url, opts); return r.json(
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 function del(url) { return api(url, { method: 'DELETE' }); }
 
+function PasswordGate({ onAuthed }) {
+  const [pw, setPw] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    const res = await fetch('/api/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (res.ok) {
+      sessionStorage.setItem('frh_admin', '1');
+      onAuthed();
+    } else {
+      setError('Incorrect password');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="card w-full max-w-sm">
+        <h1 className="font-display font-bold text-lg uppercase tracking-wider text-gray-200 mb-1">Admin Access</h1>
+        <p className="text-sm text-gray-500 mb-6">Enter the admin password to continue.</p>
+        <form onSubmit={submit} className="space-y-4">
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            placeholder="Password"
+            className="input-field w-full"
+            autoFocus
+          />
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <button type="submit" disabled={busy || !pw} className="btn-primary w-full">
+            {busy ? 'Checking…' : 'Enter'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminClient({ initialPlayers, initialGods, initialDrafts }) {
+  const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
   const [drafts, setDrafts] = useState(initialDrafts);
   const [tab, setTab] = useState('drafts');
+
+  useEffect(() => {
+    if (sessionStorage.getItem('frh_admin') === '1') setAuthed(true);
+  }, []);
+
+  if (!authed) return <PasswordGate onAuthed={() => setAuthed(true)} />;
 
   const refreshPlayers = async () => setPlayers(await api('/api/players'));
   const refreshGods = async () => setGods(await api('/api/gods'));
