@@ -4,6 +4,15 @@ import { STATUS_COLORS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
+const BORDER_ACCENT = {
+  pending:  'border-yellow-500/60',
+  lobby:    'border-blue-500/60',
+  banning:  'border-orange-500/60',
+  picking:  'border-green-500/60',
+  active:   'border-green-500/60',
+  complete: 'border-gray-600/60',
+};
+
 export default async function HomePage() {
   const drafts = await prisma.draft.findMany({ orderBy: { createdAt: 'desc' } });
 
@@ -38,28 +47,32 @@ export default async function HomePage() {
           <Link href="/admin" className="btn-primary">Go to Admin</Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {drafts.map((draft) => (
-            <Link
-              key={draft.id}
-              href={`/draft/${draft.id}`}
-              className="card flex items-center justify-between hover:border-frost-500/30 transition-all group"
-            >
-              <div>
-                <h3 className="font-display font-semibold text-lg text-gray-200 group-hover:text-frost-400 transition-colors">
-                  {draft.name}
-                </h3>
-                <p className="text-xs text-gray-500 font-mono mt-0.5">
-                  {new Date(draft.createdAt).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                  })}
-                </p>
-              </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-display font-bold uppercase tracking-wider border ${STATUS_COLORS[draft.status]}`}>
-                {draft.status}
-              </span>
-            </Link>
-          ))}
+        <div className="divide-y divide-brand-700/30">
+          {drafts.map((draft) => {
+            const statusClass = STATUS_COLORS[draft.status] ?? STATUS_COLORS.pending;
+            const borderAccent = BORDER_ACCENT[draft.status] ?? 'border-gray-600/60';
+            return (
+              <Link
+                key={draft.id}
+                href={`/draft/${draft.id}`}
+                className={`group flex items-center gap-5 border-l-4 pl-5 py-4 pr-3 transition-all hover:bg-brand-800/40 ${borderAccent}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display font-bold text-lg text-gray-200 group-hover:text-frost-400 transition-colors truncate leading-tight">
+                    {draft.name}
+                  </h3>
+                  <p className="text-[11px] text-gray-600 font-mono mt-0.5">
+                    {new Date(draft.createdAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <span className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded text-[10px] font-display font-bold uppercase tracking-wider border ${statusClass}`}>
+                  {draft.status}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

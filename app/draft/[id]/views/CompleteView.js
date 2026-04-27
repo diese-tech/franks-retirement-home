@@ -1,6 +1,7 @@
 'use client';
 
 import { ROLE_COLORS } from '@/lib/constants';
+import GodImage from '@/components/GodImage';
 
 export default function CompleteView({ state }) {
   const { picks, bans } = state;
@@ -40,7 +41,7 @@ function FinalTeam({ team, picks }) {
   const isA = team === 'A';
   const accent = isA ? 'text-blue-400' : 'text-red-400';
   const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
-  const colBg = isA ? 'bg-[#0d1225]' : 'bg-[#1a0d0d]';
+  const colBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
 
   return (
     <div className={`rounded-xl border ${borderColor} ${colBg} overflow-hidden`}>
@@ -58,9 +59,13 @@ function FinalTeam({ team, picks }) {
                 <span className="font-display font-semibold text-sm text-gray-200 truncate">{pick.player?.name}</span>
                 <span className={`text-[9px] font-display font-bold uppercase px-1 py-0.5 rounded ${ROLE_COLORS[pick.player?.role]}`}>{pick.player?.role}</span>
               </div>
-              <div className="text-xs text-gray-400 mt-0.5">
-                {pick.god ? <>{pick.god.name} <span className="text-gray-600">({pick.god.role})</span></> : <span className="text-gray-600">No god selected</span>}
-              </div>
+              {pick.god
+                ? <div className="flex items-center gap-1.5 mt-0.5">
+                    <GodImage godId={pick.god.id} name={pick.god.name} size={20} className="rounded-sm" />
+                    <span className="text-xs text-gray-400">{pick.god.name} <span className="text-gray-600">({pick.god.role})</span></span>
+                  </div>
+                : <div className="text-xs text-gray-600 mt-0.5">No god selected</div>
+              }
             </div>
           </div>
         ))}

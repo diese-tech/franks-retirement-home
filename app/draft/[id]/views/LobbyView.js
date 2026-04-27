@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ROLE_COLORS, PLAYER_ROLES } from '@/lib/constants';
+import RoleFilter from '@/components/RoleFilter';
 
 export default function LobbyView({ state, role, callApi }) {
   const { draft, picks, players } = state;
@@ -57,17 +58,27 @@ export default function LobbyView({ state, role, callApi }) {
 
   const imReady = role === 'captainA' ? draft.captainAReady : role === 'captainB' ? draft.captainBReady : false;
 
+  const bothReady = draft.captainAReady && draft.captainBReady;
+
   return (
     <div>
-      {/* Ready status bar */}
-      <div className="flex items-center gap-4 mb-6 p-4 bg-brand-800/60 border border-brand-600/30 rounded-xl">
-        <ReadyBadge label="Captain Alpha" ready={draft.captainAReady} />
-        <div className="flex-1 text-center text-xs text-gray-600 font-display uppercase tracking-wider">
-          {draft.captainAReady && draft.captainBReady
-            ? 'Both ready — starting draft…'
-            : 'Waiting for both captains to ready up'}
+      {/* Ceremony ready bar */}
+      <div className="mb-8">
+        <div className="grid grid-cols-2 gap-px bg-brand-700/30 rounded-xl overflow-hidden mb-4">
+          <CeremonySlot
+            team="A"
+            ready={draft.captainAReady}
+            highlight={myTeam === 'A' || isAdmin}
+          />
+          <CeremonySlot
+            team="B"
+            ready={draft.captainBReady}
+            highlight={myTeam === 'B' || isAdmin}
+          />
         </div>
-        <ReadyBadge label="Captain Bravo" ready={draft.captainBReady} />
+        <div className={`text-center font-display text-xs uppercase tracking-widest transition-colors ${bothReady ? 'text-green-400 animate-pulse' : 'text-gray-600'}`}>
+          {bothReady ? 'Both ready — starting draft…' : 'Waiting for both captains to ready up'}
+        </div>
       </div>
 
       {error && (
@@ -124,13 +135,8 @@ export default function LobbyView({ state, role, callApi }) {
               onChange={(e) => setSwapSearch(e.target.value)}
               className="input-field mb-2 text-xs w-full"
             />
-            <div className="flex flex-wrap gap-1 mb-3">
-              {['All', ...PLAYER_ROLES].map((r) => (
-                <button key={r} onClick={() => setSwapFilter(r)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
-                    swapFilter === r ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
-                  }`}>{r}</button>
-              ))}
+            <div className="mb-3">
+              <RoleFilter options={['All', ...PLAYER_ROLES]} value={swapFilter} onChange={setSwapFilter} />
             </div>
             <div className="max-h-64 overflow-y-auto space-y-1">
               {freeAgents.length === 0
@@ -154,13 +160,26 @@ export default function LobbyView({ state, role, callApi }) {
   );
 }
 
-function ReadyBadge({ label, ready }) {
+function CeremonySlot({ team, ready, highlight }) {
+  const isA = team === 'A';
+  const teamAccent = isA ? 'text-blue-400' : 'text-red-400';
+  const teamBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
+
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${ready ? 'bg-green-500/10 border-green-500/30' : 'bg-brand-900 border-brand-600/30'}`}>
-      <span className={`w-2 h-2 rounded-full ${ready ? 'bg-green-400' : 'bg-gray-600'}`} />
-      <span className={`font-display font-bold text-xs uppercase tracking-wider ${ready ? 'text-green-400' : 'text-gray-500'}`}>
-        {label}: {ready ? 'Ready' : 'Waiting'}
-      </span>
+    <div className={`${teamBg} px-6 py-6 flex flex-col items-center gap-3 ${highlight ? '' : 'opacity-70'}`}>
+      <div className={`font-display font-black text-2xl uppercase tracking-wider ${teamAccent}`}>
+        Team {isA ? 'Alpha' : 'Bravo'}
+      </div>
+      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all
+        ${ready
+          ? 'bg-green-500/15 border-green-500/40 ring-1 ring-green-500/20'
+          : `bg-brand-900/60 border-brand-600/30`
+        }`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+        <span className={`font-display font-bold text-[11px] uppercase tracking-widest ${ready ? 'text-green-400' : 'text-gray-500'}`}>
+          {ready ? 'Ready' : 'Waiting'}
+        </span>
+      </div>
     </div>
   );
 }
@@ -170,7 +189,7 @@ function TeamRoster({ team, picks, myTeam, isAdmin, onSwap }) {
   const accent = isA ? 'text-blue-400' : 'text-red-400';
   const accentBg = isA ? 'bg-blue-500/15' : 'bg-red-500/15';
   const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
-  const colBg = isA ? 'bg-[#0d1225]' : 'bg-[#1a0d0d]';
+  const colBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
   const canSwap = isAdmin || myTeam === team;
 
   return (

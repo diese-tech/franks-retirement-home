@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ROLE_COLORS, PLAYER_ROLES } from '@/lib/constants';
+import RoleFilter from '@/components/RoleFilter';
 
 export default function PendingView({ state, role, draftId }) {
   const [roleFilter, setRoleFilter] = useState('All');
@@ -91,13 +92,8 @@ export default function PendingView({ state, role, draftId }) {
             onChange={(e) => setSearch(e.target.value)}
             className="input-field mb-2 text-xs"
           />
-          <div className="flex flex-wrap gap-1 mb-2">
-            {['All', ...PLAYER_ROLES].map((r) => (
-              <button key={r} onClick={() => setRoleFilter(r)}
-                className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
-                  roleFilter === r ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
-                }`}>{r}</button>
-            ))}
+          <div className="mb-2">
+            <RoleFilter options={['All', ...PLAYER_ROLES]} value={roleFilter} onChange={setRoleFilter} />
           </div>
           <div className="flex-1 overflow-y-auto space-y-1 pr-1">
             {available.length === 0
@@ -137,7 +133,7 @@ function TeamColumn({ team, picks, onRemove }) {
   const accent = isA ? 'text-blue-400' : 'text-red-400';
   const accentBg = isA ? 'bg-blue-500/15' : 'bg-red-500/15';
   const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
-  const colBg = isA ? 'bg-[#0d1225]' : 'bg-[#1a0d0d]';
+  const colBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
 
   return (
     <div className={`rounded-xl border ${borderColor} ${colBg} overflow-hidden`}>

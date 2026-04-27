@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
+import RoleFilter from '@/components/RoleFilter';
 
 async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -328,13 +329,8 @@ function PlayersPanel({ players, onRefresh }) {
       )}
 
       {divisions.length > 1 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {divisions.map((d) => (
-            <button key={d} onClick={() => setFilterDiv(d)}
-              className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
-                filterDiv === d ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
-              }`}>{d}</button>
-          ))}
+        <div className="mb-3">
+          <RoleFilter options={divisions} value={filterDiv} onChange={setFilterDiv} />
         </div>
       )}
 
@@ -590,13 +586,8 @@ function GodsPanel({ gods, onRefresh }) {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1 mb-3">
-        {['All', ...GOD_ROLES].map((r) => (
-          <button key={r} onClick={() => setFilterRole(r)}
-            className={`px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase tracking-wider transition-colors ${
-              filterRole === r ? 'bg-frost-500/20 text-frost-400 border border-frost-500/40' : 'bg-brand-700/50 text-gray-500 border border-transparent hover:text-gray-300'
-            }`}>{r}</button>
-        ))}
+      <div className="mb-3">
+        <RoleFilter options={['All', ...GOD_ROLES]} value={filterRole} onChange={setFilterRole} />
       </div>
 
       <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
