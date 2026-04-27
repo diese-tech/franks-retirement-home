@@ -72,3 +72,64 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Failed to submit ban' }, { status: 500 });
   }
 }
+
+export async function DELETE(request, { params }) {
+  const { id } = await params;
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { key, banId } = body;
+  if (!banId) return NextResponse.json({ error: 'banId required' }, { status: 400 });
+
+  try {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+
+    const role = resolveRole(key, draft);
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can undo bans' }, { status: 403 });
+    }
+
+    const ban = await prisma.draftBan.findFirst({
+      where: { id: banId, draftId: id },
+    });
+    if (!ban) return NextResponse.json({ error: 'Ban not found' }, { status: 404 });
+
+    const completedPicks = await prisma.draftPick.count({
+      where: { draftId: id, godId: { not: null } },
+    });
+    if (completedPicks > 0) {
+      return NextResponse.json({ error: 'Undo picks before rewinding bans' }, { status: 400 });
+    }
+
+    const remaining = await prisma.draftBan.findMany({
+      where: { draftId: id, id: { not: banId } },
+      orderBy: { banOrder: 'asc' },
+    });
+
+    const updates = remaining.map((item, index) =>
+      prisma.draftBan.update({
+        where: { id: item.id },
+        data: { banOrder: index },
+      })
+    );
+
+    await prisma.$transaction([
+      prisma.draftBan.delete({ where: { id: banId } }),
+      ...updates,
+      prisma.draft.update({
+        where: { id },
+        data: {
+          status: 'banning',
+          version: { increment: 1 },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'Failed to undo ban' }, { status: 500 });
+  }
+}

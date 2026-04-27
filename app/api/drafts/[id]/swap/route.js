@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
+import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export async function POST(request, { params }) {
       }),
       prisma.draft.update({ where: { id }, data: { version: { increment: 1 } } }),
     ]);
+    await syncDraftLobbyState(id);
 
     return NextResponse.json({ ok: true });
   } catch {

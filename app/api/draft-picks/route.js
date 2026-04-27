@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { TEAMS } from '@/lib/constants';
+import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 
 // Active-ish statuses where picks are locked into a live draft
 const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
@@ -72,6 +73,7 @@ export async function POST(request) {
         where: { id: pick.draftId },
         data: { version: { increment: 1 } },
       });
+      await syncDraftLobbyState(pick.draftId);
 
       return NextResponse.json(pick);
     }
@@ -94,6 +96,7 @@ export async function POST(request) {
       where: { id: draftId },
       data: { version: { increment: 1 } },
     });
+    await syncDraftLobbyState(draftId);
 
     return NextResponse.json(pick, { status: 201 });
   } catch (e) {
@@ -114,12 +117,14 @@ export async function DELETE(request) {
     if (clear === 'true' && draftId) {
       await prisma.draftPick.deleteMany({ where: { draftId } });
       await prisma.draft.update({ where: { id: draftId }, data: { version: { increment: 1 } } });
+      await syncDraftLobbyState(draftId);
       return NextResponse.json({ ok: true, cleared: draftId });
     }
 
     if (id) {
       const pick = await prisma.draftPick.delete({ where: { id } });
       await prisma.draft.update({ where: { id: pick.draftId }, data: { version: { increment: 1 } } });
+      await syncDraftLobbyState(pick.draftId);
       return NextResponse.json({ ok: true });
     }
 

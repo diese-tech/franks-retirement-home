@@ -33,9 +33,9 @@ export async function POST(request) {
           prisma.draftPick.count({ where: { draftId: body.id, team: 'A' } }),
           prisma.draftPick.count({ where: { draftId: body.id, team: 'B' } }),
         ]);
-        if (countA !== 5 || countB !== 5) {
+        if (countA < 1 || countB < 1) {
           return NextResponse.json(
-            { error: `Each team must have exactly 5 players before opening the lobby (Team A: ${countA}, Team B: ${countB})` },
+            { error: `Both teams need at least one player before opening the lobby (Team A: ${countA}, Team B: ${countB})` },
             { status: 400 }
           );
         }

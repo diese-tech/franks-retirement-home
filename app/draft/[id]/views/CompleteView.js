@@ -4,10 +4,11 @@ import { ROLE_COLORS } from '@/lib/constants';
 import GodImage from '@/components/GodImage';
 
 export default function CompleteView({ state }) {
-  const { picks, bans } = state;
+  const { picks, bans, gods, usedGodIds = [] } = state;
 
   const teamA = picks.filter((p) => p.team === 'A').sort((a, b) => a.pickOrder - b.pickOrder);
   const teamB = picks.filter((p) => p.team === 'B').sort((a, b) => a.pickOrder - b.pickOrder);
+  const vaultedGods = gods.filter((god) => usedGodIds.includes(god.id));
 
   return (
     <div className="space-y-4">
@@ -22,6 +23,20 @@ export default function CompleteView({ state }) {
                 <span className={`ml-1.5 text-[9px] font-bold ${ban.team === 'A' ? 'text-blue-500' : 'text-red-500'}`}>
                   {ban.team === 'A' ? 'α' : 'β'}
                 </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {vaultedGods.length > 0 && (
+        <div className="card">
+          <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2">Vaulted Gods</div>
+          <div className="flex flex-wrap gap-2">
+            {vaultedGods.map((god) => (
+              <span key={god.id} className="inline-flex items-center gap-2 px-2 py-1 rounded bg-gold-500/10 border border-gold-500/20 text-xs text-gray-300 font-display">
+                <GodImage godId={god.id} name={god.name} size={18} className="rounded-sm" />
+                {god.name}
               </span>
             ))}
           </div>

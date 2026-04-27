@@ -66,11 +66,16 @@ export async function POST(request, { params }) {
     const god = await prisma.god.findUnique({ where: { id: godId } });
     if (!god) return NextResponse.json({ error: 'God not found' }, { status: 404 });
 
+    const draftUsedGodIds = Array.isArray(draft.usedGodIds) ? draft.usedGodIds : [];
+
     if (bans.some((b) => b.godId === godId)) {
       return NextResponse.json({ error: 'That god is banned' }, { status: 409 });
     }
     if (allPicks.some((p) => p.godId === godId)) {
       return NextResponse.json({ error: 'That god is already picked' }, { status: 409 });
+    }
+    if (draftUsedGodIds.includes(godId)) {
+      return NextResponse.json({ error: 'That god was already used earlier in this set' }, { status: 409 });
     }
 
     const newCompletedPicks = completedPicks + 1;
@@ -79,6 +84,7 @@ export async function POST(request, { params }) {
       prisma.draft.update({
         where: { id },
         data: {
+          usedGodIds: [...draftUsedGodIds, godId],
           version: { increment: 1 },
           ...(newCompletedPicks === TOTAL_PICKS ? { status: 'complete' } : {}),
         },
@@ -88,5 +94,53 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to submit pick' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const { id } = await params;
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const { key, pickId } = body;
+  if (!pickId) return NextResponse.json({ error: 'pickId required' }, { status: 400 });
+
+  try {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+
+    const role = resolveRole(key, draft);
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can undo picks' }, { status: 403 });
+    }
+
+    const pick = await prisma.draftPick.findFirst({
+      where: { id: pickId, draftId: id },
+    });
+    if (!pick) return NextResponse.json({ error: 'Pick not found' }, { status: 404 });
+    if (!pick.godId) return NextResponse.json({ error: 'Pick has no assigned god' }, { status: 400 });
+
+    const draftUsedGodIds = Array.isArray(draft.usedGodIds) ? draft.usedGodIds : [];
+
+    await prisma.$transaction([
+      prisma.draftPick.update({
+        where: { id: pickId },
+        data: { godId: null },
+      }),
+      prisma.draft.update({
+        where: { id },
+        data: {
+          status: 'picking',
+          usedGodIds: draftUsedGodIds.filter((godId) => godId !== pick.godId),
+          version: { increment: 1 },
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'Failed to undo pick' }, { status: 500 });
   }
 }

@@ -35,7 +35,8 @@ export default function DraftClient({ initialState, role, draftKey }) {
     es.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === 'state') {
-        setState({ draft: data.draft, picks: data.picks, bans: data.bans, chats: data.chats, players: data.players, gods: data.gods });
+        const { type, ...nextState } = data;
+        setState(nextState);
       }
     };
     // EventSource auto-reconnects on error
@@ -43,9 +44,9 @@ export default function DraftClient({ initialState, role, draftKey }) {
   }, [draftId]);
 
   // Shared helper for captain/admin actions — POSTs with key, then immediately refreshes state
-  const callApi = useCallback(async (endpoint, body = {}) => {
+  const callApi = useCallback(async (endpoint, body = {}, method = 'POST') => {
     const res = await fetch(`/api/drafts/${draftId}/${endpoint}`, {
-      method: 'POST',
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: draftKey, ...body }),
     });
@@ -54,6 +55,26 @@ export default function DraftClient({ initialState, role, draftKey }) {
     await refreshState();
     return data;
   }, [draftId, draftKey, refreshState]);
+
+  const runAdminAction = useCallback(async (action) => {
+    const res = await fetch(`/api/drafts/${draftId}/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: draftKey, action }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    await refreshState();
+    return data;
+  }, [draftId, draftKey, refreshState]);
+
+  const handleAdminAction = useCallback(async (action) => {
+    try {
+      await runAdminAction(action);
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }, [runAdminAction]);
 
   // Admin-only: direct status transition (used in header controls)
   const setStatus = useCallback(async (status) => {
@@ -88,6 +109,12 @@ export default function DraftClient({ initialState, role, draftKey }) {
         {/* Admin-only status controls */}
         {role === 'admin' && (
           <div className="flex items-center gap-2">
+            {status === 'complete' && (
+              <button onClick={() => handleAdminAction('nextGame')} className="btn-secondary text-xs">Next Game</button>
+            )}
+            {(status === 'lobby' || status === 'banning' || status === 'picking' || status === 'complete') && (
+              <button onClick={() => handleAdminAction('resetDraft')} className="btn-secondary text-xs">Reset Draft</button>
+            )}
             {status === 'complete' && (
               <button onClick={() => setStatus('picking')} className="btn-secondary text-xs">Reopen Draft</button>
             )}

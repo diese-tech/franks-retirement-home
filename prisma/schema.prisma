@@ -39,6 +39,7 @@ model Draft {
   adminKey       String?  @unique
   captainAReady  Boolean  @default(false)
   captainBReady  Boolean  @default(false)
+  usedGodIds     Json     @default("[]")
   version        Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
