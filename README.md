@@ -301,6 +301,14 @@ npm run db:studio    # Prisma Studio (visual DB editor)
 
 ---
 
+## Required AI Workflow Review
+
+Before beginning AI-assisted implementation, debugging, refactoring, migration, or production fix work in this repository, review [docs/AI_WORKFLOW_GUARDRAILS.md](./docs/AI_WORKFLOW_GUARDRAILS.md).
+
+Default behavior: smallest safe change, lowest blast radius, no unrelated file edits, no speculative rewrites, and explicit consideration of scale, queues, caching, indexes, retries, idempotency, rollback, and operational safety.
+
+---
+
 ## License
 
 MIT — use freely for your league.
