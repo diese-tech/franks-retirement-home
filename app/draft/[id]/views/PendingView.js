@@ -24,7 +24,7 @@ export default function PendingView({ state, role, draftId }) {
 
   const teamACount = picks.filter((pick) => pick.team === 'A').length;
   const teamBCount = picks.filter((pick) => pick.team === 'B').length;
-  const canAutoStart = teamACount > 0 && teamBCount > 0;
+  const canAutoStart = teamACount === 5 && teamBCount === 5;
 
   const addPlayer = async (playerId, team) => {
     await fetch('/api/draft-picks', {
@@ -56,10 +56,10 @@ export default function PendingView({ state, role, draftId }) {
         </span>
         <div className="ml-auto text-right">
           <div className={`text-xs font-display font-semibold uppercase tracking-wider ${canAutoStart ? 'text-green-400' : 'text-gray-500'}`}>
-            {canAutoStart ? 'Lobby opens automatically' : 'Add at least one player to both teams'}
+            {canAutoStart ? 'Lobby opens automatically at 5v5' : 'Both teams must be exactly 5 players'}
           </div>
           <div className="text-[10px] text-gray-600">
-            The draft moves to the lobby as soon as both rosters are loaded.
+            The draft moves to the lobby only when Team Alpha and Team Bravo both reach full 5-player rosters.
           </div>
         </div>
       </div>

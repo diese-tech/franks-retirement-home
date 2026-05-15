@@ -6,8 +6,8 @@ import { currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
 export const dynamic = 'force-dynamic';
 
 // POST /api/drafts/[id]/pick
-// Body: { key, pickId, godId }
-// Assigns a god to a player's DraftPick during the picking phase.
+// Body: { key, godId } with optional { pickId } for legacy/admin callers
+// Assigns a god to the active team's next unfilled DraftPick during the picking phase.
 export async function POST(request, { params }) {
   const { id } = await params;
   let body;
@@ -16,8 +16,8 @@ export async function POST(request, { params }) {
   }
 
   const { key, pickId, godId } = body;
-  if (!pickId || !godId) {
-    return NextResponse.json({ error: 'pickId and godId required' }, { status: 400 });
+  if (!godId) {
+    return NextResponse.json({ error: 'godId required' }, { status: 400 });
   }
 
   try {
@@ -50,7 +50,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "It's not your turn to pick" }, { status: 403 });
     }
 
-    const pick = allPicks.find((p) => p.id === pickId);
+    const derivedPick = allPicks.find((pick) => pick.team === expectedTeam && pick.godId === null);
+    const pick = pickId
+      ? allPicks.find((currentPick) => currentPick.id === pickId)
+      : derivedPick;
     if (!pick) return NextResponse.json({ error: 'Pick not found' }, { status: 404 });
     if (pick.draftId !== id) return NextResponse.json({ error: 'Pick does not belong to this draft' }, { status: 400 });
     if (role === 'captainA' && pick.team !== 'A') {
@@ -61,6 +64,9 @@ export async function POST(request, { params }) {
     }
     if (pick.godId !== null) {
       return NextResponse.json({ error: 'Player already has a god assigned' }, { status: 409 });
+    }
+    if (pick.team !== expectedTeam) {
+      return NextResponse.json({ error: 'Pick does not match the active team' }, { status: 409 });
     }
 
     const god = await prisma.god.findUnique({ where: { id: godId } });

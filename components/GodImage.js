@@ -2,9 +2,11 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { getGodIconUrl } from '@/lib/godArt';
 
-export default function GodImage({ godId, name, size = 48, className = '' }) {
+export default function GodImage({ godId, name, size = 48, className = '', god = null }) {
   const [error, setError] = useState(false);
+  const godMeta = god ?? { id: godId, name };
 
   if (error) {
     return (
@@ -19,7 +21,7 @@ export default function GodImage({ godId, name, size = 48, className = '' }) {
 
   return (
     <Image
-      src={`https://www.smitefire.com/images/v2/god/icon/${godId}.png`}
+      src={getGodIconUrl(godMeta)}
       alt={name ?? godId}
       width={size}
       height={size}
