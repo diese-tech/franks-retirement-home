@@ -72,7 +72,7 @@ pending → lobby → banning → picking → complete
 | `lobby`   | Admin + captains           | Captains can swap players; click **Ready Up** to start|
 | `banning` | Captains take turns        | 6 bans total (A→B→A→B→A→B), 3 per team               |
 | `picking` | Captains take turns (snake)| 10 god picks (A→B→B→A→A→B→B→A→A→B), 5 per team       |
-| `complete`| Read-only for all          | Final rosters, balance score, banned gods summary     |
+| `complete`| Read-only for all          | Final rosters, banned gods, picks per player          |
 
 **Auto-transitions:** banning→picking fires when 6th ban is submitted; picking→complete fires when 10th god is assigned. No admin action required.
 
@@ -137,11 +137,12 @@ franks-retirement-home/
 │           └── chat/route.js         # Send chat message
 ├── lib/
 │   ├── db.js                         # Prisma singleton
-│   ├── rules.js                      # Balance + penalty engine
 │   ├── constants.js                  # Roles, statuses, color maps
 │   ├── draftOrder.js                 # BAN_ORDER, PICK_ORDER sequences
 │   ├── draftAuth.js                  # resolveRole() — key → role mapping
-│   └── draftState.js                 # buildDraftState() — shared state builder
+│   ├── draftLifecycle.js             # Status transitions / auto-promotions
+│   ├── draftState.js                 # buildDraftState() — shared state builder
+│   └── godArt.js                     # External god artwork URL builders
 ├── prisma/
 │   ├── schema.prisma
 │   └── seed.mjs
@@ -186,10 +187,10 @@ franks-retirement-home/
 ## Database Schema
 
 ```
-Player:    id, name, role (Solo|Jungle|Mid|Support|Carry), pointValue, createdAt
+Player:    id, name, role (Solo|Jungle|Mid|Support|Carry|Fill), discordUsername?, division?, createdAt
 God:       id, name, role (Warrior|Assassin|Mage|Guardian|Hunter), godClass, createdAt
 Draft:     id, name, status, captainAKey, captainBKey, adminKey,
-           captainAReady, captainBReady, version, createdAt, updatedAt
+           captainAReady, captainBReady, usedGodIds, version, createdAt, updatedAt
 DraftPick: id, draftId, playerId, team (A|B), godId?, pickOrder, createdAt
 DraftBan:  id, draftId, godId, team (A|B), banOrder, createdAt
 DraftChat: id, draftId, team (A|B|admin|spectator), senderName, message, createdAt
@@ -253,9 +254,14 @@ The app works correctly on Hobby — `EventSource` auto-reconnects and receives 
 
 ## Customization
 
-### Change Penalty Threshold
+### Cross-Game God Vault
 
-`lib/rules.js` → `if (diff < 3)` → change `3` to your desired point gap.
+Each `Draft` carries a `usedGodIds` array. Whenever a god is picked, its id is appended; subsequent picks in the same draft set are blocked from re-using that god. Admin actions:
+
+- `nextGame` — clears bans and pick assignments, **keeps** `usedGodIds` (the vault carries over).
+- `resetDraft` — also clears `usedGodIds` (fresh slate).
+
+If you don't want this behavior, remove the `usedGodIds.includes(godId)` check in `app/api/drafts/[id]/pick/route.js`.
 
 ### Add New Gods
 
@@ -264,10 +270,6 @@ Use the Admin panel UI or add to `prisma/seed.mjs`.
 ### Modify Ban/Pick Order
 
 `lib/draftOrder.js` → edit `BAN_ORDER` or `PICK_ORDER` arrays.
-
-### Change Balance Rules
-
-`lib/rules.js` → add a function + push it into the `RULES` array.
 
 ---
 
