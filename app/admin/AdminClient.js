@@ -64,7 +64,25 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   const [tab, setTab] = useState('drafts');
 
   useEffect(() => {
-    if (sessionStorage.getItem('frh_admin') === '1') setAuthed(true);
+    if (sessionStorage.getItem('frh_admin') !== '1') return;
+    // Sanity-check the cookie is still valid. The sessionStorage flag is a
+    // UI hint only — when ADMIN_AUTH_REQUIRED is on, the cookie may have
+    // expired (12h TTL) while the flag persists.
+    let cancelled = false;
+    fetch('/api/admin-auth', { method: 'GET' })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 401) {
+          sessionStorage.removeItem('frh_admin');
+          setAuthed(false);
+        } else {
+          setAuthed(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAuthed(true);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   if (!authed) return <PasswordGate onAuthed={() => setAuthed(true)} />;

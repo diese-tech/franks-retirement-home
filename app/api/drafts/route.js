@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
+import { requireAdmin } from '@/lib/adminSession';
 
 export async function GET() {
   try {
@@ -15,6 +16,9 @@ export async function GET() {
 // Create body: { name? }
 // Status update body: { id, status }
 export async function POST(request) {
+  const guard = requireAdmin(request);
+  if (guard) return guard;
+
   let body;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -66,6 +70,9 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const guard = requireAdmin(request);
+  if (guard) return guard;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
