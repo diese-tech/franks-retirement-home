@@ -5,3 +5,8 @@ node_modules/
 .claude/
 *.db
 *.db-journal
+
+# Local-only MCP / tooling config (issue #16). Each developer is responsible
+# for their own MCP servers; do not commit project-specific MCP routing.
+.mcp.json
+.mcp.local.json

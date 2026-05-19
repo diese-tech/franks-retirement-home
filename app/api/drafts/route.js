@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
@@ -79,9 +80,9 @@ export async function POST(request) {
     const draft = await prisma.draft.create({
       data: {
         name: rawName || 'Draft',
-        captainAKey: crypto.randomUUID(),
-        captainBKey: crypto.randomUUID(),
-        adminKey: crypto.randomUUID(),
+        captainAKey: randomUUID(),
+        captainBKey: randomUUID(),
+        adminKey: randomUUID(),
         version: 0,
       },
     });
