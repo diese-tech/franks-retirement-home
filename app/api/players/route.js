@@ -42,12 +42,18 @@ export async function POST(request) {
   if (!PLAYER_ROLES.includes(role)) {
     return NextResponse.json({ error: `role must be one of: ${PLAYER_ROLES.join(', ')}` }, { status: 400 });
   }
+  if (typeof discordUsername === 'string' && discordUsername.length > 64) {
+    return NextResponse.json({ error: 'discordUsername must be 64 characters or fewer' }, { status: 400 });
+  }
+  if (typeof division === 'string' && division.length > 64) {
+    return NextResponse.json({ error: 'division must be 64 characters or fewer' }, { status: 400 });
+  }
 
   const data = {
     name: name.trim(),
     role,
-    discordUsername: discordUsername?.trim() || null,
-    division: division?.trim() || null,
+    discordUsername: typeof discordUsername === 'string' ? (discordUsername.trim() || null) : null,
+    division: typeof division === 'string' ? (division.trim() || null) : null,
   };
 
   try {

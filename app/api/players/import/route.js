@@ -34,7 +34,10 @@ export async function POST(request) {
     const division = typeof row.division === 'string' ? row.division.trim() || null : null;
 
     if (!name) { results.errors.push({ row, reason: 'Missing name' }); continue; }
+    if (name.length > 100) { results.errors.push({ row, reason: 'name exceeds 100 chars' }); continue; }
     if (!PLAYER_ROLES.includes(role)) { results.errors.push({ row, reason: `Invalid role: ${role}` }); continue; }
+    if (discordUsername && discordUsername.length > 64) { results.errors.push({ row, reason: 'discordUsername exceeds 64 chars' }); continue; }
+    if (division && division.length > 64) { results.errors.push({ row, reason: 'division exceeds 64 chars' }); continue; }
 
     try {
       const existing = await prisma.player.findFirst({
