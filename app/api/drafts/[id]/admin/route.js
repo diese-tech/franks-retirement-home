@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { teamsAreLoaded } from '@/lib/draftLifecycle';
+import { readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,12 +96,18 @@ export async function POST(request, { params }) {
           return { error: 'No assigned picks to reopen' };
         }
 
-        const current = await tx.draft.findUnique({
-          where: { id },
-          select: { usedGodIds: true },
-        });
-        const draftUsedGodIds = Array.isArray(current?.usedGodIds) ? current.usedGodIds : [];
+        const [allPicks, bans, current] = await Promise.all([
+          tx.draftPick.findMany({ where: { draftId: id }, select: { id: true, godId: true } }),
+          tx.draftBan.findMany({ where: { draftId: id }, select: { godId: true } }),
+          tx.draft.findUnique({ where: { id }, select: { usedGodIds: true } }),
+        ]);
+        const draftUsedGodIds = readUsedGodIds(current);
         const reopenedGodId = lastPick.godId;
+        const nextUsedGodIds = removeUsedGodId(draftUsedGodIds, reopenedGodId, {
+          picks: allPicks,
+          bans,
+          excludePickId: lastPick.id,
+        });
 
         await tx.draftPick.update({
           where: { id: lastPick.id },
@@ -110,7 +117,7 @@ export async function POST(request, { params }) {
           where: { id },
           data: {
             status: 'picking',
-            usedGodIds: draftUsedGodIds.filter((g) => g !== reopenedGodId),
+            usedGodIds: nextUsedGodIds,
             version: { increment: 1 },
           },
         });

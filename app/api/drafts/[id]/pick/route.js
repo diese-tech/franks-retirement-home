@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
+import { addUsedGodId, readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ export async function POST(request, { params }) {
         return { http: NextResponse.json({ error: 'Pick does not match the active team' }, { status: 409 }) };
       }
 
-      const draftUsedGodIds = Array.isArray(current.usedGodIds) ? current.usedGodIds : [];
+      const draftUsedGodIds = readUsedGodIds(current);
 
       if (bans.some((b) => b.godId === godId)) {
         return { http: NextResponse.json({ error: 'That god is banned' }, { status: 409 }) };
@@ -106,7 +107,7 @@ export async function POST(request, { params }) {
       const updated = await tx.draft.updateMany({
         where: { id, version: current.version },
         data: {
-          usedGodIds: [...draftUsedGodIds, godId],
+          usedGodIds: addUsedGodId(draftUsedGodIds, godId),
           version: { increment: 1 },
           ...(newCompletedPicks === TOTAL_PICKS ? { status: 'complete' } : {}),
         },
@@ -170,22 +171,35 @@ export async function DELETE(request, { params }) {
     if (!pick) return NextResponse.json({ error: 'Pick not found' }, { status: 404 });
     if (!pick.godId) return NextResponse.json({ error: 'Pick has no assigned god' }, { status: 400 });
 
-    const draftUsedGodIds = Array.isArray(draft.usedGodIds) ? draft.usedGodIds : [];
+    // Read picks + bans in the same step the writer uses to decide whether
+    // this god is still referenced elsewhere in the draft. The undone pick
+    // is excluded via excludePickId so we don't see ourselves as a holdout.
+    await prisma.$transaction(async (tx) => {
+      const [allPicks, bans, current] = await Promise.all([
+        tx.draftPick.findMany({ where: { draftId: id }, select: { id: true, godId: true } }),
+        tx.draftBan.findMany({ where: { draftId: id }, select: { godId: true } }),
+        tx.draft.findUnique({ where: { id }, select: { usedGodIds: true } }),
+      ]);
+      const draftUsedGodIds = readUsedGodIds(current);
+      const nextUsedGodIds = removeUsedGodId(draftUsedGodIds, pick.godId, {
+        picks: allPicks,
+        bans,
+        excludePickId: pickId,
+      });
 
-    await prisma.$transaction([
-      prisma.draftPick.update({
+      await tx.draftPick.update({
         where: { id: pickId },
         data: { godId: null },
-      }),
-      prisma.draft.update({
+      });
+      await tx.draft.update({
         where: { id },
         data: {
           status: 'picking',
-          usedGodIds: draftUsedGodIds.filter((godId) => godId !== pick.godId),
+          usedGodIds: nextUsedGodIds,
           version: { increment: 1 },
         },
-      }),
-    ]);
+      });
+    });
 
     return NextResponse.json({ ok: true });
   } catch {
