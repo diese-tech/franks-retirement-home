@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
+import { invalidatePlayers } from '@/lib/referenceData';
 
 // POST /api/players/import
 // Body: { players: [{ name, role, discordUsername?, division? }] }
@@ -56,6 +57,8 @@ export async function POST(request) {
       results.errors.push({ row, reason: 'Database error' });
     }
   }
+
+  if (results.imported > 0 || results.updated > 0) invalidatePlayers();
 
   return NextResponse.json(results);
 }

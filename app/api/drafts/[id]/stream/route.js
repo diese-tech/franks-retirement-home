@@ -1,16 +1,24 @@
 import prisma from '@/lib/db';
-import { buildDraftState } from '@/lib/draftState';
+import { buildChatPayload, buildDraftState } from '@/lib/draftState';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/drafts/[id]/stream
-// SSE endpoint. Polls DB every 1.5s, emits full state on version change.
-// EventSource auto-reconnects on disconnect (e.g. Vercel function timeout).
+//
+// Server-Sent Events. Polls the draft row every 1.5 s and emits one of:
+//   - { type: 'state', ... } — full sanitized state, when Draft.version changed
+//   - { type: 'chats', chats } — lightweight chat-only frame, when Draft.chatsVersion changed
+//   - { type: 'not_found' } — closes the stream
+//
+// Issue #8: chat used to bump Draft.version, which forced a full state push
+// (including the entire god + player tables) for every message. Now chat
+// rides its own version counter and ships only the chat list.
 export async function GET(request, { params }) {
   const { id } = await params;
   const encoder = new TextEncoder();
   let closed = false;
   let lastVersion = -1;
+  let lastChatsVersion = -1;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -28,7 +36,7 @@ export async function GET(request, { params }) {
         try {
           const row = await prisma.draft.findUnique({
             where: { id },
-            select: { version: true },
+            select: { version: true, chatsVersion: true },
           });
           if (!row) {
             send({ type: 'not_found' });
@@ -37,8 +45,16 @@ export async function GET(request, { params }) {
           }
           if (row.version !== lastVersion) {
             lastVersion = row.version;
+            // The full state already includes the latest chat history, so
+            // align lastChatsVersion to avoid a redundant chats frame on
+            // the very next poll.
+            lastChatsVersion = row.chatsVersion;
             const state = await buildDraftState(id);
             if (state) send({ type: 'state', ...state });
+          } else if (row.chatsVersion !== lastChatsVersion) {
+            lastChatsVersion = row.chatsVersion;
+            const payload = await buildChatPayload(id);
+            send({ type: 'chats', ...payload });
           }
         } catch {
           // Swallow poll errors — keep the stream alive

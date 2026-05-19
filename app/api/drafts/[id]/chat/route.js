@@ -7,6 +7,10 @@ export const dynamic = 'force-dynamic';
 // POST /api/drafts/[id]/chat
 // Body: { key?, message }
 // All roles including spectators can chat. Chat not available in pending status.
+//
+// Issue #8: chat increments Draft.chatsVersion (not Draft.version) so the
+// SSE stream can deliver a small chats-only payload instead of forcing a
+// full state push (gods + players + picks + bans + draft) on every message.
 export async function POST(request, { params }) {
   const { id } = await params;
   let body;
@@ -29,7 +33,7 @@ export async function POST(request, { params }) {
 
     await prisma.$transaction([
       prisma.draftChat.create({ data: { draftId: id, team, senderName, message } }),
-      prisma.draft.update({ where: { id }, data: { version: { increment: 1 } } }),
+      prisma.draft.update({ where: { id }, data: { chatsVersion: { increment: 1 } } }),
     ]);
 
     return NextResponse.json({ ok: true });

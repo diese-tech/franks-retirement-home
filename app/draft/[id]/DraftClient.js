@@ -37,6 +37,10 @@ export default function DraftClient({ initialState, role, draftKey }) {
       if (data.type === 'state') {
         const { type, ...nextState } = data;
         setState(nextState);
+      } else if (data.type === 'chats') {
+        // Lightweight chat-only frame (issue #8) — merge without touching
+        // gods/players/picks/bans/draft to avoid re-renders elsewhere.
+        setState((prev) => ({ ...prev, chats: data.chats }));
       }
     };
     // EventSource auto-reconnects on error

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
+import { invalidatePlayers } from '@/lib/referenceData';
 
 const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
 
@@ -52,9 +53,11 @@ export async function POST(request) {
   try {
     if (id) {
       const player = await prisma.player.update({ where: { id }, data });
+      invalidatePlayers();
       return NextResponse.json(player);
     }
     const player = await prisma.player.create({ data });
+    invalidatePlayers();
     return NextResponse.json(player, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to save player' }, { status: 500 });
@@ -80,6 +83,7 @@ export async function DELETE(request) {
       );
     }
     await prisma.player.delete({ where: { id } });
+    invalidatePlayers();
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to delete player' }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
+import { invalidateGods } from '@/lib/referenceData';
 
 const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
 
@@ -48,9 +49,11 @@ export async function POST(request) {
   try {
     if (id) {
       const god = await prisma.god.update({ where: { id }, data: { name: name.trim(), role, godClass } });
+      invalidateGods();
       return NextResponse.json(god);
     }
     const god = await prisma.god.create({ data: { name: name.trim(), role, godClass } });
+    invalidateGods();
     return NextResponse.json(god, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to save god' }, { status: 500 });
@@ -85,6 +88,7 @@ export async function DELETE(request) {
       );
     }
     await prisma.god.delete({ where: { id } });
+    invalidateGods();
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: 'Failed to delete god' }, { status: 500 });
