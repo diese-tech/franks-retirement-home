@@ -6,6 +6,10 @@ import { teamsAreLoaded } from '@/lib/draftLifecycle';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request, { params }) {
+  // NOTE: This endpoint is intentionally NOT guarded by `requireAdmin`. It is
+  // a draft-scoped action (nextGame / resetDraft) protected by the per-draft
+  // adminKey URL token below. Admins typically reach it from the shared draft
+  // URL, not the /admin dashboard. See issue #6 for the rollout decision.
   const { id } = await params;
   let body;
   try { body = await request.json(); } catch {

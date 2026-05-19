@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
+import { requireAdmin } from '@/lib/adminSession';
 
 const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
 
@@ -24,6 +25,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const guard = requireAdmin(request);
+  if (guard) return guard;
+
   let body;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -54,6 +58,9 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const guard = requireAdmin(request);
+  if (guard) return guard;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
