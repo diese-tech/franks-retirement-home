@@ -4,10 +4,28 @@ import { DRAFT_STATUSES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 
-export async function GET() {
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
+function parseLimit(raw, fallback, max) {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(n, max);
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const limit = parseLimit(searchParams.get('limit'), DEFAULT_LIMIT, MAX_LIMIT);
+  const status = searchParams.get('status');
+  if (status && !DRAFT_STATUSES.includes(status)) {
+    return NextResponse.json({ error: `status must be one of: ${DRAFT_STATUSES.join(', ')}` }, { status: 400 });
+  }
+
   try {
     const drafts = await prisma.draft.findMany({
+      where: status ? { status } : undefined,
       orderBy: { createdAt: 'desc' },
+      take: limit,
       select: PUBLIC_DRAFT_SELECT,
     });
     return NextResponse.json(drafts);

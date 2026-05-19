@@ -21,13 +21,19 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
-  const drafts = await prisma.draft.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: PUBLIC_DRAFT_SELECT,
-  });
-  const featuredDrafts = drafts.slice(0, 4);
-  const activeDrafts = drafts.filter((draft) => ['lobby', 'banning', 'picking'].includes(draft.status)).length;
-  const completedDrafts = drafts.filter((draft) => draft.status === 'complete').length;
+  // Load only what the page actually renders (4 latest drafts) plus
+  // count() queries for the stats cards. Avoids an unbounded findMany
+  // on every visit. (issue #12)
+  const [featuredDrafts, totalCount, activeDrafts, completedDrafts] = await Promise.all([
+    prisma.draft.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 4,
+      select: PUBLIC_DRAFT_SELECT,
+    }),
+    prisma.draft.count(),
+    prisma.draft.count({ where: { status: { in: ['lobby', 'banning', 'picking'] } } }),
+    prisma.draft.count({ where: { status: 'complete' } }),
+  ]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12 space-y-8">
@@ -68,7 +74,7 @@ export default async function HomePage() {
               <p className="text-sm text-gray-400 mt-1">Built for organized amateur play without adding admin overhead.</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-display font-bold text-gold-300">{drafts.length}</div>
+              <div className="text-2xl font-display font-bold text-gold-300">{totalCount}</div>
               <div className="text-[11px] uppercase tracking-widest text-gray-500">Draft Rooms Created</div>
             </div>
           </div>
