@@ -303,6 +303,12 @@ npm run db:studio    # Prisma Studio (visual DB editor)
 
 ---
 
+## Deployment Notes
+
+Deploying from `main`? See [docs/DEPLOYMENT_NOTES.md](./docs/DEPLOYMENT_NOTES.md) for the schema migration, status backfill, and admin-auth rollout steps that the recent audit work introduced.
+
+---
+
 ## Required AI Workflow Review
 
 Before beginning AI-assisted implementation, debugging, refactoring, migration, or production fix work in this repository, review [docs/AI_WORKFLOW_GUARDRAILS.md](./docs/AI_WORKFLOW_GUARDRAILS.md).
