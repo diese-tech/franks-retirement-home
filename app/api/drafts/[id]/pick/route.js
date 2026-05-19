@@ -86,7 +86,7 @@ export async function POST(request, { params }) {
 
     const newCompletedPicks = completedPicks + 1;
     await prisma.$transaction([
-      prisma.draftPick.update({ where: { id: pickId }, data: { godId } }),
+      prisma.draftPick.update({ where: { id: pick.id }, data: { godId } }),
       prisma.draft.update({
         where: { id },
         data: {
