@@ -120,7 +120,7 @@ export default function DraftClient({ initialState, role, draftKey }) {
               <button onClick={() => handleAdminAction('resetDraft')} className="btn-secondary text-xs">Reset Draft</button>
             )}
             {status === 'complete' && (
-              <button onClick={() => setStatus('picking')} className="btn-secondary text-xs">Reopen Draft</button>
+              <button onClick={() => handleAdminAction('reopenLastPick')} className="btn-secondary text-xs">Reopen Draft</button>
             )}
           </div>
         )}

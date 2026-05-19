@@ -283,6 +283,25 @@ function DraftsPanel({ drafts, onRefresh }) {
     onRefresh();
   };
 
+  // Issue #14: the old "Reopen" button flipped status to 'picking' without
+  // nulling any pick, leaving the draft in an unusable state. We now call
+  // the atomic reopenLastPick action, which requires the per-draft adminKey.
+  const reopenLastPick = async (d) => {
+    const keys = keyCache[d.id] ?? await fetchKeys(d.id);
+    if (!keys?.adminKey) {
+      alert('Could not load admin key for this draft.');
+      return;
+    }
+    const res = await fetch(`/api/drafts/${d.id}/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: keys.adminKey, action: 'reopenLastPick' }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Reopen failed'); return; }
+    onRefresh();
+  };
+
   const openShare = async (d) => {
     setShareError('');
     setShareTarget({ id: d.id, name: d.name });
@@ -343,7 +362,7 @@ function DraftsPanel({ drafts, onRefresh }) {
                     <button onClick={() => setStatus(d.id, 'lobby')} className="text-xs text-blue-400 hover:text-blue-300">Open Lobby</button>
                   )}
                   {d.status === 'complete' && (
-                    <button onClick={() => setStatus(d.id, 'picking')} className="text-xs text-gray-400 hover:text-gray-300">Reopen</button>
+                    <button onClick={() => reopenLastPick(d)} className="text-xs text-gray-400 hover:text-gray-300">Reopen</button>
                   )}
                   <button onClick={() => remove(d.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
                 </div>
