@@ -5,7 +5,7 @@ import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 import { requireAdmin } from '@/lib/adminSession';
 
 // Active-ish statuses where picks are locked into a live draft
-const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
+const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 // GET /api/draft-picks?draftId=xxx
 export async function GET(request) {

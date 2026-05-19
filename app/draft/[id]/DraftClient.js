@@ -122,9 +122,6 @@ export default function DraftClient({ initialState, role, draftKey }) {
             {status === 'complete' && (
               <button onClick={() => setStatus('picking')} className="btn-secondary text-xs">Reopen Draft</button>
             )}
-            {(status === 'active') && (
-              <button onClick={() => setStatus('complete')} className="btn-primary text-xs">Finalize</button>
-            )}
           </div>
         )}
 
@@ -136,7 +133,7 @@ export default function DraftClient({ initialState, role, draftKey }) {
         {status === 'pending'  && <PendingView {...viewProps} />}
         {status === 'lobby'    && <LobbyView   {...viewProps} />}
         {status === 'banning'  && <BanView     {...viewProps} />}
-        {(status === 'picking' || status === 'active') && <PickView {...viewProps} />}
+        {status === 'picking'  && <PickView    {...viewProps} />}
         {status === 'complete' && <CompleteView {...viewProps} />}
       </div>
 

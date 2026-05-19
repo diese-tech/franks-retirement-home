@@ -342,9 +342,6 @@ function DraftsPanel({ drafts, onRefresh }) {
                   {d.status === 'pending' && (
                     <button onClick={() => setStatus(d.id, 'lobby')} className="text-xs text-blue-400 hover:text-blue-300">Open Lobby</button>
                   )}
-                  {d.status === 'active' && (
-                    <button onClick={() => setStatus(d.id, 'complete')} className="text-xs text-yellow-400 hover:text-yellow-300">Finalize</button>
-                  )}
                   {d.status === 'complete' && (
                     <button onClick={() => setStatus(d.id, 'picking')} className="text-xs text-gray-400 hover:text-gray-300">Reopen</button>
                   )}

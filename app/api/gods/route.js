@@ -4,7 +4,7 @@ import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
 import { invalidateGods } from '@/lib/referenceData';
 
-const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
+const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);

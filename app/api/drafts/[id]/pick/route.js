@@ -45,7 +45,7 @@ export async function POST(request, { params }) {
         select: { id: true, status: true, version: true, usedGodIds: true },
       });
       if (!current) return { http: NextResponse.json({ error: 'Draft not found' }, { status: 404 }) };
-      if (current.status !== 'picking' && current.status !== 'active') {
+      if (current.status !== 'picking') {
         return { http: NextResponse.json({ error: 'Draft is not in picking phase' }, { status: 400 }) };
       }
 

@@ -4,7 +4,7 @@ import { PLAYER_ROLES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
 import { invalidatePlayers } from '@/lib/referenceData';
 
-const LIVE_STATUSES = ['lobby', 'banning', 'picking', 'active'];
+const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);

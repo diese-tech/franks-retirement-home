@@ -26,7 +26,7 @@ export default async function HomePage() {
     select: PUBLIC_DRAFT_SELECT,
   });
   const featuredDrafts = drafts.slice(0, 4);
-  const activeDrafts = drafts.filter((draft) => ['lobby', 'banning', 'picking', 'active'].includes(draft.status)).length;
+  const activeDrafts = drafts.filter((draft) => ['lobby', 'banning', 'picking'].includes(draft.status)).length;
   const completedDrafts = drafts.filter((draft) => draft.status === 'complete').length;
 
   return (

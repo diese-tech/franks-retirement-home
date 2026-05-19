@@ -33,7 +33,7 @@ model God {
 model Draft {
   id             String   @id @default(cuid())
   name           String   @default("Draft")
-  status         String   @default("pending") // pending | lobby | banning | picking | complete | active (legacy)
+  status         String   @default("pending") // pending | lobby | banning | picking | complete
   captainAKey    String?  @unique
   captainBKey    String?  @unique
   adminKey       String?  @unique
