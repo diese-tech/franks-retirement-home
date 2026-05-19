@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
 import RoleFilter from '@/components/RoleFilter';
 
@@ -124,7 +123,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
 
 // ─── Share Modal ─────────────────────────────────────
 
-function ShareModal({ draft, onClose }) {
+function ShareModal({ draftId, draftName, draftKeys, loading, error, onClose }) {
   const [copied, setCopied] = useState(null);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -136,10 +135,10 @@ function ShareModal({ draft, onClose }) {
   ];
 
   const getUrl = (keyField) => {
-    if (!keyField) return `${origin}/draft/${draft.id}`;
-    const val = draft[keyField];
+    if (!keyField) return `${origin}/draft/${draftId}`;
+    const val = draftKeys?.[keyField];
     if (!val) return null;
-    return `${origin}/draft/${draft.id}?key=${val}`;
+    return `${origin}/draft/${draftId}?key=${val}`;
   };
 
   const copy = async (keyField) => {
@@ -156,42 +155,51 @@ function ShareModal({ draft, onClose }) {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">Share Links</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{draft.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{draftName}</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
         </div>
 
-        <div className="space-y-3">
-          {links.map(({ label, key, description }) => {
-            const url = getUrl(key);
-            const wasCopied = copied === (key ?? 'spectator');
-            return (
-              <div key={label} className="flex items-center gap-3 p-3 bg-brand-900/60 rounded-lg border border-brand-600/20">
-                <div className="flex-1 min-w-0">
-                  <div className="font-display font-semibold text-xs text-gray-300">{label}</div>
-                  <div className="text-[10px] text-gray-600">{description}</div>
-                  {url
-                    ? <div className="text-[10px] font-mono text-gray-500 truncate mt-0.5">{url}</div>
-                    : <div className="text-[10px] text-gray-700 mt-0.5">No key assigned (legacy draft)</div>
-                  }
+        {loading && (
+          <p className="text-xs text-gray-500 text-center py-6">Loading share links…</p>
+        )}
+        {error && (
+          <p className="text-xs text-red-400 text-center py-3">{error}</p>
+        )}
+
+        {!loading && (
+          <div className="space-y-3">
+            {links.map(({ label, key, description }) => {
+              const url = getUrl(key);
+              const wasCopied = copied === (key ?? 'spectator');
+              return (
+                <div key={label} className="flex items-center gap-3 p-3 bg-brand-900/60 rounded-lg border border-brand-600/20">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display font-semibold text-xs text-gray-300">{label}</div>
+                    <div className="text-[10px] text-gray-600">{description}</div>
+                    {url
+                      ? <div className="text-[10px] font-mono text-gray-500 truncate mt-0.5">{url}</div>
+                      : <div className="text-[10px] text-gray-700 mt-0.5">No key assigned (legacy draft)</div>
+                    }
+                  </div>
+                  <button
+                    onClick={() => copy(key)}
+                    disabled={!url}
+                    className={`shrink-0 px-3 py-1.5 rounded text-[10px] font-display font-bold uppercase tracking-wider transition-all ${
+                      wasCopied
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : url
+                          ? 'bg-brand-600/50 text-gray-300 border border-brand-500/40 hover:bg-frost-500/15 hover:text-frost-400 hover:border-frost-500/40'
+                          : 'opacity-30 cursor-not-allowed bg-brand-700 text-gray-600 border border-brand-600/20'
+                    }`}
+                  >
+                    {wasCopied ? 'Copied!' : 'Copy'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => copy(key)}
-                  disabled={!url}
-                  className={`shrink-0 px-3 py-1.5 rounded text-[10px] font-display font-bold uppercase tracking-wider transition-all ${
-                    wasCopied
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : url
-                        ? 'bg-brand-600/50 text-gray-300 border border-brand-500/40 hover:bg-frost-500/15 hover:text-frost-400 hover:border-frost-500/40'
-                        : 'opacity-30 cursor-not-allowed bg-brand-700 text-gray-600 border border-brand-600/20'
-                  }`}
-                >
-                  {wasCopied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         <p className="text-[10px] text-gray-600 mt-4 text-center">
           Share Admin, Captain A, and Captain B links privately. The spectator link is safe to post publicly.
@@ -206,14 +214,60 @@ function ShareModal({ draft, onClose }) {
 function DraftsPanel({ drafts, onRefresh }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  // shareTarget is { id, name } only — keys are looked up on demand and
+  // stored in keyCache so they never appear in the SSR payload.
   const [shareTarget, setShareTarget] = useState(null);
+  const [keyCache, setKeyCache] = useState({});
+  const [shareError, setShareError] = useState('');
+
+  const fetchKeys = async (id) => {
+    if (keyCache[id]) return keyCache[id];
+    try {
+      const res = await fetch(`/api/drafts/admin?id=${id}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          setShareError('Admin session expired. Please refresh the page and log in again.');
+        } else {
+          setShareError('Could not load draft links.');
+        }
+        return null;
+      }
+      const draft = await res.json();
+      const keys = {
+        adminKey: draft.adminKey,
+        captainAKey: draft.captainAKey,
+        captainBKey: draft.captainBKey,
+      };
+      setKeyCache((prev) => ({ ...prev, [id]: keys }));
+      return keys;
+    } catch {
+      setShareError('Could not load draft links.');
+      return null;
+    }
+  };
 
   const create = async () => {
     setBusy(true);
     const draft = await postJson('/api/drafts', { name: name.trim() || `Draft ${drafts.length + 1}` });
     setName('');
+    if (draft.id) {
+      // POST /api/drafts returns the row including keys (the caller IS the
+      // admin who just created it). Cache them here so we don't have to
+      // round-trip for the share modal we're about to open.
+      setKeyCache((prev) => ({
+        ...prev,
+        [draft.id]: {
+          adminKey: draft.adminKey,
+          captainAKey: draft.captainAKey,
+          captainBKey: draft.captainBKey,
+        },
+      }));
+    }
     await onRefresh();
-    setShareTarget(draft);
+    if (draft.id) {
+      setShareError('');
+      setShareTarget({ id: draft.id, name: draft.name });
+    }
     setBusy(false);
   };
 
@@ -229,15 +283,31 @@ function DraftsPanel({ drafts, onRefresh }) {
     onRefresh();
   };
 
-  // Find the latest version of a draft (post-refresh) for share modal
-  const findDraft = (id) => drafts.find((d) => d.id === id) ?? shareTarget;
+  const openShare = async (d) => {
+    setShareError('');
+    setShareTarget({ id: d.id, name: d.name });
+    if (!keyCache[d.id]) await fetchKeys(d.id);
+  };
+
+  const openAdminDraft = async (d) => {
+    const keys = keyCache[d.id] ?? await fetchKeys(d.id);
+    if (!keys?.adminKey) {
+      window.location.href = `/draft/${d.id}`;
+      return;
+    }
+    window.location.href = `/draft/${d.id}?key=${keys.adminKey}`;
+  };
 
   return (
     <>
       {shareTarget && (
         <ShareModal
-          draft={findDraft(shareTarget.id)}
-          onClose={() => setShareTarget(null)}
+          draftId={shareTarget.id}
+          draftName={shareTarget.name}
+          draftKeys={keyCache[shareTarget.id]}
+          loading={!keyCache[shareTarget.id] && !shareError}
+          error={shareError}
+          onClose={() => { setShareTarget(null); setShareError(''); }}
         />
       )}
       <div className="card">
@@ -267,9 +337,8 @@ function DraftsPanel({ drafts, onRefresh }) {
                   <span className="text-[10px] text-gray-600 font-mono">{new Date(d.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <Link href={`/draft/${d.id}${d.adminKey ? `?key=${d.adminKey}` : ''}`}
-                    className="text-xs text-frost-400 hover:text-frost-300 font-display font-semibold">Open →</Link>
-                  <button onClick={() => setShareTarget(d)} className="text-xs text-gold-400 hover:text-gold-300 font-display font-semibold">Share</button>
+                  <button onClick={() => openAdminDraft(d)} className="text-xs text-frost-400 hover:text-frost-300 font-display font-semibold">Open →</button>
+                  <button onClick={() => openShare(d)} className="text-xs text-gold-400 hover:text-gold-300 font-display font-semibold">Share</button>
                   {d.status === 'pending' && (
                     <button onClick={() => setStatus(d.id, 'lobby')} className="text-xs text-blue-400 hover:text-blue-300">Open Lobby</button>
                   )}

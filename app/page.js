@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import prisma from '@/lib/db';
 import { STATUS_COLORS } from '@/lib/constants';
+import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,10 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
-  const drafts = await prisma.draft.findMany({ orderBy: { createdAt: 'desc' } });
+  const drafts = await prisma.draft.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: PUBLIC_DRAFT_SELECT,
+  });
   const featuredDrafts = drafts.slice(0, 4);
   const activeDrafts = drafts.filter((draft) => ['lobby', 'banning', 'picking', 'active'].includes(draft.status)).length;
   const completedDrafts = drafts.filter((draft) => draft.status === 'complete').length;

@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminSession';
+import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 
 export async function GET() {
   try {
-    const drafts = await prisma.draft.findMany({ orderBy: { createdAt: 'desc' } });
+    const drafts = await prisma.draft.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: PUBLIC_DRAFT_SELECT,
+    });
     return NextResponse.json(drafts);
   } catch {
     return NextResponse.json({ error: 'Failed to fetch drafts' }, { status: 500 });
