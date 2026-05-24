@@ -3,10 +3,11 @@
 import { useState, useMemo } from 'react';
 import { ROLE_COLORS, PLAYER_ROLES } from '@/lib/constants';
 import RoleFilter from '@/components/RoleFilter';
+import { BrutalButton, PixelBadge, RetroWindow } from '@/components/ui';
 
 export default function LobbyView({ state, role, callApi }) {
   const { draft, picks, players } = state;
-  const [swapTarget, setSwapTarget] = useState(null); // { pickId, team, currentPlayerId }
+  const [swapTarget, setSwapTarget] = useState(null);
   const [swapFilter, setSwapFilter] = useState('All');
   const [swapSearch, setSwapSearch] = useState('');
   const [busy, setBusy] = useState(false);
@@ -57,36 +58,28 @@ export default function LobbyView({ state, role, callApi }) {
   };
 
   const imReady = role === 'captainA' ? draft.captainAReady : role === 'captainB' ? draft.captainBReady : false;
-
   const bothReady = draft.captainAReady && draft.captainBReady;
 
   return (
-    <div>
-      {/* Ceremony ready bar */}
-      <div className="mb-8">
-        <div className="grid grid-cols-2 gap-px bg-brand-700/30 rounded-xl overflow-hidden mb-4">
-          <CeremonySlot
-            team="A"
-            ready={draft.captainAReady}
-            highlight={myTeam === 'A' || isAdmin}
-          />
-          <CeremonySlot
-            team="B"
-            ready={draft.captainBReady}
-            highlight={myTeam === 'B' || isAdmin}
-          />
+    <div className="space-y-6">
+      <RetroWindow title="CAPTAIN READY CHECK">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-stretch">
+          <CeremonySlot team="A" ready={draft.captainAReady} highlight={myTeam === 'A' || isAdmin} />
+          <div className="flex items-center justify-center">
+            <div className="font-display text-5xl font-black text-frh-yellow">VS</div>
+          </div>
+          <CeremonySlot team="B" ready={draft.captainBReady} highlight={myTeam === 'B' || isAdmin} />
         </div>
-        <div className={`text-center font-display text-xs uppercase tracking-widest transition-colors ${bothReady ? 'text-green-400 animate-pulse' : 'text-gray-600'}`}>
-          {bothReady ? 'Both ready — starting draft…' : 'Waiting for both captains to ready up'}
+        <div className={`mt-4 text-center font-mono text-xs ${bothReady ? 'text-frh-lime animate-pulse' : 'text-gray-600'}`}>
+          {bothReady ? 'Both ready - starting draft...' : 'Waiting for both captains to ready up'}
         </div>
-      </div>
+      </RetroWindow>
 
       {error && (
-        <div className="mb-4 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">{error}</div>
+        <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-mono">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Team A */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-6">
         <TeamRoster
           team="A"
           picks={teamA}
@@ -94,7 +87,9 @@ export default function LobbyView({ state, role, callApi }) {
           isAdmin={isAdmin}
           onSwap={(pick) => setSwapTarget({ pickId: pick.id, team: 'A', currentPlayerId: pick.playerId })}
         />
-        {/* Team B */}
+        <div className="hidden lg:flex items-center justify-center">
+          <div className="font-display text-6xl font-black text-frh-yellow">VS</div>
+        </div>
         <TeamRoster
           team="B"
           picks={teamB}
@@ -104,33 +99,29 @@ export default function LobbyView({ state, role, callApi }) {
         />
       </div>
 
-      {/* Ready button for captains */}
       {myTeam && (
-        <div className="mt-6 text-center">
+        <div className="text-center">
           {imReady
-            ? <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+            ? <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/10 border border-green-500/30">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="font-display font-bold text-sm uppercase tracking-wider text-green-400">Ready — Waiting for other captain</span>
+                <span className="font-ui text-sm uppercase tracking-wider text-green-400">Ready - waiting for other captain</span>
               </div>
-            : <button onClick={handleReady} disabled={busy} className="btn-primary px-8 py-3 text-sm">
-                {busy ? 'Confirming…' : 'Ready Up'}
-              </button>
+            : <BrutalButton onClick={handleReady} disabled={busy} size="lg">
+                {busy ? 'Confirming...' : 'Ready Up'}
+              </BrutalButton>
           }
         </div>
       )}
 
-      {/* Swap modal */}
       {swapTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-brand-800 border border-brand-600/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <RetroWindow title="SELECT REPLACEMENT PLAYER" className="w-full max-w-lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">
-                Select Replacement Player
-              </h3>
-              <button onClick={() => setSwapTarget(null)} className="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
+              <h3 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Free Agents</h3>
+              <BrutalButton onClick={() => setSwapTarget(null)} variant="ghost" size="sm">Close</BrutalButton>
             </div>
             <input
-              placeholder="Search…"
+              placeholder="Search..."
               value={swapSearch}
               onChange={(e) => setSwapSearch(e.target.value)}
               className="input-field mb-2 text-xs w-full"
@@ -143,7 +134,7 @@ export default function LobbyView({ state, role, callApi }) {
                 ? <p className="text-xs text-gray-600 text-center py-6">No available free agents</p>
                 : freeAgents.map((player) => (
                   <button key={player.id} onClick={() => handleSwap(player.id)} disabled={busy}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-950/40 border border-brand-600/20 hover:border-frost-500/40 hover:bg-frost-500/5 transition-all text-left">
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-brand-950/40 border border-brand-600/20 hover:border-frost-500/40 hover:bg-frost-500/5 transition-all text-left">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-display font-medium text-sm text-gray-300">{player.name}</span>
@@ -153,7 +144,7 @@ export default function LobbyView({ state, role, callApi }) {
                   </button>
                 ))}
             </div>
-          </div>
+          </RetroWindow>
         </div>
       )}
     </div>
@@ -162,23 +153,15 @@ export default function LobbyView({ state, role, callApi }) {
 
 function CeremonySlot({ team, ready, highlight }) {
   const isA = team === 'A';
-  const teamAccent = isA ? 'text-blue-400' : 'text-red-400';
-  const teamBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
+  const color = isA ? 'blue' : 'purple';
 
   return (
-    <div className={`${teamBg} px-6 py-6 flex flex-col items-center gap-3 ${highlight ? '' : 'opacity-70'}`}>
-      <div className={`font-display font-black text-2xl uppercase tracking-wider ${teamAccent}`}>
+    <div className={`border-2 ${isA ? 'border-frh-xp-blue bg-frh-xp-blue/10' : 'border-frh-purple bg-frh-purple/10'} px-6 py-5 ${highlight ? '' : 'opacity-70'}`}>
+      <div className={`font-ui text-xl uppercase tracking-widest ${isA ? 'text-frh-xp-blue' : 'text-frh-purple'}`}>
         Team {isA ? 'Alpha' : 'Bravo'}
       </div>
-      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all
-        ${ready
-          ? 'bg-green-500/15 border-green-500/40 ring-1 ring-green-500/20'
-          : `bg-brand-900/60 border-brand-600/30`
-        }`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-        <span className={`font-display font-bold text-[11px] uppercase tracking-widest ${ready ? 'text-green-400' : 'text-gray-500'}`}>
-          {ready ? 'Ready' : 'Waiting'}
-        </span>
+      <div className="mt-3">
+        <PixelBadge label={ready ? 'Ready' : 'Waiting'} color={ready ? 'lime' : color} />
       </div>
     </div>
   );
@@ -186,26 +169,22 @@ function CeremonySlot({ team, ready, highlight }) {
 
 function TeamRoster({ team, picks, myTeam, isAdmin, onSwap }) {
   const isA = team === 'A';
-  const accent = isA ? 'text-blue-400' : 'text-red-400';
-  const accentBg = isA ? 'bg-blue-500/15' : 'bg-red-500/15';
-  const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
-  const colBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
   const canSwap = isAdmin || myTeam === team;
 
   return (
-    <div className={`rounded-xl border ${borderColor} ${colBg} overflow-hidden`}>
-      <div className={`px-5 py-4 border-b ${borderColor}`}>
-        <h2 className={`font-display font-bold text-lg uppercase tracking-wider ${accent}`}>
+    <RetroWindow title={`TEAM ${isA ? 'A' : 'B'} BUDDY LIST`} titleBarColor={isA ? 'blue' : 'purple'}>
+      <div className="mb-3">
+        <h2 className={`font-ui text-lg uppercase tracking-widest ${isA ? 'text-frh-xp-blue' : 'text-frh-purple'}`}>
           Team {isA ? 'Alpha' : 'Bravo'}
         </h2>
         {canSwap && (
-          <p className="text-[10px] text-gray-600 mt-0.5">Click Swap to replace a player before bans start</p>
+          <p className="text-[10px] text-gray-600 mt-0.5 font-mono">Click Swap to replace a player before bans start</p>
         )}
       </div>
-      <div className="p-4 space-y-2">
+      <div className="space-y-2">
         {picks.map((pick, i) => (
-          <div key={pick.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-800/60 border border-brand-600/20">
-            <span className="w-5 h-5 rounded bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{i + 1}</span>
+          <div key={pick.id} className="flex items-center gap-2 px-3 py-2 bg-brand-900/70 border border-brand-700">
+            <span className="w-5 h-5 bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{i + 1}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="font-display font-semibold text-sm text-gray-200 truncate">{pick.player?.name}</span>
@@ -213,14 +192,11 @@ function TeamRoster({ team, picks, myTeam, isAdmin, onSwap }) {
               </div>
             </div>
             {canSwap && (
-              <button onClick={() => onSwap(pick)}
-                className="shrink-0 px-2 py-0.5 rounded text-[10px] font-display font-semibold uppercase text-frost-400 border border-frost-500/30 hover:bg-frost-500/10 transition-colors">
-                Swap
-              </button>
+              <BrutalButton onClick={() => onSwap(pick)} variant="secondary" size="sm">Swap</BrutalButton>
             )}
           </div>
         ))}
       </div>
-    </div>
+    </RetroWindow>
   );
 }

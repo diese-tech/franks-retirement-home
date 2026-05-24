@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
+import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, ROLE_COLORS } from '@/lib/constants';
 import RoleFilter from '@/components/RoleFilter';
-import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
+import { RetroWindow, BrutalButton, PixelBadge, StatusBadge } from '@/components/ui';
 
 async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -167,11 +167,11 @@ function ShareModal({ draftId, draftName, draftKeys, loading, error, onClose }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-brand-800 border border-brand-600/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+      <RetroWindow title="SHARE DRAFT LINKS" titleBarColor="blue" className="w-full max-w-lg">
+        <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">Share Links</h2>
+            <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Share Links</h2>
             <p className="text-xs text-gray-500 mt-0.5">{draftName}</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xl leading-none">✕</button>
@@ -190,28 +190,24 @@ function ShareModal({ draftId, draftName, draftKeys, loading, error, onClose }) 
               const url = getUrl(key);
               const wasCopied = copied === (key ?? 'spectator');
               return (
-                <div key={label} className="flex items-center gap-3 p-3 bg-brand-900/60 rounded-lg border border-brand-600/20">
+                <div key={label} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-brand-900/60 border-2 border-brand-700">
                   <div className="flex-1 min-w-0">
-                    <div className="font-display font-semibold text-xs text-gray-300">{label}</div>
+                    <div className="font-ui text-xs uppercase tracking-wide text-gray-300">{label}</div>
                     <div className="text-[10px] text-gray-600">{description}</div>
                     {url
-                      ? <div className="text-[10px] font-mono text-gray-500 truncate mt-0.5">{url}</div>
+                      ? <div className="text-[10px] font-mono text-frh-cream/80 truncate mt-0.5 bg-brand-950 px-2 py-1 border border-brand-700">{url}</div>
                       : <div className="text-[10px] text-gray-700 mt-0.5">No key assigned (legacy draft)</div>
                     }
                   </div>
-                  <button
+                  <BrutalButton
                     onClick={() => copy(key)}
                     disabled={!url}
-                    className={`shrink-0 px-3 py-1.5 rounded text-[10px] font-display font-bold uppercase tracking-wider transition-all ${
-                      wasCopied
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : url
-                          ? 'bg-brand-600/50 text-gray-300 border border-brand-500/40 hover:bg-frost-500/15 hover:text-frost-400 hover:border-frost-500/40'
-                          : 'opacity-30 cursor-not-allowed bg-brand-700 text-gray-600 border border-brand-600/20'
-                    }`}
+                    variant={wasCopied ? 'secondary' : 'primary'}
+                    size="sm"
+                    className="shrink-0"
                   >
                     {wasCopied ? 'Copied!' : 'Copy'}
-                  </button>
+                  </BrutalButton>
                 </div>
               );
             })}
@@ -221,7 +217,7 @@ function ShareModal({ draftId, draftName, draftKeys, loading, error, onClose }) 
         <p className="text-[10px] text-gray-600 mt-4 text-center">
           Share Admin, Captain A, and Captain B links privately. The spectator link is safe to post publicly.
         </p>
-      </div>
+      </RetroWindow>
     </div>
   );
 }
@@ -346,9 +342,12 @@ function DraftsPanel({ drafts, onRefresh }) {
           onClose={() => { setShareTarget(null); setShareError(''); }}
         />
       )}
-      <div className="card">
-        <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200 mb-4">Drafts</h2>
-        <div className="flex gap-2 mb-4">
+      <RetroWindow title="DRAFT CONTROL">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Drafts</h2>
+          <PixelBadge label={`${drafts.length} sessions`} color="cream" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <input
             placeholder="New draft name…"
             value={name}
@@ -356,37 +355,37 @@ function DraftsPanel({ drafts, onRefresh }) {
             onKeyDown={(e) => e.key === 'Enter' && create()}
             className="input-field flex-1"
           />
-          <button onClick={create} disabled={busy} className="btn-primary text-xs shrink-0">
+          <BrutalButton onClick={create} disabled={busy} className="shrink-0">
             {busy ? 'Creating…' : 'Create Draft'}
-          </button>
+          </BrutalButton>
         </div>
         <div className="space-y-2">
           {drafts.length === 0
-            ? <p className="text-sm text-gray-600 text-center py-6">No drafts yet</p>
+            ? <p className="text-sm text-gray-600 text-center py-6">No drafts. Create one or go home.</p>
             : drafts.map((d) => (
-              <div key={d.id} className="flex items-center gap-3 px-3 py-3 bg-brand-950/40 rounded-lg border border-brand-600/20 hover:border-brand-600/40 transition-all">
+              <div key={d.id} className="flex flex-col md:flex-row md:items-center gap-3 px-3 py-3 bg-brand-950/40 border-2 border-brand-700 hover:border-frh-yellow/60 transition-all">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-display font-semibold text-sm text-gray-300 truncate">{d.name}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-display font-bold uppercase tracking-wider border ${STATUS_COLORS[d.status] ?? STATUS_COLORS.pending}`}>{d.status}</span>
+                    <span className="font-ui text-sm text-gray-300 truncate">{d.name}</span>
+                    <StatusBadge status={d.status} />
                   </div>
                   <span className="text-[10px] text-gray-600 font-mono">{new Date(d.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <button onClick={() => openAdminDraft(d)} className="text-xs text-frost-400 hover:text-frost-300 font-display font-semibold">Open →</button>
-                  <button onClick={() => openShare(d)} className="text-xs text-gold-400 hover:text-gold-300 font-display font-semibold">Share</button>
+                  <BrutalButton onClick={() => openAdminDraft(d)} variant="secondary" size="sm">Open</BrutalButton>
+                  <BrutalButton onClick={() => openShare(d)} variant="secondary" size="sm">Share</BrutalButton>
                   {d.status === 'pending' && (
-                    <button onClick={() => setStatus(d.id, 'lobby')} className="text-xs text-blue-400 hover:text-blue-300">Open Lobby</button>
+                    <BrutalButton onClick={() => setStatus(d.id, 'lobby')} size="sm">Open Lobby</BrutalButton>
                   )}
                   {d.status === 'complete' && (
-                    <button onClick={() => reopenLastPick(d)} className="text-xs text-gray-400 hover:text-gray-300">Reopen</button>
+                    <BrutalButton onClick={() => reopenLastPick(d)} variant="secondary" size="sm">Reopen</BrutalButton>
                   )}
-                  <button onClick={() => remove(d.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                  <BrutalButton onClick={() => remove(d.id)} variant="danger" size="sm">Delete</BrutalButton>
                 </div>
               </div>
             ))}
         </div>
-      </div>
+      </RetroWindow>
     </>
   );
 }
@@ -428,14 +427,14 @@ function PlayersPanel({ players, onRefresh }) {
   const filtered = filterDiv === 'All' ? players : players.filter((p) => p.division === filterDiv);
 
   return (
-    <div className="card">
+    <RetroWindow title="PLAYER DATABASE">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">Players ({players.length})</h2>
-        <button onClick={() => { reset(); setShowForm(!showForm); }} className="btn-primary text-xs">{showForm ? 'Cancel' : '+ Add Player'}</button>
+        <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Players ({players.length})</h2>
+        <BrutalButton onClick={() => { reset(); setShowForm(!showForm); }} size="sm">{showForm ? 'Cancel' : '+ Add Player'}</BrutalButton>
       </div>
 
       {showForm && (
-        <div className="mb-4 p-4 bg-brand-950/60 rounded-lg border border-brand-600/30 space-y-3 animate-fade-in">
+        <RetroWindow title={editId ? 'EDIT PLAYER' : 'NEW PLAYER'} titleBarColor="blue" className="mb-4 animate-fade-in">
           <input placeholder="IGN / Player name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
           <div className="grid grid-cols-2 gap-3">
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="select-field">
@@ -444,8 +443,8 @@ function PlayersPanel({ players, onRefresh }) {
             <input placeholder="Division (e.g. Canes)" value={form.division} onChange={(e) => setForm({ ...form, division: e.target.value })} className="input-field" />
           </div>
           <input placeholder="Discord username" value={form.discordUsername} onChange={(e) => setForm({ ...form, discordUsername: e.target.value })} className="input-field" />
-          <button onClick={submit} disabled={busy || !form.name.trim()} className="btn-primary w-full text-xs">{busy ? 'Saving…' : editId ? 'Update Player' : 'Add Player'}</button>
-        </div>
+          <BrutalButton onClick={submit} disabled={busy || !form.name.trim()} className="w-full">{busy ? 'Saving...' : editId ? 'Update Player' : 'Add Player'}</BrutalButton>
+        </RetroWindow>
       )}
 
       {divisions.length > 1 && (
@@ -457,7 +456,7 @@ function PlayersPanel({ players, onRefresh }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-[10px] font-display uppercase tracking-wider text-gray-500 border-b border-brand-600/30">
+            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
               <th className="text-left py-2 px-2">Name</th>
               <th className="text-left py-2 px-2">Discord</th>
               <th className="text-left py-2 px-2">Role</th>
@@ -473,15 +472,17 @@ function PlayersPanel({ players, onRefresh }) {
                 <td className="py-2 px-2"><span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[p.role]}`}>{p.role}</span></td>
                 <td className="py-2 px-2 text-xs text-gray-500">{p.division || <span className="text-gray-700">—</span>}</td>
                 <td className="py-2 px-2 text-right">
-                  <button onClick={() => edit(p)} className="text-xs text-frost-400 hover:text-frost-300 mr-3">Edit</button>
-                  <button onClick={() => remove(p.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                  <div className="flex justify-end gap-2">
+                    <BrutalButton onClick={() => edit(p)} variant="secondary" size="sm">Edit</BrutalButton>
+                    <BrutalButton onClick={() => remove(p.id)} variant="danger" size="sm">Delete</BrutalButton>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </RetroWindow>
   );
 }
 
@@ -556,8 +557,8 @@ function ImportPanel({ onRefresh }) {
 
   return (
     <div className="space-y-4">
-      <div className="card">
-        <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200 mb-1">CSV Import</h2>
+      <RetroWindow title="BULK IMPORT - PASTE CSV DATA">
+        <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">CSV Import</h2>
         <p className="text-xs text-gray-500 mb-4">
           Paste a sign-up sheet CSV below. Each import batch can be tagged with a division. Run multiple imports for multiple divisions.
         </p>
@@ -577,25 +578,25 @@ function ImportPanel({ onRefresh }) {
             className="input-field font-mono text-xs w-full resize-y"
           />
           <div className="flex gap-2">
-            <button onClick={parse} disabled={!csvText.trim()} className="btn-primary text-xs">Parse & Preview</button>
-            {rows && <button onClick={reset} className="btn-secondary text-xs">Reset</button>}
+            <BrutalButton onClick={parse} disabled={!csvText.trim()} size="sm">Parse & Preview</BrutalButton>
+            {rows && <BrutalButton onClick={reset} variant="secondary" size="sm">Reset</BrutalButton>}
           </div>
         </div>
-      </div>
+      </RetroWindow>
 
       {result && (
-        <div className="card">
+        <RetroWindow title="IMPORT COMPLETE">
           <div className="text-sm font-display font-bold text-green-400 mb-1">Import Complete</div>
           <div className="flex gap-6 text-xs text-gray-400">
             <span><span className="text-green-400 font-bold">{result.imported}</span> new players added</span>
             <span><span className="text-blue-400 font-bold">{result.updated}</span> existing players updated</span>
             {result.errors?.length > 0 && <span><span className="text-red-400 font-bold">{result.errors.length}</span> errors</span>}
           </div>
-        </div>
+        </RetroWindow>
       )}
 
       {rows && !result && (
-        <div className="card">
+        <RetroWindow title="IMPORT PREVIEW">
           <div className="flex items-center justify-between mb-3">
             <div>
               <span className="font-display font-bold text-sm text-gray-200">{rows.length} rows parsed</span>
@@ -603,15 +604,15 @@ function ImportPanel({ onRefresh }) {
                 <span className="ml-3 text-xs text-yellow-400">{invalid.length} need a role assigned</span>
               )}
             </div>
-            <button onClick={importAll} disabled={busy || !ready.length} className="btn-primary text-xs">
+            <BrutalButton onClick={importAll} disabled={busy || !ready.length} size="sm">
               {busy ? 'Importing…' : `Import ${ready.length} players`}
-            </button>
+            </BrutalButton>
           </div>
 
           <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-brand-800">
-                <tr className="text-[10px] font-display uppercase tracking-wider text-gray-500 border-b border-brand-600/30">
+                <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
                   <th className="text-left py-2 px-2">IGN</th>
                   <th className="text-left py-2 px-2">Discord</th>
                   <th className="text-left py-2 px-2">Role</th>
@@ -647,7 +648,7 @@ function ImportPanel({ onRefresh }) {
               </tbody>
             </table>
           </div>
-        </div>
+        </RetroWindow>
       )}
     </div>
   );
@@ -685,14 +686,14 @@ function GodsPanel({ gods, onRefresh }) {
   const filtered = filterRole === 'All' ? gods : gods.filter((g) => g.role === filterRole);
 
   return (
-    <div className="card">
+    <RetroWindow title="GOD DATABASE">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display font-bold text-base uppercase tracking-wider text-gray-200">Gods ({gods.length})</h2>
-        <button onClick={() => { reset(); setShowForm(!showForm); }} className="btn-primary text-xs">{showForm ? 'Cancel' : '+ Add God'}</button>
+        <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Gods ({gods.length})</h2>
+        <BrutalButton onClick={() => { reset(); setShowForm(!showForm); }} size="sm">{showForm ? 'Cancel' : '+ Add God'}</BrutalButton>
       </div>
 
       {showForm && (
-        <div className="mb-4 p-4 bg-brand-950/60 rounded-lg border border-brand-600/30 space-y-3 animate-fade-in">
+        <RetroWindow title={editId ? 'EDIT GOD' : 'NEW GOD'} titleBarColor="purple" className="mb-4 animate-fade-in">
           <input placeholder="God name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
           <div className="grid grid-cols-2 gap-3">
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="select-field">
@@ -702,8 +703,8 @@ function GodsPanel({ gods, onRefresh }) {
               {GOD_CLASSES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <button onClick={submit} disabled={busy || !form.name.trim()} className="btn-primary w-full text-xs">{busy ? 'Saving…' : editId ? 'Update God' : 'Add God'}</button>
-        </div>
+          <BrutalButton onClick={submit} disabled={busy || !form.name.trim()} className="w-full">{busy ? 'Saving...' : editId ? 'Update God' : 'Add God'}</BrutalButton>
+        </RetroWindow>
       )}
 
       <div className="mb-3">
@@ -713,7 +714,7 @@ function GodsPanel({ gods, onRefresh }) {
       <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-brand-800">
-            <tr className="text-[10px] font-display uppercase tracking-wider text-gray-500 border-b border-brand-600/30">
+            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
               <th className="text-left py-2 px-2">Name</th>
               <th className="text-left py-2 px-2">Role</th>
               <th className="text-left py-2 px-2">Class</th>
@@ -727,14 +728,13 @@ function GodsPanel({ gods, onRefresh }) {
                 <td className="py-2 px-2 text-gray-500">{g.role}</td>
                 <td className="py-2 px-2 text-gray-500">{g.godClass}</td>
                 <td className="py-2 px-2 text-right">
-                  <button onClick={() => edit(g)} className="text-xs text-frost-400 hover:text-frost-300 mr-3">Edit</button>
-                  <button onClick={() => remove(g.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                  <div className="flex justify-end gap-2"><BrutalButton onClick={() => edit(g)} variant="secondary" size="sm">Edit</BrutalButton><BrutalButton onClick={() => remove(g.id)} variant="danger" size="sm">Delete</BrutalButton></div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </RetroWindow>
   );
 }

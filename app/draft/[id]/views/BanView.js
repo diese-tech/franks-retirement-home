@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react';
 import { GOD_ROLES } from '@/lib/constants';
 import { BAN_ORDER, currentBanTeam, TOTAL_BANS } from '@/lib/draftOrder';
-import ArenaBanner from '@/components/ArenaBanner';
 import GodImage from '@/components/GodImage';
 import RoleFilter from '@/components/RoleFilter';
+import { BrutalButton, PixelBadge, RetroWindow } from '@/components/ui';
 
 export default function BanView({ state, role, callApi }) {
   const { bans, gods } = state;
@@ -62,20 +62,27 @@ export default function BanView({ state, role, callApi }) {
 
   return (
     <div className="space-y-4">
-      <div className="card">
-        <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-3">Ban Phase - 3 bans per team</div>
-        <div className="grid grid-cols-6 gap-2">
+      {activeTeam && (
+        <div className={`${activeTeam === 'A' ? 'bg-frh-xp-blue' : 'bg-frh-purple'} border-2 border-frh-ink px-4 py-3 shadow-[4px_4px_0px_rgba(0,0,0,0.6)]`}>
+          <div className="font-ui text-sm uppercase tracking-widest text-white">
+            Captain {activeTeam} is banning
+          </div>
+          <div className="font-mono text-xs text-white/80">
+            {isMyTurn && myTeam ? 'Your turn - select a god to ban' : 'Waiting for the active captain'}
+          </div>
+        </div>
+      )}
+
+      <RetroWindow title="BAN ORDER">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
           {BAN_ORDER.map((team, index) => {
             const ban = bans.find((item) => item.banOrder === index);
             const isCurrent = index === banCount && banCount < TOTAL_BANS;
             const isA = team === 'A';
-            const accentBg = isA ? 'bg-blue-500/10 border-blue-500/30' : 'bg-red-500/10 border-red-500/30';
-            const accentText = isA ? 'text-blue-400' : 'text-red-400';
-            const currentGlow = isCurrent ? (isA ? 'ring-2 ring-blue-500/50 animate-pulse' : 'ring-2 ring-red-500/50 animate-pulse') : '';
 
             return (
-              <div key={index} className={`rounded-lg border px-2 py-2 text-center ${ban ? accentBg : 'bg-brand-900 border-brand-600/20'} ${currentGlow} transition-all`}>
-                <div className={`text-[9px] font-display font-bold uppercase tracking-wider mb-1 ${accentText}`}>
+              <div key={index} className={`border-2 px-2 py-2 text-center ${isA ? 'border-frh-xp-blue bg-frh-xp-blue/10' : 'border-frh-purple bg-frh-purple/10'} ${isCurrent ? 'ring-2 ring-frh-yellow' : ''}`}>
+                <div className={`text-[9px] font-ui uppercase tracking-widest mb-1 ${isA ? 'text-frh-xp-blue' : 'text-frh-purple'}`}>
                   Team {isA ? 'A' : 'B'}
                 </div>
                 {ban ? (
@@ -85,9 +92,7 @@ export default function BanView({ state, role, callApi }) {
                       {ban.god?.name ?? '-'}
                     </div>
                     {isAdmin && (
-                      <button onClick={() => undoBan(ban.id)} className="text-[9px] text-gold-300 hover:text-gold-200 uppercase tracking-wider">
-                        Undo
-                      </button>
+                      <BrutalButton onClick={() => undoBan(ban.id)} variant="ghost" size="sm">Undo</BrutalButton>
                     )}
                   </div>
                 ) : (
@@ -97,22 +102,14 @@ export default function BanView({ state, role, callApi }) {
             );
           })}
         </div>
-      </div>
-
-      {activeTeam && (
-        <ArenaBanner
-          team={activeTeam}
-          subtext={isMyTurn && myTeam ? 'Your turn - select a god to ban' : 'is banning'}
-        />
-      )}
+      </RetroWindow>
 
       {error && (
-        <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">{error}</div>
+        <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-mono">{error}</div>
       )}
 
-      <div className="card">
+      <RetroWindow title="GOD POOL">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <h3 className="font-display font-bold text-xs uppercase tracking-wider text-gray-400">God Pool</h3>
           <input
             placeholder="Search..."
             value={search}
@@ -130,21 +127,21 @@ export default function BanView({ state, role, callApi }) {
                 key={god.id}
                 onClick={() => { if (!banned && isMyTurn) setSelected(isSelected ? null : god.id); }}
                 disabled={banned || !isMyTurn}
-                className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                className={`relative flex flex-col items-center gap-1 p-2 border-2 transition-all ${
                   banned
-                    ? 'bg-brand-900/30 border-brand-700/20 opacity-40 cursor-not-allowed'
+                    ? 'bg-brand-900/30 border-brand-700 opacity-40 cursor-not-allowed'
                     : isSelected
-                      ? 'bg-orange-500/20 border-orange-500/50 ring-1 ring-orange-500/50'
+                      ? 'bg-frh-orange/20 border-frh-orange ring-2 ring-frh-orange/50'
                       : isMyTurn
-                        ? 'bg-brand-800/60 border-brand-600/20 hover:border-brand-500/50 hover:bg-brand-700/60 cursor-pointer'
-                        : 'bg-brand-800/40 border-brand-600/20 cursor-default'
+                        ? 'bg-brand-800/60 border-brand-700 hover:border-frh-yellow hover:shadow-[3px_3px_0px_rgba(0,0,0,0.6)] cursor-pointer'
+                        : 'bg-brand-800/40 border-brand-700 cursor-default'
                 }`}
               >
                 <GodImage godId={god.id} name={god.name} size={48} className="w-full aspect-square" />
                 <div className="font-display font-semibold text-gray-200 text-[10px] leading-tight truncate w-full text-center">{god.name}</div>
                 {banned && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-brand-900/60">
-                    <span className="text-[9px] font-display font-bold uppercase text-gray-500">Banned</span>
+                  <div className="absolute inset-0 flex items-center justify-center bg-brand-900/70">
+                    <PixelBadge label="Banned" color="gray" />
                   </div>
                 )}
               </button>
@@ -152,17 +149,21 @@ export default function BanView({ state, role, callApi }) {
           })}
         </div>
 
-        {selected && isMyTurn && (
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-brand-600/30">
-            <GodImage godId={selected} name={selectedGod?.name} size={28} />
-            <span className="font-display font-bold text-sm text-gray-200">{selectedGod?.name}</span>
-            <button onClick={() => setSelected(null)} className="ml-auto text-xs text-gray-500 hover:text-gray-300">Cancel</button>
-            <button onClick={submitBan} disabled={busy} className="btn-danger text-xs px-4">
-              {busy ? 'Banning...' : 'Confirm Ban'}
-            </button>
-          </div>
-        )}
-      </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-3 pt-3 border-t border-brand-600/30">
+          {selectedGod ? (
+            <>
+              <GodImage godId={selected} name={selectedGod?.name} size={28} />
+              <span className="font-display font-bold text-sm text-gray-200">{selectedGod?.name}</span>
+              <BrutalButton onClick={() => setSelected(null)} variant="ghost" size="sm" className="sm:ml-auto">Cancel</BrutalButton>
+            </>
+          ) : (
+            <span className="text-xs text-gray-600 font-mono">Select a god to unlock confirmation.</span>
+          )}
+          <BrutalButton onClick={submitBan} disabled={!selected || !isMyTurn || busy} variant="danger" className="sm:ml-0">
+            {busy ? 'Banning...' : 'Confirm Ban'}
+          </BrutalButton>
+        </div>
+      </RetroWindow>
     </div>
   );
 }

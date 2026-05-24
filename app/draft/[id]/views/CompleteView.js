@@ -2,8 +2,9 @@
 
 import { ROLE_COLORS } from '@/lib/constants';
 import GodImage from '@/components/GodImage';
+import { BrutalButton, PixelBadge, RetroWindow } from '@/components/ui';
 
-export default function CompleteView({ state }) {
+export default function CompleteView({ state, role, onAdminAction }) {
   const { picks, bans, gods, usedGodIds = [] } = state;
 
   const teamA = picks.filter((p) => p.team === 'A').sort((a, b) => a.pickOrder - b.pickOrder);
@@ -12,63 +13,61 @@ export default function CompleteView({ state }) {
 
   return (
     <div className="space-y-4">
-      {/* Banned gods */}
+      <RetroWindow title="DRAFT COMPLETE" titleBarColor="yellow">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Final Rosters Locked</div>
+          <div className="sm:ml-auto flex gap-2 flex-wrap">
+            <BrutalButton href="/" variant="secondary">Back To Home</BrutalButton>
+            {role === 'admin' && (
+              <BrutalButton onClick={() => onAdminAction?.('reopenLastPick')} variant="danger">Reopen Draft</BrutalButton>
+            )}
+          </div>
+        </div>
+      </RetroWindow>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FinalTeam team="A" picks={teamA} />
+        <FinalTeam team="B" picks={teamB} />
+      </div>
+
       {bans.length > 0 && (
-        <div className="card">
-          <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2">Banned Gods</div>
+        <RetroWindow title="BANNED GODS STRIP">
           <div className="flex flex-wrap gap-2">
             {bans.map((ban) => (
-              <span key={ban.id} className="px-2 py-1 rounded bg-brand-800 border border-brand-600/30 text-xs text-gray-400 font-display">
-                {ban.god?.name ?? '—'}
-                <span className={`ml-1.5 text-[9px] font-bold ${ban.team === 'A' ? 'text-blue-500' : 'text-red-500'}`}>
-                  {ban.team === 'A' ? 'α' : 'β'}
-                </span>
+              <span key={ban.id} className="inline-flex items-center gap-2 px-2 py-1 bg-brand-900 border border-brand-700 text-xs text-gray-400 font-display">
+                <PixelBadge label="Banned" color={ban.team === 'A' ? 'blue' : 'purple'} />
+                {ban.god?.name ?? '-'}
               </span>
             ))}
           </div>
-        </div>
+        </RetroWindow>
       )}
 
       {vaultedGods.length > 0 && (
-        <div className="card">
-          <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2">Vaulted Gods</div>
+        <RetroWindow title="VAULTED GODS">
           <div className="flex flex-wrap gap-2">
             {vaultedGods.map((god) => (
-              <span key={god.id} className="inline-flex items-center gap-2 px-2 py-1 rounded bg-gold-500/10 border border-gold-500/20 text-xs text-gray-300 font-display">
+              <span key={god.id} className="inline-flex items-center gap-2 px-2 py-1 bg-gold-500/10 border border-gold-500/20 text-xs text-gray-300 font-display">
                 <GodImage godId={god.id} name={god.name} size={18} className="rounded-sm" />
                 {god.name}
               </span>
             ))}
           </div>
-        </div>
+        </RetroWindow>
       )}
-
-      {/* Final teams */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FinalTeam team="A" picks={teamA} />
-        <FinalTeam team="B" picks={teamB} />
-      </div>
     </div>
   );
 }
 
 function FinalTeam({ team, picks }) {
   const isA = team === 'A';
-  const accent = isA ? 'text-blue-400' : 'text-red-400';
-  const borderColor = isA ? 'border-blue-500/30' : 'border-red-500/30';
-  const colBg = isA ? 'bg-blue-950/60' : 'bg-red-950/60';
 
   return (
-    <div className={`rounded-xl border ${borderColor} ${colBg} overflow-hidden`}>
-      <div className={`px-5 py-4 border-b ${borderColor}`}>
-        <h2 className={`font-display font-bold text-lg uppercase tracking-wider ${accent}`}>
-          Team {isA ? 'Alpha' : 'Bravo'}
-        </h2>
-      </div>
-      <div className="p-4 space-y-2">
+    <RetroWindow title={`TEAM ${isA ? 'A' : 'B'} FINAL ROSTER`} titleBarColor={isA ? 'blue' : 'purple'}>
+      <div className="space-y-2">
         {picks.map((pick, i) => (
-          <div key={pick.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-800/60 border border-brand-600/20">
-            <span className="w-5 h-5 rounded bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{i + 1}</span>
+          <div key={pick.id} className="flex items-center gap-2 px-3 py-2 bg-brand-900/70 border border-brand-700">
+            <span className="w-5 h-5 bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{i + 1}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="font-display font-semibold text-sm text-gray-200 truncate">{pick.player?.name}</span>
@@ -85,6 +84,6 @@ function FinalTeam({ team, picks }) {
           </div>
         ))}
       </div>
-    </div>
+    </RetroWindow>
   );
 }
