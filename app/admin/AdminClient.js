@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, STATUS_COLORS, ROLE_COLORS } from '@/lib/constants';
 import RoleFilter from '@/components/RoleFilter';
+import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
 
 async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -32,9 +33,9 @@ function PasswordGate({ onAuthed }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="card w-full max-w-sm">
-        <h1 className="font-display font-bold text-lg uppercase tracking-wider text-gray-200 mb-1">Admin Access</h1>
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <RetroWindow title="AUTHENTICATION REQUIRED" titleBarColor="blue" className="w-full max-w-sm">
+        <h1 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Admin Access</h1>
         <p className="text-sm text-gray-500 mb-6">Enter the admin password to continue.</p>
         <form onSubmit={submit} className="space-y-4">
           <input
@@ -46,11 +47,11 @@ function PasswordGate({ onAuthed }) {
             autoFocus
           />
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <button type="submit" disabled={busy || !pw} className="btn-primary w-full">
-            {busy ? 'Checking…' : 'Enter'}
-          </button>
+          <BrutalButton type="submit" disabled={busy || !pw} className="w-full">
+            {busy ? 'Checking...' : 'Enter the Compound'}
+          </BrutalButton>
         </form>
-      </div>
+      </RetroWindow>
     </div>
   );
 }
@@ -99,24 +100,40 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-gray-200 mb-1">Admin Dashboard</h1>
-        <p className="text-sm text-gray-500">Manage players, gods, and draft sessions.</p>
-      </div>
+      <RetroWindow title="FRANK'S COMMAND CENTER v1.0" titleBarColor="yellow">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6 border-b-2 border-brand-700 pb-4">
+          <div>
+            <h1 className="font-ui text-xl uppercase tracking-widest text-frh-yellow mb-1">Admin Dashboard</h1>
+            <p className="text-sm text-gray-500">Manage players, gods, and draft sessions.</p>
+          </div>
+          <PixelBadge label="Admin Session Active" color="lime" />
+        </div>
 
-      <div className="flex gap-1 mb-6 bg-brand-800 rounded-lg p-1 border border-brand-600/30 w-fit">
-        {tabs.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-md font-display font-semibold text-sm uppercase tracking-wider transition-all ${tab === t.key ? 'bg-brand-600 text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
-            {t.label} {t.count !== null && <span className="ml-1 text-[10px] font-mono opacity-60">{t.count}</span>}
-          </button>
-        ))}
-      </div>
+        <div className="mb-6 overflow-x-auto border-2 border-brand-700 bg-brand-950/50">
+          <div className="flex min-w-max bg-brand-900">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={[
+                  'px-4 py-3 font-ui text-xs uppercase transition-colors border-r border-brand-700 last:border-r-0',
+                  tab === t.key
+                    ? 'bg-brand-800 text-frh-yellow border-b-[3px] border-b-frh-yellow'
+                    : 'bg-brand-700 text-gray-400 border-b-[3px] border-b-transparent hover:text-frh-cream',
+                ].join(' ')}
+              >
+                {t.label}
+                {t.count !== null && <span className="ml-2 font-mono text-[10px] opacity-60">{t.count}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
-      {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
-      {tab === 'import'  && <ImportPanel  onRefresh={refreshPlayers} />}
-      {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
+        {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
+        {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
+        {tab === 'import'  && <ImportPanel  onRefresh={refreshPlayers} />}
+        {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
+      </RetroWindow>
     </div>
   );
 }
