@@ -10,6 +10,7 @@ module.exports = {
         display: ['Rajdhani', 'sans-serif'],
         body: ['Exo 2', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+        ui: ['Share Tech Mono', 'monospace'],
       },
       colors: {
         brand: {
@@ -22,6 +23,14 @@ module.exports = {
         gold: { 400: '#f6c744', 500: '#e5a813' },
         ember: { 400: '#ff6b4a', 500: '#e04428' },
         frost: { 400: '#67e8f9', 500: '#22d3ee' },
+        'frh-yellow':     '#ffd400',
+        'frh-orange':     '#ff8c00',
+        'frh-xp-blue':    '#1f6fff',
+        'frh-purple':     '#6f35ff',
+        'frh-lime':       '#b5e853',
+        'frh-cream':      '#f4e0b5',
+        'frh-ink':        '#111111',
+        'frh-deep-green': '#163b00',
       },
       animation: {
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
