@@ -7,10 +7,12 @@ import { BrutalButton, RetroWindow } from '@/components/ui';
 export default function ChatPanel({ chats, draftKey, draftId }) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef(null);
+  const messagesRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
   }, [chats]);
 
   const send = async () => {
@@ -35,7 +37,7 @@ export default function ChatPanel({ chats, draftKey, draftId }) {
   return (
     <RetroWindow title="AIM EVENT LOG">
       <div className="flex flex-col h-64">
-        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 mb-2 bg-brand-950/60 border border-brand-700 p-2 font-mono">
+        <div ref={messagesRef} className="flex-1 overflow-y-auto space-y-1.5 pr-1 mb-2 bg-brand-950/60 border border-brand-700 p-2 font-mono">
           {chats.length === 0
             ? <p className="text-xs text-gray-700 text-center py-4">No messages yet</p>
             : chats.map((msg) => (
@@ -46,7 +48,6 @@ export default function ChatPanel({ chats, draftKey, draftId }) {
                 <span className="text-xs text-gray-300 break-words min-w-0">&gt; {msg.message}</span>
               </div>
             ))}
-          <div ref={bottomRef} />
         </div>
 
         <div className="flex gap-2 shrink-0">
