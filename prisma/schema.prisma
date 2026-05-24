@@ -19,6 +19,7 @@ model Season {
   createdAt   DateTime  @default(now())
 
   divisions Division[]
+  matches   Match[]
 }
 
 model Division {
@@ -28,8 +29,9 @@ model Division {
   tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
   createdAt DateTime @default(now())
 
-  season Season @relation(fields: [seasonId], references: [id])
-  teams  Team[]
+  season  Season  @relation(fields: [seasonId], references: [id])
+  teams   Team[]
+  matches Match[]
 
   @@unique([seasonId, name])
 }
@@ -54,9 +56,11 @@ model Team {
   captainPlayerId String?
   createdAt       DateTime @default(now())
 
-  division Division    @relation(fields: [divisionId], references: [id])
-  org      Org?        @relation(fields: [orgId], references: [id])
-  members  TeamMember[]
+  division    Division    @relation(fields: [divisionId], references: [id])
+  org         Org?        @relation(fields: [orgId], references: [id])
+  members     TeamMember[]
+  homeMatches Match[]     @relation("HomeTeam")
+  awayMatches Match[]     @relation("AwayTeam")
 }
 
 model TeamMember {
@@ -73,6 +77,43 @@ model TeamMember {
   player Player @relation(fields: [playerId], references: [id])
 
   @@unique([teamId, playerId])
+}
+
+model Match {
+  id                 String    @id @default(cuid())
+  seasonId           String
+  divisionId         String
+  week               Int
+  scheduledAt        DateTime?
+  status             String    @default("scheduled") // scheduled | live | completed | postponed
+  homeTeamId         String
+  awayTeamId         String
+  format             String    @default("BO1")        // BO1 | BO3 | BO5
+  streamUrl          String?
+  vodUrl             String?
+  homeTeamCaptainKey String?   @unique
+  awayTeamCaptainKey String?   @unique
+  createdAt          DateTime  @default(now())
+
+  season   Season   @relation(fields: [seasonId], references: [id])
+  division Division @relation(fields: [divisionId], references: [id])
+  homeTeam Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  games    Game[]
+}
+
+model Game {
+  id              String   @id @default(cuid())
+  matchId         String
+  gameNumber      Int      // 1-based within the match
+  winnerTeamId    String?
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
+
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  draft Draft?
+
+  @@unique([matchId, gameNumber])
 }
 
 model Player {
@@ -110,12 +151,15 @@ model Draft {
   usedGodIds     Json     @default("[]")
   version        Int      @default(0)
   chatsVersion   Int      @default(0)
+  // Nullable FK to Game. Null = standalone draft (scrims/testing). @unique = one draft per game at most.
+  gameId         String?  @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   picks DraftPick[]
   bans  DraftBan[]
   chats DraftChat[]
+  game  Game?        @relation(fields: [gameId], references: [id])
 }
 
 model DraftPick {

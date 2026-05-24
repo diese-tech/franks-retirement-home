@@ -57,13 +57,14 @@ function PasswordGate({ onAuthed }) {
   );
 }
 
-export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [] }) {
+export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [] }) {
   const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
   const [drafts, setDrafts] = useState(initialDrafts);
   const [seasons, setSeasons] = useState(initialSeasons);
   const [teams, setTeams] = useState(initialTeams);
+  const [matches, setMatches] = useState(initialMatches);
   const [tab, setTab] = useState('drafts');
 
   useEffect(() => {
@@ -93,11 +94,16 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     const data = await api('/api/teams');
     setTeams(Array.isArray(data) ? data : []);
   };
+  const refreshMatches = async () => {
+    const data = await api('/api/matches');
+    setMatches(Array.isArray(data) ? data : []);
+  };
 
   const tabs = [
     { key: 'drafts',  label: 'Drafts',  count: drafts.length },
     { key: 'players', label: 'Players', count: players.length },
     { key: 'teams',   label: 'Teams',   count: teams.length },
+    { key: 'matches', label: 'Schedule', count: matches.length },
     { key: 'import',  label: 'Import',  count: null },
     { key: 'gods',    label: 'Gods',    count: gods.length },
   ];
@@ -136,6 +142,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
         {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
         {tab === 'teams'   && <TeamsPanel   teams={teams} players={players} seasons={seasons} onRefreshTeams={refreshTeams} onRefreshSeasons={refreshSeasons} />}
+        {tab === 'matches' && <MatchesPanel matches={matches} seasons={seasons} teams={teams} onRefresh={refreshMatches} />}
         {tab === 'import'  && <ImportPanel  onRefresh={refreshPlayers} />}
         {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
       </RetroWindow>
@@ -708,6 +715,255 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
         </div>
       )}
     </RetroWindow>
+  );
+}
+
+// ─── Matches Panel ───────────────────────────────────
+
+const STATUS_BADGE = {
+  scheduled: 'blue',
+  live: 'lime',
+  completed: 'purple',
+  postponed: 'orange',
+};
+
+function MatchesPanel({ matches, seasons, teams, onRefresh }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [form, setForm] = useState({
+    seasonId: '',
+    divisionId: '',
+    homeTeamId: '',
+    awayTeamId: '',
+    week: '',
+    format: 'BO1',
+    scheduledAt: '',
+  });
+
+  const activeSeason = seasons.find((s) => s.status === 'active') ?? seasons[0];
+  const selectedDivision = activeSeason?.divisions?.find((d) => d.id === form.divisionId);
+  const divisionTeams = teams.filter((t) => t.division?.id === form.divisionId);
+
+  const createMatch = async () => {
+    setErr('');
+    if (!form.seasonId || !form.divisionId || !form.homeTeamId || !form.awayTeamId || !form.week) {
+      setErr('Season, division, both teams, and week are required.');
+      return;
+    }
+    setBusy(true);
+    const res = await postJson('/api/matches', {
+      seasonId: form.seasonId,
+      divisionId: form.divisionId,
+      homeTeamId: form.homeTeamId,
+      awayTeamId: form.awayTeamId,
+      week: parseInt(form.week, 10),
+      format: form.format,
+      scheduledAt: form.scheduledAt || null,
+    });
+    setBusy(false);
+    if (res.error) { setErr(res.error); return; }
+    setForm({ seasonId: form.seasonId, divisionId: form.divisionId, homeTeamId: '', awayTeamId: '', week: form.week, format: 'BO1', scheduledAt: '' });
+    await onRefresh();
+  };
+
+  const updateStatus = async (matchId, status) => {
+    await patchJson(`/api/matches/${matchId}`, { status });
+    await onRefresh();
+  };
+
+  const openDraft = async (matchId, gameId) => {
+    const res = await postJson(`/api/matches/${matchId}/games/${gameId}/draft`, {});
+    if (res.error && res.error !== 'Draft already exists for this game') {
+      alert(res.error);
+      return;
+    }
+    const draftId = res.id ?? res.draftId;
+    if (draftId) window.open(`/draft/${draftId}`, '_blank');
+    await onRefresh();
+  };
+
+  const deleteMatch = async (matchId) => {
+    if (!confirm('Delete this match and all its games?')) return;
+    await del(`/api/matches/${matchId}`);
+    await onRefresh();
+  };
+
+  const groupedByWeek = matches.reduce((acc, m) => {
+    const w = m.week ?? 0;
+    if (!acc[w]) acc[w] = [];
+    acc[w].push(m);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {/* Create match form */}
+      <RetroWindow title="SCHEDULE A MATCH">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Season</label>
+            <select
+              value={form.seasonId}
+              onChange={(e) => setForm({ ...form, seasonId: e.target.value, divisionId: '', homeTeamId: '', awayTeamId: '' })}
+              className="select-field w-full"
+            >
+              <option value="">Select season…</option>
+              {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Division</label>
+            <select
+              value={form.divisionId}
+              onChange={(e) => setForm({ ...form, divisionId: e.target.value, homeTeamId: '', awayTeamId: '' })}
+              className="select-field w-full"
+              disabled={!form.seasonId}
+            >
+              <option value="">Select division…</option>
+              {seasons.find((s) => s.id === form.seasonId)?.divisions?.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Home Team</label>
+            <select
+              value={form.homeTeamId}
+              onChange={(e) => setForm({ ...form, homeTeamId: e.target.value })}
+              className="select-field w-full"
+              disabled={!form.divisionId}
+            >
+              <option value="">Select team…</option>
+              {divisionTeams.filter((t) => t.id !== form.awayTeamId).map((t) => (
+                <option key={t.id} value={t.id}>{t.name} [{t.tag}]</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Away Team</label>
+            <select
+              value={form.awayTeamId}
+              onChange={(e) => setForm({ ...form, awayTeamId: e.target.value })}
+              className="select-field w-full"
+              disabled={!form.divisionId}
+            >
+              <option value="">Select team…</option>
+              {divisionTeams.filter((t) => t.id !== form.homeTeamId).map((t) => (
+                <option key={t.id} value={t.id}>{t.name} [{t.tag}]</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Week</label>
+            <input
+              type="number"
+              min="1"
+              value={form.week}
+              onChange={(e) => setForm({ ...form, week: e.target.value })}
+              className="input-field w-full"
+              placeholder="1"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Format</label>
+            <select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} className="select-field w-full">
+              <option value="BO1">BO1</option>
+              <option value="BO3">BO3</option>
+              <option value="BO5">BO5</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Scheduled Date/Time (optional)</label>
+            <input
+              type="datetime-local"
+              value={form.scheduledAt}
+              onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+              className="input-field w-full"
+            />
+          </div>
+        </div>
+        {err && <p className="text-xs text-red-400 mb-2">{err}</p>}
+        <BrutalButton onClick={createMatch} disabled={busy}>
+          {busy ? 'Scheduling…' : 'Schedule Match'}
+        </BrutalButton>
+        {selectedDivision && (
+          <p className="text-[10px] text-gray-600 mt-2">
+            {divisionTeams.length} team{divisionTeams.length !== 1 ? 's' : ''} in {selectedDivision.name}
+          </p>
+        )}
+      </RetroWindow>
+
+      {/* Match list by week */}
+      {matches.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-4">No matches scheduled yet.</p>
+      ) : (
+        Object.keys(groupedByWeek).sort((a, b) => a - b).map((week) => (
+          <RetroWindow key={week} title={`WEEK ${week}`}>
+            <div className="space-y-3">
+              {groupedByWeek[week].map((match) => (
+                <div key={match.id} className="border-2 border-brand-700 hover:border-frh-yellow/40 transition-all">
+                  <div className="flex flex-wrap items-center gap-3 px-3 py-3 bg-brand-950/40">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-ui text-sm text-gray-200">
+                          {match.homeTeam?.name} <span className="text-gray-600 text-xs">vs</span> {match.awayTeam?.name}
+                        </span>
+                        <PixelBadge label={match.format} color="purple" />
+                        <PixelBadge label={match.status} color={STATUS_BADGE[match.status] ?? 'blue'} />
+                      </div>
+                      {match.scheduledAt && (
+                        <span className="text-[10px] text-gray-600">{new Date(match.scheduledAt).toLocaleString()}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0 flex-wrap">
+                      <select
+                        defaultValue={match.status}
+                        onChange={(e) => updateStatus(match.id, e.target.value)}
+                        className="select-field text-xs py-1 h-8"
+                      >
+                        {['scheduled', 'live', 'completed', 'postponed'].map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <BrutalButton onClick={() => deleteMatch(match.id)} variant="danger" size="sm">Delete</BrutalButton>
+                    </div>
+                  </div>
+
+                  {/* Games list with draft buttons */}
+                  {match.games?.length > 0 && (
+                    <div className="border-t-2 border-brand-700 px-3 py-2 bg-brand-900/20 flex flex-wrap gap-2">
+                      {match.games.map((game) => (
+                        <div key={game.id} className="flex items-center gap-2">
+                          <span className="text-[10px] font-ui text-gray-500">G{game.gameNumber}</span>
+                          {game.draft ? (
+                            <a
+                              href={`/draft/${game.draft.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-ui text-frh-yellow underline"
+                            >
+                              Draft ({game.draft.status})
+                            </a>
+                          ) : (
+                            <BrutalButton
+                              onClick={() => openDraft(match.id, game.id)}
+                              size="sm"
+                              className="text-[10px] py-0.5 px-2"
+                            >
+                              Open Draft
+                            </BrutalButton>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </RetroWindow>
+        ))
+      )}
+    </div>
   );
 }
 

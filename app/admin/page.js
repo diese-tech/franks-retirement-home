@@ -28,6 +28,19 @@ export default async function AdminPage() {
       },
     },
   });
+  const matches = await prisma.match.findMany({
+    orderBy: [{ week: 'asc' }, { scheduledAt: 'asc' }],
+    include: {
+      season: { select: { id: true, name: true, slug: true } },
+      division: { select: { id: true, name: true } },
+      homeTeam: { select: { id: true, name: true, tag: true } },
+      awayTeam: { select: { id: true, name: true, tag: true } },
+      games: {
+        orderBy: { gameNumber: 'asc' },
+        include: { draft: { select: { id: true, status: true } } },
+      },
+    },
+  });
 
   return (
     <AdminClient
@@ -36,6 +49,7 @@ export default async function AdminPage() {
       initialDrafts={JSON.parse(JSON.stringify(drafts))}
       initialSeasons={JSON.parse(JSON.stringify(seasons))}
       initialTeams={JSON.parse(JSON.stringify(teams))}
+      initialMatches={JSON.parse(JSON.stringify(matches))}
     />
   );
 }
