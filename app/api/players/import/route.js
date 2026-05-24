@@ -6,8 +6,8 @@ import { invalidatePlayers } from '@/lib/referenceData';
 
 // POST /api/players/import
 // Body: { players: [{ name, role, discordUsername?, division? }] }
-// Upserts by name (case-insensitive match on existing records).
-// Returns { imported, skipped, errors }
+// Upserts by discordUsername when present, falls back to name (case-insensitive).
+// Returns { imported, updated, skipped, errors }
 export async function POST(request) {
   const guard = requireAdmin(request);
   if (guard) return guard;
@@ -25,7 +25,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Maximum 500 players per import' }, { status: 400 });
   }
 
-  const results = { imported: 0, updated: 0, errors: [] };
+  const results = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (const row of players) {
     const name = typeof row.name === 'string' ? row.name.trim() : '';
@@ -40,16 +40,27 @@ export async function POST(request) {
     if (division && division.length > 64) { results.errors.push({ row, reason: 'division exceeds 64 chars' }); continue; }
 
     try {
-      const existing = await prisma.player.findFirst({
-        where: { name: { equals: name, mode: 'insensitive' } },
-      });
+      // Prefer discordUsername as stable dedup key; fall back to case-insensitive name match
+      const existing = discordUsername
+        ? await prisma.player.findFirst({ where: { discordUsername } })
+        : await prisma.player.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } });
 
       if (existing) {
-        await prisma.player.update({
-          where: { id: existing.id },
-          data: { role, discordUsername, division },
-        });
-        results.updated++;
+        const unchanged =
+          existing.name === name &&
+          existing.role === role &&
+          existing.discordUsername === discordUsername &&
+          existing.division === division;
+
+        if (unchanged) {
+          results.skipped++;
+        } else {
+          await prisma.player.update({
+            where: { id: existing.id },
+            data: { name, role, discordUsername, division },
+          });
+          results.updated++;
+        }
       } else {
         await prisma.player.create({
           data: { name, role, discordUsername, division },
