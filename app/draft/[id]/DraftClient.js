@@ -33,7 +33,7 @@ export default function DraftClient({ initialState, role, draftKey }) {
     es.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === 'state') {
-        const { type, ...nextState } = data;
+        const { type: _type, ...nextState } = data;
         setState(nextState);
       } else if (data.type === 'chats') {
         setState((prev) => ({ ...prev, chats: data.chats }));
@@ -74,7 +74,7 @@ export default function DraftClient({ initialState, role, draftKey }) {
     }
   }, [runAdminAction]);
 
-  const setStatus = useCallback(async (status) => {
+  const _setStatus = useCallback(async (status) => {
     await fetch('/api/drafts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

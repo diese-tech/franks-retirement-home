@@ -9,7 +9,7 @@ export default function Nav() {
             F
           </div>
           <span className="font-display font-bold text-base uppercase tracking-wider text-gray-200 group-hover:text-gold-400 transition-colors">
-            Frank's Retirement Home
+            Frank&apos;s Retirement Home
           </span>
         </Link>
         <div className="flex items-center gap-1">

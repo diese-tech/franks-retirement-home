@@ -5,6 +5,7 @@ import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 import { requireAdmin } from '@/lib/adminSession';
 
 // Active-ish statuses where picks are locked into a live draft
+// eslint-disable-next-line no-unused-vars
 const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 // GET /api/draft-picks?draftId=xxx
