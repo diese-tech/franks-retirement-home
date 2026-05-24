@@ -8,6 +8,7 @@ import { RetroWindow, BrutalButton, PixelBadge, StatusBadge } from '@/components
 async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 function del(url) { return api(url, { method: 'DELETE' }); }
+function patchJson(url, body) { return api(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 
 function PasswordGate({ onAuthed }) {
   const [pw, setPw] = useState('');
@@ -56,18 +57,17 @@ function PasswordGate({ onAuthed }) {
   );
 }
 
-export default function AdminClient({ initialPlayers, initialGods, initialDrafts }) {
+export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [] }) {
   const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
   const [drafts, setDrafts] = useState(initialDrafts);
+  const [seasons, setSeasons] = useState(initialSeasons);
+  const [teams, setTeams] = useState(initialTeams);
   const [tab, setTab] = useState('drafts');
 
   useEffect(() => {
     if (sessionStorage.getItem('frh_admin') !== '1') return;
-    // Sanity-check the cookie is still valid. The sessionStorage flag is a
-    // UI hint only — when ADMIN_AUTH_REQUIRED is on, the cookie may have
-    // expired (12h TTL) while the flag persists.
     let cancelled = false;
     fetch('/api/admin-auth', { method: 'GET' })
       .then((res) => {
@@ -79,21 +79,25 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
           setAuthed(true);
         }
       })
-      .catch(() => {
-        if (!cancelled) setAuthed(true);
-      });
+      .catch(() => { if (!cancelled) setAuthed(true); });
     return () => { cancelled = true; };
   }, []);
 
   if (!authed) return <PasswordGate onAuthed={() => setAuthed(true)} />;
 
   const refreshPlayers = async () => setPlayers(await api('/api/players'));
-  const refreshGods = async () => setGods(await api('/api/gods'));
-  const refreshDrafts = async () => setDrafts(await api('/api/drafts'));
+  const refreshGods    = async () => setGods(await api('/api/gods'));
+  const refreshDrafts  = async () => setDrafts(await api('/api/drafts'));
+  const refreshSeasons = async () => setSeasons(await api('/api/seasons'));
+  const refreshTeams   = async () => {
+    const data = await api('/api/teams');
+    setTeams(Array.isArray(data) ? data : []);
+  };
 
   const tabs = [
     { key: 'drafts',  label: 'Drafts',  count: drafts.length },
     { key: 'players', label: 'Players', count: players.length },
+    { key: 'teams',   label: 'Teams',   count: teams.length },
     { key: 'import',  label: 'Import',  count: null },
     { key: 'gods',    label: 'Gods',    count: gods.length },
   ];
@@ -131,6 +135,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
 
         {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
         {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
+        {tab === 'teams'   && <TeamsPanel   teams={teams} players={players} seasons={seasons} onRefreshTeams={refreshTeams} onRefreshSeasons={refreshSeasons} />}
         {tab === 'import'  && <ImportPanel  onRefresh={refreshPlayers} />}
         {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
       </RetroWindow>
@@ -227,8 +232,6 @@ function ShareModal({ draftId, draftName, draftKeys, loading, error, onClose }) 
 function DraftsPanel({ drafts, onRefresh }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  // shareTarget is { id, name } only — keys are looked up on demand and
-  // stored in keyCache so they never appear in the SSR payload.
   const [shareTarget, setShareTarget] = useState(null);
   const [keyCache, setKeyCache] = useState({});
   const [shareError, setShareError] = useState('');
@@ -246,11 +249,7 @@ function DraftsPanel({ drafts, onRefresh }) {
         return null;
       }
       const draft = await res.json();
-      const keys = {
-        adminKey: draft.adminKey,
-        captainAKey: draft.captainAKey,
-        captainBKey: draft.captainBKey,
-      };
+      const keys = { adminKey: draft.adminKey, captainAKey: draft.captainAKey, captainBKey: draft.captainBKey };
       setKeyCache((prev) => ({ ...prev, [id]: keys }));
       return keys;
     } catch {
@@ -264,23 +263,13 @@ function DraftsPanel({ drafts, onRefresh }) {
     const draft = await postJson('/api/drafts', { name: name.trim() || `Draft ${drafts.length + 1}` });
     setName('');
     if (draft.id) {
-      // POST /api/drafts returns the row including keys (the caller IS the
-      // admin who just created it). Cache them here so we don't have to
-      // round-trip for the share modal we're about to open.
       setKeyCache((prev) => ({
         ...prev,
-        [draft.id]: {
-          adminKey: draft.adminKey,
-          captainAKey: draft.captainAKey,
-          captainBKey: draft.captainBKey,
-        },
+        [draft.id]: { adminKey: draft.adminKey, captainAKey: draft.captainAKey, captainBKey: draft.captainBKey },
       }));
     }
     await onRefresh();
-    if (draft.id) {
-      setShareError('');
-      setShareTarget({ id: draft.id, name: draft.name });
-    }
+    if (draft.id) { setShareError(''); setShareTarget({ id: draft.id, name: draft.name }); }
     setBusy(false);
   };
 
@@ -296,15 +285,9 @@ function DraftsPanel({ drafts, onRefresh }) {
     onRefresh();
   };
 
-  // Issue #14: the old "Reopen" button flipped status to 'picking' without
-  // nulling any pick, leaving the draft in an unusable state. We now call
-  // the atomic reopenLastPick action, which requires the per-draft adminKey.
   const reopenLastPick = async (d) => {
     const keys = keyCache[d.id] ?? await fetchKeys(d.id);
-    if (!keys?.adminKey) {
-      alert('Could not load admin key for this draft.');
-      return;
-    }
+    if (!keys?.adminKey) { alert('Could not load admin key for this draft.'); return; }
     const res = await fetch(`/api/drafts/${d.id}/admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -323,10 +306,7 @@ function DraftsPanel({ drafts, onRefresh }) {
 
   const openAdminDraft = async (d) => {
     const keys = keyCache[d.id] ?? await fetchKeys(d.id);
-    if (!keys?.adminKey) {
-      window.location.href = `/draft/${d.id}`;
-      return;
-    }
+    if (!keys?.adminKey) { window.location.href = `/draft/${d.id}`; return; }
     window.location.href = `/draft/${d.id}?key=${keys.adminKey}`;
   };
 
@@ -440,7 +420,7 @@ function PlayersPanel({ players, onRefresh }) {
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="select-field">
               {PLAYER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <input placeholder="Division (e.g. Canes)" value={form.division} onChange={(e) => setForm({ ...form, division: e.target.value })} className="input-field" />
+            <input placeholder="Division (e.g. Hospice)" value={form.division} onChange={(e) => setForm({ ...form, division: e.target.value })} className="input-field" />
           </div>
           <input placeholder="Discord username" value={form.discordUsername} onChange={(e) => setForm({ ...form, discordUsername: e.target.value })} className="input-field" />
           <BrutalButton onClick={submit} disabled={busy || !form.name.trim()} className="w-full">{busy ? 'Saving...' : editId ? 'Update Player' : 'Add Player'}</BrutalButton>
@@ -486,6 +466,251 @@ function PlayersPanel({ players, onRefresh }) {
   );
 }
 
+// ─── Teams Panel ─────────────────────────────────────
+
+function TeamsPanel({ teams, players, seasons, onRefreshTeams, onRefreshSeasons }) {
+  const [selectedDivisionId, setSelectedDivisionId] = useState('');
+  const [expandedTeamId, setExpandedTeamId] = useState(null);
+  const [teamForm, setTeamForm] = useState({ name: '', tag: '' });
+  const [memberForm, setMemberForm] = useState({ playerId: '', role: 'Mid', isCaptain: false, isSub: false });
+  const [busy, setBusy] = useState(false);
+
+  // Flat list of all divisions across seasons for the selector
+  const allDivisions = seasons.flatMap((s) =>
+    s.divisions.map((d) => ({ ...d, seasonName: s.name, label: `${s.name} — ${d.name}` }))
+  );
+
+  const selectedDivision = allDivisions.find((d) => d.id === selectedDivisionId);
+  const filteredTeams = selectedDivisionId
+    ? teams.filter((t) => t.divisionId === selectedDivisionId)
+    : teams;
+
+  // Players in the same division as the selected division
+  const divisionPlayers = selectedDivision
+    ? players.filter((p) => p.division === selectedDivision.name)
+    : players;
+
+  const createTeam = async () => {
+    if (!teamForm.name.trim() || !teamForm.tag.trim() || !selectedDivisionId) return;
+    setBusy(true);
+    await postJson('/api/teams', { name: teamForm.name.trim(), tag: teamForm.tag.trim(), divisionId: selectedDivisionId });
+    setTeamForm({ name: '', tag: '' });
+    await onRefreshTeams();
+    setBusy(false);
+  };
+
+  const deleteTeam = async (id) => {
+    if (!confirm('Delete this team and all its members?')) return;
+    await del(`/api/teams/${id}`);
+    if (expandedTeamId === id) setExpandedTeamId(null);
+    onRefreshTeams();
+  };
+
+  const addMember = async (teamId) => {
+    if (!memberForm.playerId) return;
+    setBusy(true);
+    const res = await postJson(`/api/teams/${teamId}/members`, memberForm);
+    if (res.error) { alert(res.error); setBusy(false); return; }
+    setMemberForm({ playerId: '', role: 'Mid', isCaptain: false, isSub: false });
+    await onRefreshTeams();
+    setBusy(false);
+  };
+
+  const removeMember = async (teamId, memberId) => {
+    if (!confirm('Remove this player from the team?')) return;
+    await del(`/api/teams/${teamId}/members/${memberId}`);
+    onRefreshTeams();
+  };
+
+  const toggleFlag = async (teamId, memberId, field, currentValue) => {
+    await patchJson(`/api/teams/${teamId}/members/${memberId}`, { [field]: !currentValue });
+    onRefreshTeams();
+  };
+
+  // Players already on the expanded team (to exclude from add-member dropdown)
+  const expandedTeam = teams.find((t) => t.id === expandedTeamId);
+  const assignedPlayerIds = new Set(expandedTeam?.members.map((m) => m.playerId) ?? []);
+  const availablePlayers = divisionPlayers.filter((p) => !assignedPlayerIds.has(p.id));
+
+  return (
+    <RetroWindow title="TEAM ROSTER MANAGEMENT">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Teams</h2>
+        <PixelBadge label={`${teams.length} total`} color="cream" />
+      </div>
+
+      {/* Division selector */}
+      <div className="mb-4">
+        <label className="block text-[10px] font-ui uppercase tracking-widest text-gray-500 mb-1">Filter by Division</label>
+        <select
+          value={selectedDivisionId}
+          onChange={(e) => { setSelectedDivisionId(e.target.value); setExpandedTeamId(null); }}
+          className="select-field w-full sm:w-auto"
+        >
+          <option value="">All divisions</option>
+          {allDivisions.map((d) => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* New team form — only shown when a division is selected */}
+      {selectedDivisionId && (
+        <RetroWindow title="NEW TEAM" titleBarColor="blue" className="mb-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              placeholder="Team name"
+              value={teamForm.name}
+              onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+              className="input-field flex-1"
+            />
+            <input
+              placeholder="Tag (e.g. FRH)"
+              value={teamForm.tag}
+              onChange={(e) => setTeamForm({ ...teamForm, tag: e.target.value })}
+              className="input-field w-32"
+            />
+            <BrutalButton
+              onClick={createTeam}
+              disabled={busy || !teamForm.name.trim() || !teamForm.tag.trim()}
+              className="shrink-0"
+            >
+              {busy ? 'Creating…' : 'Create Team'}
+            </BrutalButton>
+          </div>
+        </RetroWindow>
+      )}
+
+      {/* Team list */}
+      {filteredTeams.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-6">
+          {selectedDivisionId ? 'No teams in this division yet.' : 'No teams. Select a division and create one.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {filteredTeams.map((team) => {
+            const isExpanded = expandedTeamId === team.id;
+            return (
+              <div key={team.id} className="border-2 border-brand-700 hover:border-frh-yellow/40 transition-all">
+                {/* Team header row */}
+                <div className="flex items-center gap-3 px-3 py-3 bg-brand-950/40">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-ui text-sm text-gray-200">{team.name}</span>
+                      <span className="font-mono text-[10px] text-gray-600 border border-brand-600 px-1">[{team.tag}]</span>
+                      {team.division && (
+                        <span className="text-[10px] text-gray-500">{team.division.name}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-600">{team.members.length} member{team.members.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <BrutalButton
+                      onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {isExpanded ? 'Collapse' : 'Manage'}
+                    </BrutalButton>
+                    <BrutalButton onClick={() => deleteTeam(team.id)} variant="danger" size="sm">Delete</BrutalButton>
+                  </div>
+                </div>
+
+                {/* Expanded member management */}
+                {isExpanded && (
+                  <div className="border-t-2 border-brand-700 p-3 bg-brand-900/30">
+                    {/* Current members */}
+                    {team.members.length === 0 ? (
+                      <p className="text-xs text-gray-600 mb-3">No members yet.</p>
+                    ) : (
+                      <div className="mb-3 space-y-1">
+                        {team.members.map((m) => (
+                          <div key={m.id} className="flex items-center gap-2 py-1.5 px-2 bg-brand-950/60 border border-brand-700">
+                            <span className="font-display font-medium text-sm text-gray-300 flex-1">{m.player.name}</span>
+                            <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[m.role] ?? 'bg-gray-700 text-gray-300'}`}>{m.role}</span>
+                            <button
+                              onClick={() => toggleFlag(team.id, m.id, 'isCaptain', m.isCaptain)}
+                              className={`text-[9px] font-ui uppercase px-1.5 py-0.5 border transition-colors ${
+                                m.isCaptain ? 'border-frh-yellow text-frh-yellow' : 'border-brand-600 text-gray-600 hover:border-gray-400'
+                              }`}
+                              title="Toggle captain"
+                            >
+                              C
+                            </button>
+                            <button
+                              onClick={() => toggleFlag(team.id, m.id, 'isSub', m.isSub)}
+                              className={`text-[9px] font-ui uppercase px-1.5 py-0.5 border transition-colors ${
+                                m.isSub ? 'border-blue-400 text-blue-400' : 'border-brand-600 text-gray-600 hover:border-gray-400'
+                              }`}
+                              title="Toggle sub"
+                            >
+                              S
+                            </button>
+                            <BrutalButton onClick={() => removeMember(team.id, m.id)} variant="danger" size="sm">Remove</BrutalButton>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add member form */}
+                    <div className="flex flex-wrap gap-2 items-end">
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Player</label>
+                        <select
+                          value={memberForm.playerId}
+                          onChange={(e) => setMemberForm({ ...memberForm, playerId: e.target.value })}
+                          className="select-field w-full"
+                        >
+                          <option value="">Select player…</option>
+                          {availablePlayers.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name} ({p.role})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Role</label>
+                        <select
+                          value={memberForm.role}
+                          onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
+                          className="select-field"
+                        >
+                          {PLAYER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer pb-1">
+                        <input type="checkbox" checked={memberForm.isCaptain} onChange={(e) => setMemberForm({ ...memberForm, isCaptain: e.target.checked })} className="accent-frh-yellow" />
+                        Captain
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer pb-1">
+                        <input type="checkbox" checked={memberForm.isSub} onChange={(e) => setMemberForm({ ...memberForm, isSub: e.target.checked })} className="accent-blue-400" />
+                        Sub
+                      </label>
+                      <BrutalButton
+                        onClick={() => addMember(team.id)}
+                        disabled={busy || !memberForm.playerId}
+                        size="sm"
+                        className="pb-1"
+                      >
+                        {busy ? 'Adding…' : 'Add Member'}
+                      </BrutalButton>
+                    </div>
+                    {availablePlayers.length === 0 && divisionPlayers.length > 0 && (
+                      <p className="text-[10px] text-gray-600 mt-2">All division players are already on this team.</p>
+                    )}
+                    {selectedDivision && divisionPlayers.length === 0 && (
+                      <p className="text-[10px] text-yellow-600 mt-2">No players with division "{selectedDivision.name}" found. Set player divisions in the Players tab first.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </RetroWindow>
+  );
+}
+
 // ─── Import Panel ────────────────────────────────────
 
 const ROLE_ALIASES = {
@@ -496,9 +721,7 @@ const ROLE_ALIASES = {
 function parseCSV(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  // Skip header row
   return lines.slice(1).map((line) => {
-    // Simple CSV split respecting quoted fields
     const cols = [];
     let cur = '', inQ = false;
     for (let i = 0; i < line.length; i++) {
@@ -525,11 +748,7 @@ function ImportPanel({ onRefresh }) {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const parse = () => {
-    const parsed = parseCSV(csvText);
-    setRows(parsed);
-    setResult(null);
-  };
+  const parse = () => { setRows(parseCSV(csvText)); setResult(null); };
 
   const updateRow = (i, field, value) => {
     setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
@@ -565,7 +784,7 @@ function ImportPanel({ onRefresh }) {
 
         <div className="space-y-3">
           <input
-            placeholder="Division label (e.g. Canes, Walker, Rollator, Scooter)"
+            placeholder="Division label (e.g. Hospice, Rehabilitation)"
             value={division}
             onChange={(e) => setDivision(e.target.value)}
             className="input-field"
