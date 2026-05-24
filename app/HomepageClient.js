@@ -55,7 +55,7 @@ export default function HomepageClient({
               Low skill. High commitment. Questionable picks.
             </p>
           </div>
-          <div className="flex gap-3 shrink-0">
+          <div className="hidden sm:flex gap-3 shrink-0">
             <StatBox number={activeDrafts} label="Active Drafts" />
             <StatBox number={playerCount} label="Players" />
             <StatBox number={godCount} label="Gods" />
