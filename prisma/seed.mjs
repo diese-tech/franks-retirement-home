@@ -136,6 +136,27 @@ async function main() {
   }
   console.log(`  ✓ ${players.length} players seeded`);
 
+  // ── Season 9 ──────────────────────────────────────
+  const season9 = await prisma.season.upsert({
+    where: { slug: 's9' },
+    update: { name: 'Season 9', status: 'upcoming' },
+    create: { id: 'season-9', slug: 's9', name: 'Season 9', status: 'upcoming' },
+  });
+
+  await prisma.division.upsert({
+    where: { id: 'div-s9-hospice' },
+    update: { name: 'Hospice', tier: 1 },
+    create: { id: 'div-s9-hospice', seasonId: season9.id, name: 'Hospice', tier: 1 },
+  });
+
+  await prisma.division.upsert({
+    where: { id: 'div-s9-rehabilitation' },
+    update: { name: 'Rehabilitation', tier: 2 },
+    create: { id: 'div-s9-rehabilitation', seasonId: season9.id, name: 'Rehabilitation', tier: 2 },
+  });
+
+  console.log('  ✓ Season 9 seeded (Hospice + Rehabilitation divisions)');
+
   // ── Sample Draft ──────────────────────────────────
   await prisma.draft.upsert({
     where: { id: 'sample-draft-1' },

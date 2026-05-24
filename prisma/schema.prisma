@@ -8,15 +8,83 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Season {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  status      String    @default("upcoming") // upcoming | active | completed
+  startsAt    DateTime?
+  endsAt      DateTime?
+  currentWeek Int       @default(1)
+  createdAt   DateTime  @default(now())
+
+  divisions Division[]
+}
+
+model Division {
+  id        String   @id @default(cuid())
+  seasonId  String
+  name      String   // "Hospice" | "Rehabilitation"
+  tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
+  createdAt DateTime @default(now())
+
+  season Season @relation(fields: [seasonId], references: [id])
+  teams  Team[]
+
+  @@unique([seasonId, name])
+}
+
+model Org {
+  id           String   @id @default(cuid())
+  name         String
+  tag          String
+  logoInitials String?
+  accentColor  String?
+  createdAt    DateTime @default(now())
+
+  teams Team[]
+}
+
+model Team {
+  id              String   @id @default(cuid())
+  divisionId      String
+  orgId           String?
+  name            String
+  tag             String
+  captainPlayerId String?
+  createdAt       DateTime @default(now())
+
+  division Division    @relation(fields: [divisionId], references: [id])
+  org      Org?        @relation(fields: [orgId], references: [id])
+  members  TeamMember[]
+}
+
+model TeamMember {
+  id        String    @id @default(cuid())
+  teamId    String
+  playerId  String
+  role      String    // Solo | Jungle | Mid | Support | Carry | Fill
+  isCaptain Boolean   @default(false)
+  isSub     Boolean   @default(false)
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([teamId, playerId])
+}
+
 model Player {
   id              String   @id @default(cuid())
   name            String
   role            String   // Solo, Jungle, Mid, Support, Carry, Fill
   discordUsername String?
-  division        String?  // e.g. Canes, Walker, Rollator, Scooter
+  division        String?  // e.g. Hospice, Rehabilitation
   createdAt       DateTime @default(now())
 
-  draftPicks DraftPick[]
+  draftPicks      DraftPick[]
+  teamMemberships TeamMember[]
 }
 
 model God {
