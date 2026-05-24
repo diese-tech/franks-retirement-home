@@ -468,7 +468,7 @@ function PlayersPanel({ players, onRefresh }) {
 
 // ─── Teams Panel ─────────────────────────────────────
 
-function TeamsPanel({ teams, players, seasons, onRefreshTeams, onRefreshSeasons }) {
+function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamForm, setTeamForm] = useState({ name: '', tag: '' });
@@ -698,7 +698,7 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams, onRefreshSeasons 
                       <p className="text-[10px] text-gray-600 mt-2">All division players are already on this team.</p>
                     )}
                     {selectedDivision && divisionPlayers.length === 0 && (
-                      <p className="text-[10px] text-yellow-600 mt-2">No players with division "{selectedDivision.name}" found. Set player divisions in the Players tab first.</p>
+                      <p className="text-[10px] text-yellow-600 mt-2">No players tagged &ldquo;{selectedDivision.name}&rdquo; found. Set player divisions in the Players tab first.</p>
                     )}
                   </div>
                 )}
@@ -797,7 +797,7 @@ function ImportPanel({ onRefresh }) {
             className="input-field font-mono text-xs w-full resize-y"
           />
           <div className="flex gap-2">
-            <BrutalButton onClick={parse} disabled={!csvText.trim()} size="sm">Parse & Preview</BrutalButton>
+            <BrutalButton onClick={parse} disabled={!csvText.trim()} size="sm">Parse &amp; Preview</BrutalButton>
             {rows && <BrutalButton onClick={reset} variant="secondary" size="sm">Reset</BrutalButton>}
           </div>
         </div>
