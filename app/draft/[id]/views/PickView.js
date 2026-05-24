@@ -6,6 +6,7 @@ import { currentPickTeam, PICK_ORDER, TOTAL_PICKS } from '@/lib/draftOrder';
 import GodImage from '@/components/GodImage';
 import GodWideArt from '@/components/GodWideArt';
 import RoleFilter from '@/components/RoleFilter';
+import { BrutalButton, PixelBadge, RetroWindow } from '@/components/ui';
 
 export default function PickView({ state, role, callApi }) {
   const { picks, bans, gods, previouslyUsedGodIds = [] } = state;
@@ -80,6 +81,17 @@ export default function PickView({ state, role, callApi }) {
 
   return (
     <div className="space-y-6">
+      {!isDone && (
+        <div className={`${activeTeam === 'A' ? 'bg-frh-xp-blue' : 'bg-frh-purple'} border-2 border-frh-ink px-4 py-3 shadow-[4px_4px_0px_rgba(0,0,0,0.6)]`}>
+          <div className="font-ui text-sm uppercase tracking-widest text-white">
+            Captain {activeTeam} is picking
+          </div>
+          <div className="font-mono text-xs text-white/80">
+            {isMyTurn ? 'Your turn - select and confirm a god' : 'Waiting for the active captain'}
+          </div>
+        </div>
+      )}
+
       <DraftHeader
         completedCount={completedCount}
         totalPicks={TOTAL_PICKS}
@@ -104,7 +116,7 @@ export default function PickView({ state, role, callApi }) {
         />
 
         <div className="space-y-5">
-          <div className="card overflow-hidden p-0">
+          <RetroWindow title="GOD SELECTION GRID" className="overflow-hidden">
             <div className="relative min-h-[620px] bg-[linear-gradient(135deg,#1572a1_0%,#31539d_44%,#3f238d_100%)]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(103,232,249,0.2),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.18),transparent_32%)]" />
               <div className="relative p-5">
@@ -202,7 +214,7 @@ export default function PickView({ state, role, callApi }) {
                             </div>
                             {reason && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/58 px-2">
-                                <span className="text-[10px] font-display font-bold uppercase tracking-widest text-white/90">{reason}</span>
+                                <PixelBadge label={isPicked ? pickedTeamLabel(picks, god.id) : reason} color={isPicked ? pickedTeamColor(picks, god.id) : 'gray'} />
                                 {isPreviouslyUsed && (
                                   <span className="text-[9px] text-gold-300 mt-1">Used earlier in set</span>
                                 )}
@@ -235,23 +247,23 @@ export default function PickView({ state, role, callApi }) {
 
                     <div className="ml-auto flex items-center gap-2">
                       {selectedGod && (
-                        <button onClick={() => setSelectedGodId(null)} className="btn-secondary text-xs">Clear</button>
+                        <BrutalButton onClick={() => setSelectedGodId(null)} variant="secondary" size="sm">Clear</BrutalButton>
                       )}
-                      <button
+                      <BrutalButton
                         onClick={submitPick}
                         disabled={!selectedGod || !isMyTurn || isDone || busy}
-                        className="btn-primary text-xs"
+                        size="sm"
                       >
-                        {busy ? 'Locking...' : 'Lock In'}
-                      </button>
+                        {busy ? 'Locking...' : 'Confirm Pick'}
+                      </BrutalButton>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </RetroWindow>
 
-          <div className="card">
+          <RetroWindow title="AIM EVENT LOG">
             <div className="text-[10px] font-display uppercase tracking-widest text-gray-500 mb-2">Vaulted Gods</div>
             {vaultedGods.length === 0 ? (
               <p className="text-xs text-gray-600">No gods have been vaulted yet in this draft session.</p>
@@ -268,7 +280,7 @@ export default function PickView({ state, role, callApi }) {
                 ))}
               </div>
             )}
-          </div>
+          </RetroWindow>
         </div>
 
         <TeamDraftColumn
@@ -284,6 +296,18 @@ export default function PickView({ state, role, callApi }) {
       </div>
     </div>
   );
+}
+
+function pickedTeamLabel(picks, godId) {
+  const pick = picks.find((item) => item.godId === godId);
+  if (!pick) return 'Picked';
+  return pick.team === 'A' ? 'Team A' : 'Team B';
+}
+
+function pickedTeamColor(picks, godId) {
+  const pick = picks.find((item) => item.godId === godId);
+  if (!pick) return 'gray';
+  return pick.team === 'A' ? 'blue' : 'purple';
 }
 
 function DraftHeader({ completedCount, totalPicks, activeTeam, isMyTurn, isDone }) {
