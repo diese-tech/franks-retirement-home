@@ -310,7 +310,7 @@ function pickedTeamColor(picks, godId) {
   return pick.team === 'A' ? 'blue' : 'purple';
 }
 
-function DraftHeader({ completedCount, totalPicks, activeTeam, isMyTurn, isDone }) {
+function DraftHeader({ completedCount, totalPicks: _totalPicks, activeTeam, isMyTurn, isDone }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <ScorePanel
@@ -351,7 +351,7 @@ function ScorePanel({ team, picksLocked, active, helper }) {
   );
 }
 
-function TeamDraftColumn({ team, picks, isActive, activePendingPickId, selectedGod, isAdmin, onUndoPick, mirrored = false }) {
+function TeamDraftColumn({ team, picks, isActive: _isActive, activePendingPickId, selectedGod, isAdmin, onUndoPick, mirrored = false }) {
   const isA = team === 'A';
   const borderColor = isA ? 'border-cyan-300/30' : 'border-amber-300/30';
   const lockedShell = isA ? 'from-cyan-300/10 to-sky-500/10' : 'from-violet-500/10 to-amber-400/10';
