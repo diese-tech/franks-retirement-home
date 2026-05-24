@@ -33,33 +33,35 @@ export default function ChatPanel({ chats, draftKey, draftId }) {
   };
 
   return (
-    <RetroWindow title="AIM EVENT LOG" className="flex flex-col h-64">
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 mb-2 bg-brand-950/60 border border-brand-700 p-2 font-mono">
-        {chats.length === 0
-          ? <p className="text-xs text-gray-700 text-center py-4">No messages yet</p>
-          : chats.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-2">
-              <span className={`font-mono font-bold text-[10px] uppercase shrink-0 pt-0.5 ${CHAT_TEAM_COLORS[msg.team] ?? 'text-gray-500'}`}>
-                {msg.senderName}
-              </span>
-              <span className="text-xs text-gray-300 break-words min-w-0">&gt; {msg.message}</span>
-            </div>
-          ))}
-        <div ref={bottomRef} />
-      </div>
+    <RetroWindow title="AIM EVENT LOG">
+      <div className="flex flex-col h-64">
+        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 mb-2 bg-brand-950/60 border border-brand-700 p-2 font-mono">
+          {chats.length === 0
+            ? <p className="text-xs text-gray-700 text-center py-4">No messages yet</p>
+            : chats.map((msg) => (
+              <div key={msg.id} className="flex items-start gap-2">
+                <span className={`font-mono font-bold text-[10px] uppercase shrink-0 pt-0.5 ${CHAT_TEAM_COLORS[msg.team] ?? 'text-gray-500'}`}>
+                  {msg.senderName}
+                </span>
+                <span className="text-xs text-gray-300 break-words min-w-0">&gt; {msg.message}</span>
+              </div>
+            ))}
+          <div ref={bottomRef} />
+        </div>
 
-      <div className="flex gap-2 shrink-0">
-        <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Send a message... (Enter to send)"
-          className="input-field flex-1 text-xs"
-          maxLength={500}
-        />
-        <BrutalButton onClick={send} disabled={sending || !message.trim()} size="sm" className="shrink-0 px-4">
-          {sending ? '...' : 'Send'}
-        </BrutalButton>
+        <div className="flex gap-2 shrink-0">
+          <input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Send a message... (Enter to send)"
+            className="input-field flex-1 text-xs"
+            maxLength={500}
+          />
+          <BrutalButton onClick={send} disabled={sending || !message.trim()} size="sm" className="shrink-0 px-4">
+            {sending ? '...' : 'Send'}
+          </BrutalButton>
+        </div>
       </div>
     </RetroWindow>
   );
