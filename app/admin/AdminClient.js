@@ -57,7 +57,7 @@ function PasswordGate({ onAuthed }) {
   );
 }
 
-export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [], initialPlayerDrafts = [], initialSubmissions = [] }) {
+export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [], initialPlayerDrafts = [], initialSubmissions = [], overview = {} }) {
   const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
@@ -129,6 +129,27 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
             <p className="text-sm text-gray-500">Manage players, gods, and draft sessions.</p>
           </div>
           <PixelBadge label="Admin Session Active" color="lime" />
+        </div>
+
+        {/* Overview stat-card row */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+          {[
+            { label: 'Live Matches',  value: overview.liveMatchCount ?? 0, urgent: (overview.liveMatchCount ?? 0) > 0, color: 'text-green-400' },
+            { label: 'Pending Review', value: overview.pendingSubCount ?? 0, urgent: (overview.pendingSubCount ?? 0) > 0, color: 'text-orange-400' },
+            { label: 'Players',       value: overview.playerCount ?? 0, urgent: false, color: 'text-frh-yellow' },
+            { label: 'Teams',         value: overview.teamCount ?? 0, urgent: false, color: 'text-frh-yellow' },
+            { label: 'Gods',          value: overview.godCount ?? 0, urgent: false, color: 'text-frh-yellow' },
+            { label: overview.seasonName ? `${overview.seasonName} · Wk ${overview.currentWeek ?? '?'}` : 'No Active Season',
+              value: null, urgent: false, color: 'text-gray-500' },
+          ].map((stat) => (
+            <div key={stat.label} className={`border-2 px-3 py-2 text-center ${stat.urgent ? 'border-orange-500/50 bg-orange-500/5' : 'border-brand-700 bg-brand-900/30'}`}>
+              {stat.value !== null
+                ? <div className={`font-mono text-lg font-bold ${stat.color}`}>{stat.value}</div>
+                : null
+              }
+              <div className={`font-ui text-[9px] uppercase tracking-widest mt-0.5 ${stat.urgent ? 'text-orange-400' : 'text-gray-600'}`}>{stat.label}</div>
+            </div>
+          ))}
         </div>
 
         <div className="mb-6 overflow-x-auto border-2 border-brand-700 bg-brand-950/50">

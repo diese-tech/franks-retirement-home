@@ -49,6 +49,13 @@ export default async function AdminPage() {
       picks: { select: { id: true } },
     },
   });
+  const activeSeason = await prisma.season.findFirst({ where: { status: 'active' } });
+  const [liveMatchCount, pendingSubCount, teamCount] = await Promise.all([
+    prisma.match.count({ where: { status: 'live' } }),
+    prisma.matchSubmission.count({ where: { status: { in: ['pending', 'in_review'] } } }),
+    prisma.team.count(),
+  ]);
+
   const pendingSubmissions = await prisma.matchSubmission.findMany({
     where: { status: { in: ['pending', 'in_review'] } },
     orderBy: { createdAt: 'asc' },
@@ -76,6 +83,7 @@ export default async function AdminPage() {
       initialMatches={JSON.parse(JSON.stringify(matches))}
       initialPlayerDrafts={JSON.parse(JSON.stringify(playerDrafts))}
       initialSubmissions={JSON.parse(JSON.stringify(pendingSubmissions))}
+      overview={{ liveMatchCount, pendingSubCount, teamCount, playerCount: players.length, godCount: gods.length, seasonName: activeSeason?.name ?? null, currentWeek: activeSeason?.currentWeek ?? null }}
     />
   );
 }
