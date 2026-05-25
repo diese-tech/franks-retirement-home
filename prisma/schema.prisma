@@ -64,6 +64,7 @@ model Team {
   homeMatches      Match[]           @relation("HomeTeam")
   awayMatches      Match[]           @relation("AwayTeam")
   playerDraftPicks PlayerDraftPick[]
+  statLines        StatLine[]
 }
 
 model TeamMember {
@@ -117,6 +118,7 @@ model Game {
   match       Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
   draft       Draft?
   submissions MatchSubmission[]
+  statLines   StatLine[]
 
   @@unique([matchId, gameNumber])
 }
@@ -219,6 +221,7 @@ model Player {
   draftPicks       DraftPick[]
   teamMemberships  TeamMember[]
   playerDraftPicks PlayerDraftPick[]
+  statLines        StatLine[]
 }
 
 model God {
@@ -230,6 +233,7 @@ model God {
 
   draftPicks DraftPick[]
   draftBans  DraftBan[]
+  statLines  StatLine[]
 }
 
 model Draft {
@@ -298,4 +302,50 @@ model DraftChat {
   createdAt  DateTime @default(now())
 
   draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+}
+
+// ─── Stat Lines ───────────────────────────────────────────────────────────────
+
+// Per-player per-game statistics entered manually by admin after a match.
+// One row per player per game. godId is nullable for games before Lineup Confirmation.
+model StatLine {
+  id        String   @id @default(cuid())
+  gameId    String
+  playerId  String
+  teamId    String
+  godId     String?  // which god this player used
+  role      String?  // role played in this specific game (may differ from player.role)
+  kills     Int      @default(0)
+  deaths    Int      @default(0)
+  assists   Int      @default(0)
+  damage    Int      @default(0) // player damage dealt
+  healing   Int      @default(0) // healing done
+  gold      Int      @default(0) // gold earned
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+  god    God?   @relation(fields: [godId], references: [id], onDelete: SetNull)
+
+  @@unique([gameId, playerId]) // one stat line per player per game
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+// Append-only log of admin actions. Never modified after insert.
+// payload is a JSON object with action-specific context.
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String   // "Match" | "PlayerDraft" | "MatchSubmission" | "StatLine" | etc.
+  entityId  String
+  action    String   // "created" | "approved" | "rejected" | "status_changed" | "pick_recorded" | etc.
+  adminId   String?  // opaque identifier — no User table in S9
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }

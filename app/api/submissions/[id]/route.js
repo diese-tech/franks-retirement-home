@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,7 @@ export async function PATCH(req, { params }) {
         },
         include: { attachments: true },
       });
+      logAudit('MatchSubmission', params.id, 'in_review', { adminId });
       return NextResponse.json(updated);
     }
 
@@ -88,6 +90,7 @@ export async function PATCH(req, { params }) {
         },
         include: { attachments: true },
       });
+      logAudit('MatchSubmission', params.id, 'rejected', { adminId, payload: { rejectionReason } });
       return NextResponse.json(updated);
     }
 
@@ -127,6 +130,10 @@ export async function PATCH(req, { params }) {
       return approved;
     });
 
+    logAudit('MatchSubmission', params.id, 'approved', {
+      adminId,
+      payload: { gameId: submission.gameId, reportedWinnerTeamId: submission.reportedWinnerTeamId },
+    });
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: 'Failed to update submission' }, { status: 500 });

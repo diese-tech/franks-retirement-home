@@ -943,9 +943,9 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
                     </div>
                   </div>
 
-                  {/* Games list with draft buttons */}
+                  {/* Games list with draft + stats buttons */}
                   {match.games?.length > 0 && (
-                    <div className="border-t-2 border-brand-700 px-3 py-2 bg-brand-900/20 flex flex-wrap gap-2">
+                    <div className="border-t-2 border-brand-700 px-3 py-2 bg-brand-900/20 flex flex-wrap gap-3">
                       {match.games.map((game) => (
                         <div key={game.id} className="flex items-center gap-2">
                           <span className="text-[10px] font-ui text-gray-500">G{game.gameNumber}</span>
@@ -967,6 +967,12 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
                               Open Draft
                             </BrutalButton>
                           )}
+                          <a
+                            href={`/admin/games/${game.id}/stats`}
+                            className="text-[10px] font-ui text-gray-400 hover:text-frh-yellow underline transition-colors"
+                          >
+                            Stats
+                          </a>
                         </div>
                       ))}
                     </div>
