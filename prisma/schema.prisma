@@ -319,13 +319,15 @@ model StatLine {
   teamId    String
   godId     String?  // which god this player used
   role      String?  // role played in this specific game (may differ from player.role)
-  kills     Int      @default(0)
-  deaths    Int      @default(0)
-  assists   Int      @default(0)
-  damage    Int      @default(0) // player damage dealt
-  healing   Int      @default(0) // healing done
-  gold      Int      @default(0) // gold earned
-  notes     String?
+  kills           Int      @default(0)
+  deaths          Int      @default(0)
+  assists         Int      @default(0)
+  damage          Int      @default(0) // player damage dealt
+  damageMitigated Int      @default(0)
+  healing         Int      @default(0) // self + ally healing combined
+  structureDamage Int      @default(0)
+  gold            Int      @default(0)
+  notes           String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
