@@ -57,7 +57,7 @@ function PasswordGate({ onAuthed }) {
   );
 }
 
-export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [] }) {
+export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [], initialPlayerDrafts = [], initialSubmissions = [] }) {
   const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
@@ -65,6 +65,8 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   const [seasons, setSeasons] = useState(initialSeasons);
   const [teams, setTeams] = useState(initialTeams);
   const [matches, setMatches] = useState(initialMatches);
+  const [playerDrafts, setPlayerDrafts] = useState(initialPlayerDrafts);
+  const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState('drafts');
 
   useEffect(() => {
@@ -98,14 +100,24 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     const data = await api('/api/matches');
     setMatches(Array.isArray(data) ? data : []);
   };
+  const refreshPlayerDrafts = async () => {
+    const data = await api('/api/player-drafts');
+    setPlayerDrafts(Array.isArray(data) ? data : []);
+  };
+  const refreshSubmissions = async () => {
+    const data = await api('/api/submissions?status=open');
+    setSubmissions(Array.isArray(data) ? data : []);
+  };
 
   const tabs = [
-    { key: 'drafts',  label: 'Drafts',  count: drafts.length },
-    { key: 'players', label: 'Players', count: players.length },
-    { key: 'teams',   label: 'Teams',   count: teams.length },
-    { key: 'matches', label: 'Schedule', count: matches.length },
-    { key: 'import',  label: 'Import',  count: null },
-    { key: 'gods',    label: 'Gods',    count: gods.length },
+    { key: 'drafts',       label: 'Drafts',        count: drafts.length },
+    { key: 'players',      label: 'Players',        count: players.length },
+    { key: 'teams',        label: 'Teams',          count: teams.length },
+    { key: 'matches',      label: 'Schedule',       count: matches.length },
+    { key: 'playerDraft',  label: 'Player Draft',   count: playerDrafts.length },
+    { key: 'review',       label: 'Review Queue',   count: submissions.length || null },
+    { key: 'import',       label: 'Import',         count: null },
+    { key: 'gods',         label: 'Gods',           count: gods.length },
   ];
 
   return (
@@ -139,12 +151,14 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
           </div>
         </div>
 
-        {tab === 'drafts'  && <DraftsPanel  drafts={drafts}   onRefresh={refreshDrafts} />}
-        {tab === 'players' && <PlayersPanel players={players} onRefresh={refreshPlayers} />}
-        {tab === 'teams'   && <TeamsPanel   teams={teams} players={players} seasons={seasons} onRefreshTeams={refreshTeams} onRefreshSeasons={refreshSeasons} />}
-        {tab === 'matches' && <MatchesPanel matches={matches} seasons={seasons} teams={teams} onRefresh={refreshMatches} />}
-        {tab === 'import'  && <ImportPanel  onRefresh={refreshPlayers} />}
-        {tab === 'gods'    && <GodsPanel    gods={gods}       onRefresh={refreshGods} />}
+        {tab === 'drafts'      && <DraftsPanel      drafts={drafts}   onRefresh={refreshDrafts} />}
+        {tab === 'players'     && <PlayersPanel     players={players} onRefresh={refreshPlayers} />}
+        {tab === 'teams'       && <TeamsPanel       teams={teams} players={players} seasons={seasons} onRefreshTeams={refreshTeams} onRefreshSeasons={refreshSeasons} />}
+        {tab === 'matches'     && <MatchesPanel     matches={matches} seasons={seasons} teams={teams} onRefresh={refreshMatches} />}
+        {tab === 'playerDraft' && <PlayerDraftPanel playerDrafts={playerDrafts} seasons={seasons} teams={teams} onRefresh={refreshPlayerDrafts} />}
+        {tab === 'review'      && <ReviewQueuePanel submissions={submissions} onRefresh={refreshSubmissions} />}
+        {tab === 'import'      && <ImportPanel      onRefresh={refreshPlayers} />}
+        {tab === 'gods'        && <GodsPanel        gods={gods}       onRefresh={refreshGods} />}
       </RetroWindow>
     </div>
   );
@@ -1125,6 +1139,334 @@ function ImportPanel({ onRefresh }) {
           </div>
         </RetroWindow>
       )}
+    </div>
+  );
+}
+
+// ─── Player Draft Panel ──────────────────────────────
+
+const SUBMISSION_STATUS_COLOR = {
+  pending: 'blue',
+  in_review: 'purple',
+  approved: 'lime',
+  rejected: 'orange',
+  superseded: 'cream',
+};
+
+function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [form, setForm] = useState({ seasonId: '', divisionId: '', name: '', rounds: 5, pickTimerSeconds: 120 });
+
+  const allDivisions = seasons.flatMap((s) =>
+    s.divisions.map((d) => ({ ...d, seasonName: s.name, label: `${s.name} — ${d.name}` }))
+  );
+
+  const create = async () => {
+    setErr('');
+    if (!form.seasonId || !form.divisionId) { setErr('Season and division are required.'); return; }
+    setBusy(true);
+    const res = await postJson('/api/player-drafts', {
+      seasonId: form.seasonId,
+      divisionId: form.divisionId,
+      name: form.name.trim() || undefined,
+      rounds: parseInt(form.rounds, 10) || 5,
+      pickTimerSeconds: parseInt(form.pickTimerSeconds, 10) || 0,
+    });
+    setBusy(false);
+    if (res.error) { setErr(res.error); return; }
+    setForm({ seasonId: form.seasonId, divisionId: form.divisionId, name: '', rounds: 5, pickTimerSeconds: 120 });
+    await onRefresh();
+  };
+
+  const act = async (id, action, extra = {}) => {
+    const res = await patchJson(`/api/player-drafts/${id}`, { action, ...extra });
+    if (res.error) { alert(res.error); return; }
+    await onRefresh();
+  };
+
+  const complete = async (id) => {
+    if (!confirm('Complete this draft and create TeamMember rows? This cannot be undone.')) return;
+    const res = await postJson(`/api/player-drafts/${id}/complete`, {});
+    if (res.error) { alert(res.error); return; }
+    alert(`Draft completed. ${res.teamMembersCreated} members created, ${res.teamMembersUpdated} updated.`);
+    await onRefresh();
+  };
+
+  const STATUS_COLOR = { pending: 'blue', active: 'lime', paused: 'purple', complete: 'cream' };
+
+  return (
+    <div className="space-y-6">
+      <RetroWindow title="CREATE PLAYER DRAFT">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Season</label>
+            <select
+              value={form.seasonId}
+              onChange={(e) => setForm({ ...form, seasonId: e.target.value, divisionId: '' })}
+              className="select-field w-full"
+            >
+              <option value="">Select season…</option>
+              {seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Division</label>
+            <select
+              value={form.divisionId}
+              onChange={(e) => setForm({ ...form, divisionId: e.target.value })}
+              className="select-field w-full"
+              disabled={!form.seasonId}
+            >
+              <option value="">Select division…</option>
+              {allDivisions.filter((d) => d.seasonId === form.seasonId).map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Draft Name (optional)</label>
+            <input
+              placeholder="e.g. S9 Hospice Player Draft"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="input-field w-full"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Rounds</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={form.rounds}
+                onChange={(e) => setForm({ ...form, rounds: e.target.value })}
+                className="input-field w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Timer (sec, 0=off)</label>
+              <input
+                type="number"
+                min="0"
+                value={form.pickTimerSeconds}
+                onChange={(e) => setForm({ ...form, pickTimerSeconds: e.target.value })}
+                className="input-field w-full"
+              />
+            </div>
+          </div>
+        </div>
+        {err && <p className="text-xs text-red-400 mb-2">{err}</p>}
+        <BrutalButton onClick={create} disabled={busy}>
+          {busy ? 'Creating…' : 'Create Draft Room'}
+        </BrutalButton>
+      </RetroWindow>
+
+      {playerDrafts.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-4">No player drafts yet.</p>
+      ) : (
+        <RetroWindow title="PLAYER DRAFTS">
+          <div className="space-y-3">
+            {playerDrafts.map((pd) => {
+              const divTeams = teams.filter((t) => t.divisionId === pd.divisionId);
+              return (
+                <div key={pd.id} className="border-2 border-brand-700 hover:border-frh-yellow/40 transition-all">
+                  <div className="flex flex-wrap items-center gap-3 px-3 py-3 bg-brand-950/40">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-ui text-sm text-gray-200">{pd.name}</span>
+                        <PixelBadge label={pd.status} color={STATUS_COLOR[pd.status] ?? 'blue'} />
+                        <span className="text-[10px] text-gray-500">
+                          {pd.season?.name} / {pd.division?.name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-600">
+                        {pd.picks?.length ?? 0} picks · {pd.rounds} rounds · {divTeams.length} teams
+                        {pd.pickTimerSeconds > 0 ? ` · ${pd.pickTimerSeconds}s timer` : ' · no timer'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 shrink-0 flex-wrap">
+                      <a
+                        href={`/api/player-drafts/${pd.id}/stream`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hidden"
+                      />
+                      {pd.status === 'pending' && (
+                        <BrutalButton
+                          onClick={() => act(pd.id, 'start')}
+                          size="sm"
+                          disabled={divTeams.length === 0}
+                        >
+                          Start
+                        </BrutalButton>
+                      )}
+                      {pd.status === 'active' && (
+                        <>
+                          <BrutalButton onClick={() => act(pd.id, 'pause')} variant="secondary" size="sm">Pause</BrutalButton>
+                          <BrutalButton onClick={() => act(pd.id, 'skip')} variant="secondary" size="sm">Skip Turn</BrutalButton>
+                          <BrutalButton onClick={() => act(pd.id, 'undo')} variant="secondary" size="sm">Undo Pick</BrutalButton>
+                          <BrutalButton onClick={() => complete(pd.id)} size="sm">Complete</BrutalButton>
+                        </>
+                      )}
+                      {pd.status === 'paused' && (
+                        <BrutalButton onClick={() => act(pd.id, 'resume')} size="sm">Resume</BrutalButton>
+                      )}
+                    </div>
+                  </div>
+                  {pd.status === 'pending' && divTeams.length === 0 && (
+                    <div className="px-3 py-2 border-t border-brand-700 bg-brand-900/20">
+                      <p className="text-[10px] text-yellow-500">
+                        No teams found in {pd.division?.name}. Add teams in the Teams tab before starting.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </RetroWindow>
+      )}
+    </div>
+  );
+}
+
+// ─── Review Queue Panel ───────────────────────────────
+
+function ReviewQueuePanel({ submissions, onRefresh }) {
+  const [busy, setBusy] = useState({});
+  const [rejectId, setRejectId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const act = async (id, action, extra = {}) => {
+    setBusy((b) => ({ ...b, [id]: true }));
+    const res = await patchJson(`/api/submissions/${id}`, { action, ...extra });
+    setBusy((b) => ({ ...b, [id]: false }));
+    if (res.error) { alert(res.error); return; }
+    await onRefresh();
+  };
+
+  const startReject = (id) => { setRejectId(id); setRejectReason(''); };
+
+  const confirmReject = async () => {
+    if (!rejectReason.trim()) return;
+    await act(rejectId, 'reject', { rejectionReason: rejectReason.trim() });
+    setRejectId(null);
+    setRejectReason('');
+  };
+
+  return (
+    <div className="space-y-4">
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <RetroWindow title="REJECT SUBMISSION" titleBarColor="blue" className="w-full max-w-md">
+            <p className="text-sm text-gray-400 mb-3">Provide a rejection reason. Captains will see this.</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Score not matching VOD, please resubmit with screenshot."
+              className="input-field w-full mb-3"
+            />
+            <div className="flex gap-2">
+              <BrutalButton onClick={confirmReject} disabled={!rejectReason.trim()} variant="danger">Confirm Reject</BrutalButton>
+              <BrutalButton onClick={() => setRejectId(null)} variant="secondary">Cancel</BrutalButton>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
+
+      <RetroWindow title="MATCH RESULT REVIEW QUEUE">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Open Submissions</h2>
+          <div className="flex items-center gap-2">
+            <PixelBadge label={`${submissions.length} open`} color={submissions.length > 0 ? 'orange' : 'cream'} />
+            <BrutalButton onClick={onRefresh} variant="secondary" size="sm">Refresh</BrutalButton>
+          </div>
+        </div>
+
+        {submissions.length === 0 ? (
+          <p className="text-sm text-gray-600 text-center py-6">No pending submissions. Queue is clear.</p>
+        ) : (
+          <div className="space-y-4">
+            {submissions.map((sub) => (
+              <div key={sub.id} className="border-2 border-brand-700 hover:border-frh-yellow/40 transition-all">
+                <div className="px-3 py-3 bg-brand-950/40">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-ui text-xs text-gray-400">
+                          Week {sub.match?.week} · {sub.match?.homeTeam?.tag} vs {sub.match?.awayTeam?.tag}
+                        </span>
+                        {sub.game && (
+                          <span className="text-[10px] text-gray-500">G{sub.game.gameNumber}</span>
+                        )}
+                        <PixelBadge label={sub.status} color={SUBMISSION_STATUS_COLOR[sub.status] ?? 'blue'} />
+                      </div>
+                      {sub.reportedWinnerTeamId && (
+                        <p className="text-xs text-gray-300">
+                          Reported winner: <span className="text-frh-yellow font-display font-bold">{
+                            sub.match?.homeTeam?.id === sub.reportedWinnerTeamId
+                              ? sub.match?.homeTeam?.name
+                              : sub.match?.awayTeam?.name
+                          }</span>
+                        </p>
+                      )}
+                      {sub.notes && (
+                        <p className="text-xs text-gray-500 mt-1 italic">&ldquo;{sub.notes}&rdquo;</p>
+                      )}
+                      {sub.attachments?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {sub.attachments.map((att) => (
+                            <a
+                              key={att.id}
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-ui uppercase text-frh-yellow underline border border-brand-600 px-2 py-0.5"
+                            >
+                              {att.kind}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-gray-600 mt-1 font-mono">{new Date(sub.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      {sub.status === 'pending' && (
+                        <BrutalButton
+                          onClick={() => act(sub.id, 'in_review')}
+                          disabled={busy[sub.id]}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Mark In Review
+                        </BrutalButton>
+                      )}
+                      <BrutalButton
+                        onClick={() => act(sub.id, 'approve')}
+                        disabled={busy[sub.id]}
+                        size="sm"
+                      >
+                        {busy[sub.id] ? 'Working…' : 'Approve'}
+                      </BrutalButton>
+                      <BrutalButton
+                        onClick={() => startReject(sub.id)}
+                        disabled={busy[sub.id]}
+                        variant="danger"
+                        size="sm"
+                      >
+                        Reject
+                      </BrutalButton>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </RetroWindow>
     </div>
   );
 }

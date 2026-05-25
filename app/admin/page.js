@@ -41,6 +41,30 @@ export default async function AdminPage() {
       },
     },
   });
+  const playerDrafts = await prisma.playerDraft.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      season: { select: { id: true, name: true } },
+      division: { select: { id: true, name: true } },
+      picks: { select: { id: true } },
+    },
+  });
+  const pendingSubmissions = await prisma.matchSubmission.findMany({
+    where: { status: { in: ['pending', 'in_review'] } },
+    orderBy: { createdAt: 'asc' },
+    include: {
+      attachments: { select: { id: true, kind: true, url: true } },
+      match: {
+        select: {
+          id: true,
+          week: true,
+          homeTeam: { select: { id: true, name: true, tag: true } },
+          awayTeam: { select: { id: true, name: true, tag: true } },
+        },
+      },
+      game: { select: { id: true, gameNumber: true } },
+    },
+  });
 
   return (
     <AdminClient
@@ -50,6 +74,8 @@ export default async function AdminPage() {
       initialSeasons={JSON.parse(JSON.stringify(seasons))}
       initialTeams={JSON.parse(JSON.stringify(teams))}
       initialMatches={JSON.parse(JSON.stringify(matches))}
+      initialPlayerDrafts={JSON.parse(JSON.stringify(playerDrafts))}
+      initialSubmissions={JSON.parse(JSON.stringify(pendingSubmissions))}
     />
   );
 }
