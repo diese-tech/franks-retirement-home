@@ -2,8 +2,16 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { RetroWindow, PixelBadge, BrutalButton } from '@/components/ui';
+import CaptainUploadSection from './CaptainUploadSection';
 
 export const dynamic = 'force-dynamic';
+
+function verifyCaptainKey(match, key) {
+  if (!key) return null;
+  if (key === match.homeTeamCaptainKey) return match.homeTeamId;
+  if (key === match.awayTeamCaptainKey) return match.awayTeamId;
+  return null;
+}
 
 const STATUS_COLOR = {
   scheduled: 'blue',
@@ -46,7 +54,7 @@ function RosterColumn({ team, label }) {
   );
 }
 
-export default async function MatchDetailPage({ params }) {
+export default async function MatchDetailPage({ params, searchParams }) {
   const match = await prisma.match.findUnique({
     where: { id: params.id },
     include: {
@@ -81,7 +89,8 @@ export default async function MatchDetailPage({ params }) {
 
   if (!match) notFound();
 
-  // Strip captain keys — not returned from this public route
+  const captainKey = searchParams?.key ?? null;
+  const captainTeamId = verifyCaptainKey(match, captainKey);
   const isLive = match.status === 'live';
 
   return (
@@ -185,6 +194,13 @@ export default async function MatchDetailPage({ params }) {
               ))}
             </div>
           </div>
+        )}
+
+        {captainTeamId && (
+          <CaptainUploadSection
+            games={match.games}
+            captainKey={captainKey}
+          />
         )}
 
         <div className="border-t-2 border-brand-700 pt-4 mt-6">

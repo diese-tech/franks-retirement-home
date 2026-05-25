@@ -7,12 +7,12 @@ import { extractSmite2Details } from '@/lib/gemini';
 export const dynamic = 'force-dynamic';
 
 // POST /api/ocr/extract
-// Admin: upload a SMITE 2 Details tab screenshot and extract player stats via Gemini.
+// Accepts either an admin session cookie OR a valid X-Captain-Key for the match.
+// Captains can upload screenshots; only admins can approve via /api/ocr/[id]/submit.
 // Body: { gameId, imageBase64, mimeType? }
-// Returns: the created OcrExtraction with its ExtractedStatLine rows.
+// Returns: { ok: true } for captains (no extraction data exposed); full result for admins.
 export async function POST(req) {
-  const authError = await requireAdmin(req);
-  if (authError) return authError;
+  const adminGuard = requireAdmin(req);
 
   if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 503 });
@@ -33,8 +33,19 @@ export async function POST(req) {
   });
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
+  // If admin auth failed, try captain key as fallback
+  let isCaptain = false;
+  if (adminGuard !== null) {
+    const captainKey = req.headers.get('x-captain-key');
+    const { homeTeamCaptainKey, awayTeamCaptainKey } = game.match;
+    if (!captainKey || (captainKey !== homeTeamCaptainKey && captainKey !== awayTeamCaptainKey)) {
+      return adminGuard; // return the original 401
+    }
+    isCaptain = true;
+  }
+
   const extraction = await prisma.ocrExtraction.create({
-    data: { gameId, attachmentUrl: 'admin-upload', mimeType, status: 'processing' },
+    data: { gameId, attachmentUrl: isCaptain ? 'captain-upload' : 'admin-upload', mimeType, status: 'processing' },
   });
 
   let geminiResult;
@@ -107,6 +118,8 @@ export async function POST(req) {
     include: { rows: true },
   });
 
-  logAudit('OcrExtraction', extraction.id, 'extracted', { payload: { gameId, rowCount: players.length } });
+  logAudit('OcrExtraction', extraction.id, 'extracted', { payload: { gameId, rowCount: players.length, source: isCaptain ? 'captain' : 'admin' } });
+  // Captains get a simple confirmation — no extracted data exposed to them
+  if (isCaptain) return NextResponse.json({ ok: true, extractionId: extraction.id }, { status: 201 });
   return NextResponse.json(result, { status: 201 });
 }
