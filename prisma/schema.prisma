@@ -18,8 +18,9 @@ model Season {
   currentWeek Int       @default(1)
   createdAt   DateTime  @default(now())
 
-  divisions Division[]
-  matches   Match[]
+  divisions    Division[]
+  matches      Match[]
+  playerDrafts PlayerDraft[]
 }
 
 model Division {
@@ -29,9 +30,10 @@ model Division {
   tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
   createdAt DateTime @default(now())
 
-  season  Season  @relation(fields: [seasonId], references: [id])
-  teams   Team[]
-  matches Match[]
+  season      Season       @relation(fields: [seasonId], references: [id])
+  teams       Team[]
+  matches     Match[]
+  playerDraft PlayerDraft?
 
   @@unique([seasonId, name])
 }
@@ -56,11 +58,12 @@ model Team {
   captainPlayerId String?
   createdAt       DateTime @default(now())
 
-  division    Division    @relation(fields: [divisionId], references: [id])
-  org         Org?        @relation(fields: [orgId], references: [id])
-  members     TeamMember[]
-  homeMatches Match[]     @relation("HomeTeam")
-  awayMatches Match[]     @relation("AwayTeam")
+  division         Division          @relation(fields: [divisionId], references: [id])
+  org              Org?              @relation(fields: [orgId], references: [id])
+  members          TeamMember[]
+  homeMatches      Match[]           @relation("HomeTeam")
+  awayMatches      Match[]           @relation("AwayTeam")
+  playerDraftPicks PlayerDraftPick[]
 }
 
 model TeamMember {
@@ -95,11 +98,12 @@ model Match {
   awayTeamCaptainKey String?   @unique
   createdAt          DateTime  @default(now())
 
-  season   Season   @relation(fields: [seasonId], references: [id])
-  division Division @relation(fields: [divisionId], references: [id])
-  homeTeam Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  games    Game[]
+  season      Season            @relation(fields: [seasonId], references: [id])
+  division    Division          @relation(fields: [divisionId], references: [id])
+  homeTeam    Team              @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team              @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  games       Game[]
+  submissions MatchSubmission[]
 }
 
 model Game {
@@ -110,11 +114,99 @@ model Game {
   durationSeconds Int?
   createdAt       DateTime @default(now())
 
-  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  draft Draft?
+  match       Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  draft       Draft?
+  submissions MatchSubmission[]
 
   @@unique([matchId, gameNumber])
 }
+
+// ─── PlayerDraft ─────────────────────────────────────────────────────────────
+
+// Season-scoped snake draft of players to teams within a division.
+// Status machine: pending → active → paused → complete
+// Completion transaction upserts TeamMember rows from all PlayerDraftPick rows.
+model PlayerDraft {
+  id               String    @id @default(cuid())
+  seasonId         String
+  divisionId       String    @unique // one draft per division enforced here
+  name             String    @default("Player Draft")
+  status           String    @default("pending") // pending | active | paused | complete
+  rounds           Int       @default(5)
+  pickTimerSeconds Int       @default(120)        // 0 = no timer
+  // Original approved pick order (teamId array). Immutable once draft starts — audit trail.
+  baseOrder        Json      @default("[]")
+  // Live order — admin applies bilateral slot-trade requests here.
+  // Even round index uses currentOrder; odd uses reversed.
+  currentOrder     Json      @default("[]")
+  // 0-based index into buildPickSequence(currentOrder, rounds).
+  currentPickIndex Int       @default(0)
+  pickStartedAt    DateTime?
+  adminKey         String?   @unique
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  season   Season            @relation(fields: [seasonId], references: [id])
+  division Division          @relation(fields: [divisionId], references: [id])
+  picks    PlayerDraftPick[]
+
+  @@unique([seasonId, divisionId])
+}
+
+model PlayerDraftPick {
+  id            String   @id @default(cuid())
+  playerDraftId String
+  pickNumber    Int      // 1-based across the full snake sequence
+  teamId        String
+  playerId      String
+  pickedAt      DateTime @default(now())
+
+  playerDraft PlayerDraft @relation(fields: [playerDraftId], references: [id], onDelete: Cascade)
+  team        Team        @relation(fields: [teamId], references: [id])
+  player      Player      @relation(fields: [playerId], references: [id])
+
+  @@unique([playerDraftId, playerId])   // a player can only be drafted once
+  @@unique([playerDraftId, pickNumber]) // each pick slot is unique
+}
+
+// ─── Match Submissions ────────────────────────────────────────────────────────
+
+model MatchSubmission {
+  id                   String    @id @default(cuid())
+  matchId              String
+  gameId               String?
+  submittedByPlayerId  String?   // captain who submitted; null if admin-created
+  status               String    @default("pending") // pending | in_review | approved | rejected | superseded
+  reportedWinnerTeamId String?
+  notes                String?
+  rejectionReason      String?
+  reviewStartedAt      DateTime?
+  reviewedAt           DateTime?
+  reviewedByAdminId    String?   // opaque admin identifier — no User table in S9
+  createdAt            DateTime  @default(now())
+
+  match       Match                  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  game        Game?                  @relation(fields: [gameId], references: [id])
+  attachments SubmissionAttachment[]
+}
+
+model SubmissionAttachment {
+  id           String   @id @default(cuid())
+  submissionId String
+  kind         String   // screenshot | document
+  url          String
+  checksum     String?
+  mimeType     String?
+  byteSize     Int?
+  uploadedAt   DateTime @default(now())
+
+  submission MatchSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+// ─── Core Draft Engine ────────────────────────────────────────────────────────
 
 model Player {
   id              String   @id @default(cuid())
@@ -124,8 +216,9 @@ model Player {
   division        String?  // e.g. Hospice, Rehabilitation
   createdAt       DateTime @default(now())
 
-  draftPicks      DraftPick[]
-  teamMemberships TeamMember[]
+  draftPicks       DraftPick[]
+  teamMemberships  TeamMember[]
+  playerDraftPicks PlayerDraftPick[]
 }
 
 model God {
@@ -162,17 +255,21 @@ model Draft {
   game  Game?        @relation(fields: [gameId], references: [id])
 }
 
+// PRE-SEASON ONLY: playerId is nullable to support team-level picks during the
+// draft and post-draft Lineup Confirmation. Existing picks with playerId set are
+// unaffected. @@unique([draftId, playerId]) allows multiple null playerId rows
+// in Postgres (nulls are not considered equal in unique indexes).
 model DraftPick {
   id        String   @id @default(cuid())
   draftId   String
-  playerId  String
+  playerId  String?
   team      String   // A or B
   godId     String?
   pickOrder Int      @default(0)
   createdAt DateTime @default(now())
 
   draft  Draft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  player Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
   god    God?    @relation(fields: [godId], references: [id], onDelete: SetNull)
 
   @@unique([draftId, playerId])
