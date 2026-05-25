@@ -309,6 +309,18 @@ Deploying from `main`? See [docs/DEPLOYMENT_NOTES.md](./docs/DEPLOYMENT_NOTES.md
 
 ---
 
+## League Ops policies
+
+| Document | Purpose |
+|---|---|
+| [docs/review-queue-policy.md](./docs/review-queue-policy.md) | Binding policy for the human-in-the-loop approval queue — what is stat-affecting, who can approve, staging vs canonical table boundary, rejection retention, supersede semantics |
+| [docs/forgelens-worker-architecture.md](./docs/forgelens-worker-architecture.md) | ForgeLens OCR worker contract — system responsibilities, data flow, job lifecycle, HMAC callback contract with example payloads, failure modes |
+| [docs/season-9-migration-runbook.md](./docs/season-9-migration-runbook.md) | Per-step Prisma migration runbook for S9 — pre-checks, commands, post-checks, rollback plans; mid-season additive-only rule |
+| [docs/draft-architecture.md](./docs/draft-architecture.md) | Domain distinction between GodDraft and PlayerDraft; vault scope contract; slot trade flow |
+| [docs/season-9-backlog.md](./docs/season-9-backlog.md) | 32-issue canonical backlog for Season 9 League Ops |
+
+---
+
 ## Required AI Workflow Review
 
 Before beginning AI-assisted implementation, debugging, refactoring, migration, or production fix work in this repository, review [docs/AI_WORKFLOW_GUARDRAILS.md](./docs/AI_WORKFLOW_GUARDRAILS.md).

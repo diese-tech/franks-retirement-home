@@ -8,15 +8,223 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Season {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  status      String    @default("upcoming") // upcoming | active | completed
+  startsAt    DateTime?
+  endsAt      DateTime?
+  currentWeek Int       @default(1)
+  createdAt   DateTime  @default(now())
+
+  divisions    Division[]
+  matches      Match[]
+  playerDrafts PlayerDraft[]
+}
+
+model Division {
+  id        String   @id @default(cuid())
+  seasonId  String
+  name      String   // "Hospice" | "Rehabilitation"
+  tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
+  createdAt DateTime @default(now())
+
+  season      Season       @relation(fields: [seasonId], references: [id])
+  teams       Team[]
+  matches     Match[]
+  playerDraft PlayerDraft?
+
+  @@unique([seasonId, name])
+}
+
+model Org {
+  id           String   @id @default(cuid())
+  name         String
+  tag          String
+  logoInitials String?
+  accentColor  String?
+  createdAt    DateTime @default(now())
+
+  teams Team[]
+}
+
+model Team {
+  id              String   @id @default(cuid())
+  divisionId      String
+  orgId           String?
+  name            String
+  tag             String
+  captainPlayerId String?
+  createdAt       DateTime @default(now())
+
+  division         Division          @relation(fields: [divisionId], references: [id])
+  org              Org?              @relation(fields: [orgId], references: [id])
+  members          TeamMember[]
+  homeMatches      Match[]           @relation("HomeTeam")
+  awayMatches      Match[]           @relation("AwayTeam")
+  playerDraftPicks PlayerDraftPick[]
+  statLines        StatLine[]
+}
+
+model TeamMember {
+  id        String    @id @default(cuid())
+  teamId    String
+  playerId  String
+  role      String    // Solo | Jungle | Mid | Support | Carry | Fill
+  isCaptain Boolean   @default(false)
+  isSub     Boolean   @default(false)
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([teamId, playerId])
+}
+
+model Match {
+  id                 String    @id @default(cuid())
+  seasonId           String
+  divisionId         String
+  week               Int
+  scheduledAt        DateTime?
+  status             String    @default("scheduled") // scheduled | live | completed | postponed
+  homeTeamId         String
+  awayTeamId         String
+  format             String    @default("BO1")        // BO1 | BO3 | BO5
+  streamUrl          String?
+  vodUrl             String?
+  homeTeamCaptainKey String?   @unique
+  awayTeamCaptainKey String?   @unique
+  createdAt          DateTime  @default(now())
+
+  season      Season            @relation(fields: [seasonId], references: [id])
+  division    Division          @relation(fields: [divisionId], references: [id])
+  homeTeam    Team              @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team              @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  games       Game[]
+  submissions MatchSubmission[]
+}
+
+model Game {
+  id              String   @id @default(cuid())
+  matchId         String
+  gameNumber      Int      // 1-based within the match
+  winnerTeamId    String?
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
+
+  match          Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  draft          Draft?
+  submissions    MatchSubmission[]
+  statLines      StatLine[]
+  ocrExtractions OcrExtraction[]
+
+  @@unique([matchId, gameNumber])
+}
+
+// ─── PlayerDraft ─────────────────────────────────────────────────────────────
+
+// Season-scoped snake draft of players to teams within a division.
+// Status machine: pending → active → paused → complete
+// Completion transaction upserts TeamMember rows from all PlayerDraftPick rows.
+model PlayerDraft {
+  id               String    @id @default(cuid())
+  seasonId         String
+  divisionId       String    @unique // one draft per division enforced here
+  name             String    @default("Player Draft")
+  status           String    @default("pending") // pending | active | paused | complete
+  rounds           Int       @default(5)
+  pickTimerSeconds Int       @default(120)        // 0 = no timer
+  // Original approved pick order (teamId array). Immutable once draft starts — audit trail.
+  baseOrder        Json      @default("[]")
+  // Live order — admin applies bilateral slot-trade requests here.
+  // Even round index uses currentOrder; odd uses reversed.
+  currentOrder     Json      @default("[]")
+  // 0-based index into buildPickSequence(currentOrder, rounds).
+  currentPickIndex Int       @default(0)
+  pickStartedAt    DateTime?
+  adminKey         String?   @unique
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  season   Season            @relation(fields: [seasonId], references: [id])
+  division Division          @relation(fields: [divisionId], references: [id])
+  picks    PlayerDraftPick[]
+
+  @@unique([seasonId, divisionId])
+}
+
+model PlayerDraftPick {
+  id            String   @id @default(cuid())
+  playerDraftId String
+  pickNumber    Int      // 1-based across the full snake sequence
+  teamId        String
+  playerId      String
+  pickedAt      DateTime @default(now())
+
+  playerDraft PlayerDraft @relation(fields: [playerDraftId], references: [id], onDelete: Cascade)
+  team        Team        @relation(fields: [teamId], references: [id])
+  player      Player      @relation(fields: [playerId], references: [id])
+
+  @@unique([playerDraftId, playerId])   // a player can only be drafted once
+  @@unique([playerDraftId, pickNumber]) // each pick slot is unique
+}
+
+// ─── Match Submissions ────────────────────────────────────────────────────────
+
+model MatchSubmission {
+  id                   String    @id @default(cuid())
+  matchId              String
+  gameId               String?
+  submittedByPlayerId  String?   // captain who submitted; null if admin-created
+  status               String    @default("pending") // pending | in_review | approved | rejected | superseded
+  reportedWinnerTeamId String?
+  notes                String?
+  rejectionReason      String?
+  reviewStartedAt      DateTime?
+  reviewedAt           DateTime?
+  reviewedByAdminId    String?   // opaque admin identifier — no User table in S9
+  createdAt            DateTime  @default(now())
+
+  match       Match                  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  game        Game?                  @relation(fields: [gameId], references: [id])
+  attachments SubmissionAttachment[]
+}
+
+model SubmissionAttachment {
+  id           String   @id @default(cuid())
+  submissionId String
+  kind         String   // screenshot | document
+  url          String
+  checksum     String?
+  mimeType     String?
+  byteSize     Int?
+  uploadedAt   DateTime @default(now())
+
+  submission MatchSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+// ─── Core Draft Engine ────────────────────────────────────────────────────────
+
 model Player {
   id              String   @id @default(cuid())
   name            String
   role            String   // Solo, Jungle, Mid, Support, Carry, Fill
   discordUsername String?
-  division        String?  // e.g. Canes, Walker, Rollator, Scooter
+  division        String?  // e.g. Hospice, Rehabilitation
   createdAt       DateTime @default(now())
 
-  draftPicks DraftPick[]
+  draftPicks         DraftPick[]
+  teamMemberships    TeamMember[]
+  playerDraftPicks   PlayerDraftPick[]
+  statLines          StatLine[]
+  extractedStatLines ExtractedStatLine[]
+  aliases            PlayerAlias[]
 }
 
 model God {
@@ -26,8 +234,10 @@ model God {
   godClass  String   // Physical, Magical
   createdAt DateTime @default(now())
 
-  draftPicks DraftPick[]
-  draftBans  DraftBan[]
+  draftPicks         DraftPick[]
+  draftBans          DraftBan[]
+  statLines          StatLine[]
+  extractedStatLines ExtractedStatLine[]
 }
 
 model Draft {
@@ -42,25 +252,32 @@ model Draft {
   usedGodIds     Json     @default("[]")
   version        Int      @default(0)
   chatsVersion   Int      @default(0)
+  // Nullable FK to Game. Null = standalone draft (scrims/testing). @unique = one draft per game at most.
+  gameId         String?  @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   picks DraftPick[]
   bans  DraftBan[]
   chats DraftChat[]
+  game  Game?        @relation(fields: [gameId], references: [id])
 }
 
+// PRE-SEASON ONLY: playerId is nullable to support team-level picks during the
+// draft and post-draft Lineup Confirmation. Existing picks with playerId set are
+// unaffected. @@unique([draftId, playerId]) allows multiple null playerId rows
+// in Postgres (nulls are not considered equal in unique indexes).
 model DraftPick {
   id        String   @id @default(cuid())
   draftId   String
-  playerId  String
+  playerId  String?
   team      String   // A or B
   godId     String?
   pickOrder Int      @default(0)
   createdAt DateTime @default(now())
 
   draft  Draft   @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  player Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
   god    God?    @relation(fields: [godId], references: [id], onDelete: SetNull)
 
   @@unique([draftId, playerId])
@@ -89,4 +306,120 @@ model DraftChat {
   createdAt  DateTime @default(now())
 
   draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+}
+
+// ─── Stat Lines ───────────────────────────────────────────────────────────────
+
+// Per-player per-game statistics entered manually by admin after a match.
+// One row per player per game. godId is nullable for games before Lineup Confirmation.
+model StatLine {
+  id        String   @id @default(cuid())
+  gameId    String
+  playerId  String
+  teamId    String
+  godId     String?  // which god this player used
+  role      String?  // role played in this specific game (may differ from player.role)
+  kills           Int      @default(0)
+  deaths          Int      @default(0)
+  assists         Int      @default(0)
+  damage          Int      @default(0) // player damage dealt
+  damageMitigated Int      @default(0)
+  healing         Int      @default(0) // self + ally healing combined
+  structureDamage Int      @default(0)
+  gold            Int      @default(0)
+  notes           String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+  god    God?   @relation(fields: [godId], references: [id], onDelete: SetNull)
+
+  @@unique([gameId, playerId]) // one stat line per player per game
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+// Append-only log of admin actions. Never modified after insert.
+// payload is a JSON object with action-specific context.
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String   // "Match" | "PlayerDraft" | "MatchSubmission" | "StatLine" | etc.
+  entityId  String
+  action    String   // "created" | "approved" | "rejected" | "status_changed" | "pick_recorded" | etc.
+  adminId   String?  // opaque identifier — no User table in S9
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ─── ForgeLens OCR Pipeline ───────────────────────────────────────────────────
+
+// One row per screenshot submitted for OCR. Tracks job lifecycle.
+// Status: pending → processing → completed | needs_review | failed
+model OcrExtraction {
+  id                String    @id @default(cuid())
+  submissionId      String?   // optional link to the MatchSubmission that triggered this
+  gameId            String?   // which game's stats are being extracted
+  status            String    @default("pending") // pending | processing | completed | needs_review | failed
+  attachmentUrl     String    // the screenshot URL sent to ForgeLens
+  attachmentChecksum String?
+  mimeType          String?
+  confidence        Float?    // returned by ForgeLens (0.0–1.0)
+  parserVersion     String?
+  rawModelOutput    String?   // raw Gemini text (for audit / debugging)
+  warnings          Json      @default("[]") // array of { field, ign, reason }
+  errorMessage      String?
+  requestedAt       DateTime  @default(now())
+  completedAt       DateTime?
+
+  game        Game?              @relation(fields: [gameId], references: [id])
+  rows        ExtractedStatLine[]
+}
+
+// One row per player-row in the ForgeLens callback `rows` array.
+// Admin reviews and approves/rejects before these become canonical StatLine rows.
+model ExtractedStatLine {
+  id             String  @id @default(cuid())
+  extractionId   String
+  status         String  @default("pending") // pending | approved | rejected
+  // Raw values from ForgeLens (stored as extracted, not yet resolved)
+  ignRaw         String  // ign as parsed from the screenshot
+  teamRaw        String? // "home" | "away" as parsed
+  roleRaw        String?
+  godRaw         String?
+  kills          Int     @default(0)
+  deaths         Int     @default(0)
+  assists        Int     @default(0)
+  damageDealt    Int     @default(0)
+  damageMitigated Int    @default(0)
+  healing        Int     @default(0)
+  goldEarned     Int     @default(0)
+  structureDamage Int    @default(0)
+  confidence     Float?  // per-row confidence if provided
+  // Admin-resolved references (null until admin confirms identity)
+  resolvedPlayerId String?
+  resolvedGodId    String?
+  rejectionReason  String?
+
+  extraction OcrExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+  player     Player?       @relation(fields: [resolvedPlayerId], references: [id], onDelete: SetNull)
+  god        God?          @relation(fields: [resolvedGodId], references: [id], onDelete: SetNull)
+}
+
+// IGN aliases — maps raw player name variants to a canonical Player row.
+// Created by admin when a ForgeLens extraction fails to auto-resolve a name.
+model PlayerAlias {
+  id        String   @id @default(cuid())
+  playerId  String
+  alias     String   // raw name variant (case-sensitive as ForgeLens returns it)
+  source    String   @default("admin") // "admin" | "forgelens" | "import"
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([alias]) // one canonical player per alias string
 }

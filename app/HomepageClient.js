@@ -1,114 +1,185 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import RetroWindow from '@/components/ui/RetroWindow';
-import BrutalButton from '@/components/ui/BrutalButton';
-import StatusBadge from '@/components/ui/StatusBadge';
-import PortalTabBar from '@/components/ui/PortalTabBar';
+import { RetroWindow, BrutalButton, StatusBadge } from '@/components/ui';
 import RightRailWidget from '@/components/ui/RightRailWidget';
 
-const TABS = [
-  { id: 'drafts', label: 'Drafts' },
-  { id: 'how-it-works', label: 'How It Works' },
-  { id: 'about', label: 'About' },
-];
-
-const HOW_IT_WORKS = [
-  {
-    num: '01',
-    title: 'Admin Creates a Draft',
-    body: 'Set the teams, generate the links, try not to lose them.',
-  },
-  {
-    num: '02',
-    title: 'Captains Ban & Pick',
-    body: 'Six bans. Ten picks. Snake order. No pressure. (Some pressure.)',
-  },
-  {
-    num: '03',
-    title: 'Everyone Argues',
-    body: 'Post-draft analysis in the Discord. Classic league behavior.',
-  },
-];
-
 export default function HomepageClient({
-  featuredDrafts,
-  totalCount,
-  activeDrafts,
-  completedDrafts,
+  activeSeason,
+  liveMatches,
+  upcomingMatches,
+  recentDrafts,
+  divisionStandings,
   playerCount,
   godCount,
 }) {
-  const [activeTab, setActiveTab] = useState('drafts');
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Portal header */}
-      <div className="border-b-[3px] border-frh-yellow pb-6">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+      {/* Hero */}
+      <div className="border-b-[3px] border-frh-yellow pb-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div>
             <h1 className="font-display text-4xl sm:text-5xl font-bold uppercase text-frh-yellow leading-tight">
               Frank&apos;s Retirement Home
             </h1>
-            <p className="mt-2 text-sm font-body text-frh-cream">
-              Low skill. High commitment. Questionable picks.
+            <p className="mt-1 text-sm font-body text-frh-cream">
+              {activeSeason
+                ? `${activeSeason.name} · Low skill. High commitment.`
+                : 'Low skill. High commitment. Questionable picks.'}
             </p>
           </div>
-          <div className="hidden sm:flex gap-3 shrink-0">
-            <StatBox number={activeDrafts} label="Active Drafts" />
+          <div className="flex gap-3 shrink-0">
             <StatBox number={playerCount} label="Players" />
             <StatBox number={godCount} label="Gods" />
           </div>
         </div>
       </div>
 
-      {/* Tab bar */}
-      <PortalTabBar tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Main column */}
+        <div className="flex-1 min-w-0 space-y-5">
 
-      {/* Main + right rail */}
-      <div className="mt-6 flex flex-col lg:flex-row gap-6">
-        {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-4">
-          {activeTab === 'drafts' && <DraftsTab drafts={featuredDrafts} />}
-          {activeTab === 'how-it-works' && <HowItWorksTab />}
-          {activeTab === 'about' && <AboutTab />}
+          {/* Live matches */}
+          {liveMatches.length > 0 && (
+            <RetroWindow title="LIVE NOW" titleBarColor="lime">
+              <div className="space-y-3">
+                {liveMatches.map((m) => (
+                  <MatchRow key={m.id} match={m} live />
+                ))}
+              </div>
+            </RetroWindow>
+          )}
+
+          {/* Upcoming schedule */}
+          <RetroWindow title="UPCOMING MATCHES">
+            {upcomingMatches.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-600">No matches scheduled yet.</p>
+                <Link href="/schedule" className="text-xs text-frh-yellow hover:underline mt-2 inline-block">
+                  View full schedule →
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2 mb-3">
+                  {upcomingMatches.map((m) => (
+                    <MatchRow key={m.id} match={m} />
+                  ))}
+                </div>
+                <Link href="/schedule" className="text-xs text-frh-yellow hover:underline font-ui uppercase tracking-wide">
+                  Full schedule →
+                </Link>
+              </>
+            )}
+          </RetroWindow>
+
+          {/* Standings preview */}
+          {divisionStandings.length > 0 && (
+            <div className="space-y-4">
+              {divisionStandings.map(({ division, rows }) => (
+                <RetroWindow key={division.id} title={`${division.name.toUpperCase()} STANDINGS`}>
+                  {rows.length === 0 ? (
+                    <p className="text-sm text-gray-600 text-center py-4">No completed matches yet.</p>
+                  ) : (
+                    <>
+                      <div className="space-y-0">
+                        {rows.map((row, i) => (
+                          <div
+                            key={row.teamId}
+                            className={`flex items-center gap-3 py-2 border-b border-brand-700/40 last:border-0 ${i === 0 ? 'bg-frh-yellow/5' : ''}`}
+                          >
+                            <span className={`font-ui text-xs w-5 text-center ${i === 0 ? 'text-frh-yellow font-bold' : 'text-gray-600'}`}>{i + 1}</span>
+                            <Link href={`/teams/${row.teamId}`} className="flex-1 min-w-0 hover:text-frh-yellow transition-colors">
+                              <span className="font-display font-bold text-sm text-gray-200">{row.teamName}</span>
+                              <span className="ml-2 font-mono text-[10px] text-gray-600">[{row.teamTag}]</span>
+                            </Link>
+                            <span className="font-mono text-xs shrink-0">
+                              <span className="text-green-400 font-bold">{row.wins}</span>
+                              <span className="text-gray-600">–</span>
+                              <span className="text-red-400 font-bold">{row.losses}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <Link href="/standings" className="block text-xs text-frh-yellow hover:underline font-ui uppercase tracking-wide mt-3">
+                        Full standings →
+                      </Link>
+                    </>
+                  )}
+                </RetroWindow>
+              ))}
+            </div>
+          )}
+
+          {/* Active god drafts */}
+          {recentDrafts.length > 0 && (
+            <RetroWindow title="ACTIVE DRAFT SESSIONS">
+              <div className="space-y-2">
+                {recentDrafts.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 py-2 border-b border-brand-700/40 last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <StatusBadge status={d.status} />
+                      <span className="font-body text-sm text-gray-300 truncate">{d.name}</span>
+                    </div>
+                    <BrutalButton href={`/draft/${d.id}`} size="sm" variant="secondary">Watch</BrutalButton>
+                  </div>
+                ))}
+              </div>
+            </RetroWindow>
+          )}
+
         </div>
 
         {/* Right rail */}
         <div className="hidden lg:flex flex-col gap-4 w-56 shrink-0">
-          <RightRailWidget title="QUICK LINKS">
-            <div className="space-y-2">
-              <a
-                href="https://discord.gg/HPAZmHmBpD"
-                target="_blank"
-                rel="noreferrer"
-                className="block text-frh-xp-blue hover:text-frh-yellow text-xs font-ui uppercase tracking-wide transition-colors"
-              >
-                → Join Discord
-              </a>
-              <Link
-                href="/admin"
-                className="block text-frh-xp-blue hover:text-frh-yellow text-xs font-ui uppercase tracking-wide transition-colors"
-              >
-                → Admin Panel
-              </Link>
-            </div>
+          <RightRailWidget title="NAVIGATE">
+            <nav className="space-y-2">
+              {[
+                { href: '/schedule', label: 'Schedule' },
+                { href: '/standings', label: 'Standings' },
+                { href: '/teams', label: 'Teams' },
+                { href: '/players', label: 'Players' },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="block text-frh-xp-blue hover:text-frh-yellow text-xs font-ui uppercase tracking-wide transition-colors"
+                >
+                  → {label}
+                </Link>
+              ))}
+            </nav>
           </RightRailWidget>
 
           <RightRailWidget title="WHAT IS FRH?">
             <p className="text-xs font-body text-frh-cream leading-relaxed">
-              FRH is a beer-league Smite 2 draft site. Nobody knows the meta. That&apos;s the point.
+              Beer-league Smite 2 draft league. Nobody knows the meta. That&apos;s the point.
             </p>
+            <a
+              href="https://discord.gg/HPAZmHmBpD"
+              target="_blank"
+              rel="noreferrer"
+              className="block text-frh-xp-blue hover:text-frh-yellow text-xs font-ui uppercase tracking-wide transition-colors mt-2"
+            >
+              → Join Discord
+            </a>
           </RightRailWidget>
 
-          <RightRailWidget title="LEAGUE STATS">
-            <div className="space-y-2">
-              <StatRow label="Total Drafts" value={totalCount} color="text-frh-yellow" />
-              <StatRow label="Active" value={activeDrafts} color="text-frh-lime" />
-              <StatRow label="Completed" value={completedDrafts} color="text-gray-400" />
-            </div>
-          </RightRailWidget>
+          {activeSeason && (
+            <RightRailWidget title="SEASON INFO">
+              <div className="space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[10px] font-ui uppercase text-gray-600">Season</span>
+                  <span className="font-mono text-xs text-frh-yellow">{activeSeason.name}</span>
+                </div>
+                {activeSeason.divisions.map((d) => (
+                  <div key={d.id} className="flex justify-between">
+                    <span className="text-[10px] font-ui uppercase text-gray-600">{d.name}</span>
+                  </div>
+                ))}
+              </div>
+            </RightRailWidget>
+          )}
         </div>
       </div>
     </div>
@@ -124,94 +195,30 @@ function StatBox({ number, label }) {
   );
 }
 
-function StatRow({ label, value, color }) {
+function MatchRow({ match, live = false }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-[10px] font-ui uppercase tracking-wider text-gray-500">{label}</span>
-      <span className={`font-mono text-sm ${color}`}>{value}</span>
-    </div>
-  );
-}
-
-function DraftsTab({ drafts }) {
-  return (
-    <RetroWindow title="ACTIVE SESSIONS">
-      {drafts.length === 0 ? (
-        <p className="text-sm font-body text-gray-500 text-center py-6">
-          No active drafts. Create one or stare at this page.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-[10px] font-ui uppercase tracking-widest text-gray-500 pb-2 pr-4 font-normal">
-                  Status
-                </th>
-                <th className="text-left text-[10px] font-ui uppercase tracking-widest text-gray-500 pb-2 pr-4 font-normal">
-                  Draft Name
-                </th>
-                <th className="text-right text-[10px] font-ui uppercase tracking-widest text-gray-500 pb-2 font-normal">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {drafts.map((draft) => (
-                <tr key={draft.id} className="border-b border-gray-800 last:border-0">
-                  <td className="py-3 pr-4">
-                    <StatusBadge status={draft.status} />
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="font-body text-sm text-gray-200">{draft.name}</span>
-                    <span className="block font-mono text-[10px] text-gray-600 mt-0.5">
-                      {new Date(draft.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </td>
-                  <td className="py-3 text-right">
-                    <BrutalButton href={`/draft/${draft.id}`} variant="primary" size="sm">
-                      View Draft
-                    </BrutalButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className={`flex items-center gap-3 py-2 px-2 ${live ? 'border border-green-500/30 bg-green-500/5' : 'border-b border-brand-700/40 last:border-0'}`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-display font-bold text-sm text-gray-200">
+            {match.homeTeam?.tag} <span className="text-gray-600 font-normal text-xs">vs</span> {match.awayTeam?.tag}
+          </span>
+          {live && <span className="text-[9px] font-ui uppercase text-green-400 border border-green-500/50 px-1 animate-pulse">Live</span>}
+          <span className="text-[10px] text-gray-600">{match.division?.name}</span>
         </div>
-      )}
-    </RetroWindow>
-  );
-}
-
-function HowItWorksTab() {
-  return (
-    <div className="space-y-4">
-      {HOW_IT_WORKS.map((step) => (
-        <RetroWindow key={step.num} title={`${step.num} · ${step.title.toUpperCase()}`}>
-          <p className="text-sm font-body text-gray-300">{step.body}</p>
-        </RetroWindow>
-      ))}
-    </div>
-  );
-}
-
-function AboutTab() {
-  return (
-    <RetroWindow title="ABOUT FRH">
-      <div className="space-y-3">
-        <p className="text-sm font-body text-gray-300">
-          Frank&apos;s Retirement Home is a beer-league Smite 2 draft site for a friend group amateur
-          league. Captains run bans and picks through role-based links, spectators can follow live,
-          and every set stays organized.
-        </p>
-        <p className="text-sm font-body text-gray-300">
-          No one knows the meta. That&apos;s the point.
-        </p>
+        {match.scheduledAt && !live && (
+          <span className="text-[10px] text-gray-600 font-mono">
+            {new Date(match.scheduledAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            {' '}
+            {new Date(match.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </span>
+        )}
       </div>
-    </RetroWindow>
+      <Link href={`/matches/${match.id}`}>
+        <BrutalButton size="sm" variant={live ? 'primary' : 'secondary'}>
+          {live ? 'Watch' : 'Details'}
+        </BrutalButton>
+      </Link>
+    </div>
   );
 }

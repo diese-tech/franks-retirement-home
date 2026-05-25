@@ -7,6 +7,7 @@ import BanView from './views/BanView';
 import PickView from './views/PickView';
 import CompleteView from './views/CompleteView';
 import ChatPanel from './components/ChatPanel';
+import LineupConfirmView from './views/LineupConfirmView';
 import { BrutalButton, PixelBadge, RetroWindow, StatusBadge } from '@/components/ui';
 
 const ROLE_LABELS = {
@@ -83,7 +84,7 @@ export default function DraftClient({ initialState, role, draftKey }) {
     await refreshState();
   }, [draftId, refreshState]);
 
-  const { draft, chats } = state;
+  const { draft, chats, rosterA = [], rosterB = [] } = state;
   const status = draft.status;
   const viewProps = { state, role, draftKey, callApi, draftId };
   const roleCfg = ROLE_LABELS[role] ?? ROLE_LABELS.spectator;
@@ -120,6 +121,20 @@ export default function DraftClient({ initialState, role, draftKey }) {
         {status === 'banning'  && <BanView     {...viewProps} />}
         {status === 'picking'  && <PickView    {...viewProps} />}
         {status === 'complete' && <CompleteView {...viewProps} onAdminAction={handleAdminAction} />}
+
+        {/* Lineup Confirmation: only for match-bound drafts after completion */}
+        {status === 'complete' && draft.gameId && (
+          <div className="mt-6">
+            <LineupConfirmView
+              state={state}
+              role={role}
+              draftKey={draftKey}
+              draftId={draftId}
+              rosterA={rosterA}
+              rosterB={rosterB}
+            />
+          </div>
+        )}
 
         {status !== 'pending' && (
           <div className="mt-6 max-w-2xl">
