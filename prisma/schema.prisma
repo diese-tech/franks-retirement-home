@@ -115,10 +115,11 @@ model Game {
   durationSeconds Int?
   createdAt       DateTime @default(now())
 
-  match       Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  draft       Draft?
-  submissions MatchSubmission[]
-  statLines   StatLine[]
+  match          Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  draft          Draft?
+  submissions    MatchSubmission[]
+  statLines      StatLine[]
+  ocrExtractions OcrExtraction[]
 
   @@unique([matchId, gameNumber])
 }
@@ -218,10 +219,12 @@ model Player {
   division        String?  // e.g. Hospice, Rehabilitation
   createdAt       DateTime @default(now())
 
-  draftPicks       DraftPick[]
-  teamMemberships  TeamMember[]
-  playerDraftPicks PlayerDraftPick[]
-  statLines        StatLine[]
+  draftPicks         DraftPick[]
+  teamMemberships    TeamMember[]
+  playerDraftPicks   PlayerDraftPick[]
+  statLines          StatLine[]
+  extractedStatLines ExtractedStatLine[]
+  aliases            PlayerAlias[]
 }
 
 model God {
@@ -231,9 +234,10 @@ model God {
   godClass  String   // Physical, Magical
   createdAt DateTime @default(now())
 
-  draftPicks DraftPick[]
-  draftBans  DraftBan[]
-  statLines  StatLine[]
+  draftPicks         DraftPick[]
+  draftBans          DraftBan[]
+  statLines          StatLine[]
+  extractedStatLines ExtractedStatLine[]
 }
 
 model Draft {
@@ -348,4 +352,72 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// ─── ForgeLens OCR Pipeline ───────────────────────────────────────────────────
+
+// One row per screenshot submitted for OCR. Tracks job lifecycle.
+// Status: pending → processing → completed | needs_review | failed
+model OcrExtraction {
+  id                String    @id @default(cuid())
+  submissionId      String?   // optional link to the MatchSubmission that triggered this
+  gameId            String?   // which game's stats are being extracted
+  status            String    @default("pending") // pending | processing | completed | needs_review | failed
+  attachmentUrl     String    // the screenshot URL sent to ForgeLens
+  attachmentChecksum String?
+  mimeType          String?
+  confidence        Float?    // returned by ForgeLens (0.0–1.0)
+  parserVersion     String?
+  rawModelOutput    String?   // raw Gemini text (for audit / debugging)
+  warnings          Json      @default("[]") // array of { field, ign, reason }
+  errorMessage      String?
+  requestedAt       DateTime  @default(now())
+  completedAt       DateTime?
+
+  game        Game?              @relation(fields: [gameId], references: [id])
+  rows        ExtractedStatLine[]
+}
+
+// One row per player-row in the ForgeLens callback `rows` array.
+// Admin reviews and approves/rejects before these become canonical StatLine rows.
+model ExtractedStatLine {
+  id             String  @id @default(cuid())
+  extractionId   String
+  status         String  @default("pending") // pending | approved | rejected
+  // Raw values from ForgeLens (stored as extracted, not yet resolved)
+  ignRaw         String  // ign as parsed from the screenshot
+  teamRaw        String? // "home" | "away" as parsed
+  roleRaw        String?
+  godRaw         String?
+  kills          Int     @default(0)
+  deaths         Int     @default(0)
+  assists        Int     @default(0)
+  damageDealt    Int     @default(0)
+  damageMitigated Int    @default(0)
+  healing        Int     @default(0)
+  goldEarned     Int     @default(0)
+  structureDamage Int    @default(0)
+  confidence     Float?  // per-row confidence if provided
+  // Admin-resolved references (null until admin confirms identity)
+  resolvedPlayerId String?
+  resolvedGodId    String?
+  rejectionReason  String?
+
+  extraction OcrExtraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+  player     Player?       @relation(fields: [resolvedPlayerId], references: [id], onDelete: SetNull)
+  god        God?          @relation(fields: [resolvedGodId], references: [id], onDelete: SetNull)
+}
+
+// IGN aliases — maps raw player name variants to a canonical Player row.
+// Created by admin when a ForgeLens extraction fails to auto-resolve a name.
+model PlayerAlias {
+  id        String   @id @default(cuid())
+  playerId  String
+  alias     String   // raw name variant (case-sensitive as ForgeLens returns it)
+  source    String   @default("admin") // "admin" | "forgelens" | "import"
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([alias]) // one canonical player per alias string
 }
