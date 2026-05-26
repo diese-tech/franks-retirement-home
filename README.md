@@ -97,7 +97,7 @@ See:
 
 ```bash
 npm install
-npm run db:push
+npm run db:reset   # resets DB, applies migrations, seeds mock data
 npm run dev
 ```
 

@@ -4,33 +4,57 @@ Operational steps required when shipping recent changes. Append new sections at 
 
 ---
 
-## S9 initial deployment (schema + env vars)
+## Migration workflow (current — replaces db push)
 
-Run **once** when deploying Season 9 to a fresh production Neon database, or after any schema change that has not yet been applied to production.
+FRH now uses **Prisma Migrate** as the source of truth. The `prisma/migrations/` folder is committed to the repo. Schema changes must be made via `prisma migrate dev` locally, and the resulting migration files committed and pushed.
 
-**Note:** FRH uses `prisma db push` directly against Neon — there is no migration folder. The commands below use the package scripts defined in `package.json`.
+**Never use `prisma db push` for deployments.** It bypasses the migration history, leaves the `_prisma_migrations` table out of sync, and causes `prisma migrate deploy` to fail or produce a drift error on the next run.
 
-**Step 1 — Apply the schema to production:**
+### Fresh database setup
 
 ```bash
-# Requires DATABASE_URL and DIRECT_URL in your environment.
-# DIRECT_URL must be the non-pooled Neon connection string.
-npm run db:push
+# 1. Apply all migrations and seed mock data
+npm run db:reset
+# equivalent to: prisma migrate reset --force && node prisma/seed.mjs
 ```
 
-If Vercel's build environment cannot reach Neon, run this from a local terminal with the production env vars set, or use the Neon console's SQL editor to apply any additive changes manually.
+### Adding a schema change
 
-**Step 2 — Required Vercel environment variables:**
+```bash
+# Edit prisma/schema.prisma, then:
+npm run db:migrate:dev -- --name describe-your-change
+# Creates prisma/migrations/<timestamp>_describe-your-change/migration.sql
+# Commit the new migration file alongside your code changes.
+```
+
+### Deploying to production (Vercel / CI)
+
+Vercel does not run migrations automatically. Migrations must be applied before or alongside each deploy:
+
+**Option A — GitHub Actions (automated, recommended):**
+The `ci.yml` `migrate` job runs `npx prisma migrate deploy` on every push to `main`, after the build job passes. Requires `DATABASE_URL` and `DIRECT_URL` set as GitHub Actions secrets.
+
+**Option B — manual pre-deploy:**
+```bash
+# Run from a terminal with production env vars set
+npx prisma migrate deploy
+```
+
+---
+
+## S9 initial deployment (env vars + first migration)
+
+### Required Vercel environment variables
 
 | Var | Purpose |
 |---|---|
 | `DATABASE_URL` | Pooled Neon connection string (used by Prisma at runtime) |
-| `DIRECT_URL` | Non-pooled Neon connection string (required for `db push` and migrations) |
+| `DIRECT_URL` | Non-pooled Neon connection string (required for migrations — remove `-pooler` from hostname) |
 | `ADMIN_SESSION_SECRET` | HMAC secret for admin session cookies. Min 16 chars; generate with `openssl rand -base64 48`. Required in production. |
 | `ADMIN_AUTH_REQUIRED` | Set to `true` in production to enforce admin session cookies on all mutating endpoints. |
 | `GEMINI_API_KEY` | Google Gemini API key — used by `lib/gemini.js` for screenshot OCR via `/api/ocr/extract`. Required for captain screenshot uploads to work. |
 
-**Step 3 — Captain key URL pattern:**
+### Captain key URL pattern
 
 Captains authenticate to match pages via a URL query param:
 
@@ -40,33 +64,13 @@ Captains authenticate to match pages via a URL query param:
 
 `homeTeamCaptainKey` and `awayTeamCaptainKey` are stored on each `Match` row. Admins share these URLs with team captains. The key unlocks the captain upload section for screenshot submission.
 
-**Step 4 — Recent additive schema changes (Player model):**
-
-After the S9 player import work (PR #82), the `Player` table has two new nullable/default columns:
-
-- `timezone String?`
-- `secondaryRoles String[] @default([])`
-
-These are additive. `npm run db:push` applies them safely to existing rows (null / empty array defaults).
-
----
-
-If you're deploying from `main` for the first time after the original audit work (issues #4–#16), also do the four steps below.
-
 ---
 
 ## 1. Apply the schema change for chat-only SSE frames
 
 **Why:** Issue #8 added `Draft.chatsVersion` so chat traffic no longer triggers a full SSE state push.
 
-**Run:**
-
-```bash
-npx prisma generate
-npx prisma db push
-```
-
-Default `0` is backfilled by Prisma. Existing rows are unaffected. Pre-existing chat history continues to render — only the *next* chat's broadcast shape changes.
+This column is included in the `20250526000000_init` migration. No separate step required — it was applied as part of the initial `prisma migrate reset`.
 
 **Verify:**
 
@@ -74,8 +78,6 @@ Default `0` is backfilled by Prisma. Existing rows are unaffected. Pre-existing 
 psql "$DIRECT_URL" -c '\d "Draft"' | grep chatsVersion
 # expected: chatsVersion | integer | not null | default 0
 ```
-
-**Rollback:** the column is purely additive. To revert, deploy older code; the new column stays harmless.
 
 ---
 
@@ -104,8 +106,6 @@ psql "$DIRECT_URL" -c "SELECT COUNT(*) FROM \"Draft\" WHERE status='active';"
 # expected: 0
 ```
 
-**Order:** can be run before or after deploy. If you run after, captains may see "Draft is not in picking phase" 400s for the migration window — small enough that running before is preferred.
-
 ---
 
 ## 3. Roll out admin auth (issue #6)
@@ -115,7 +115,6 @@ psql "$DIRECT_URL" -c "SELECT COUNT(*) FROM \"Draft\" WHERE status='active';"
 **Step 3a — set the secret in prod env:**
 
 ```bash
-# Generate a 48-byte random secret. Anything ≥ 16 chars works in non-prod.
 openssl rand -base64 48
 ```
 
@@ -137,11 +136,11 @@ curl -i -b /tmp/cookies.txt https://YOUR_HOST/api/admin-auth
 
 **Step 3c — flip the flag:**
 
-Set `ADMIN_AUTH_REQUIRED=true` and redeploy (or restart, depending on host). From this point:
+Set `ADMIN_AUTH_REQUIRED=true` and redeploy. From this point:
 - Every admin-mutating endpoint returns 401 without a valid cookie.
 - The admin dashboard auto-detects expired sessions on mount and re-prompts for the password.
 
-**Rollback:** set `ADMIN_AUTH_REQUIRED=false` (or unset it) and redeploy. The cookie path keeps working but is no longer enforced. No data migration required either way.
+**Rollback:** set `ADMIN_AUTH_REQUIRED=false` (or unset it) and redeploy. No data migration required.
 
 ---
 
@@ -155,11 +154,9 @@ The reference-data cache in `lib/referenceData.js` (issue #8) hydrates lazily on
 
 Still open. Suggested order:
 
-1. **GitHub Actions CI** — catches regressions on every PR. `npm ci`, `next lint`, `prisma format -- --check`, and (after item 2) `npm test`.
-2. **Vitest integration coverage** — especially the concurrency invariants from issue #7 and the vault behavior from #15. Easiest harness is an ephemeral SQLite via Prisma, but the existing schema's `Json` and PostgreSQL specifics make `pg-mem` or a real test database the more honest choice.
+1. **GitHub Actions CI** — catches regressions on every PR. `npm ci`, `next lint`, `prisma generate`, and `prisma migrate deploy` on merge to main. ✅ Done in `ci.yml`.
+2. **Vitest integration coverage** — especially the concurrency invariants from issue #7 and the vault behavior from #15.
 3. **Structured logging** — small `lib/log.js` with `log(event, meta)`. Use it on SSE connect/disconnect, admin mutations, and the rate-limit 429s.
 4. **Image caching** — `scripts/sync-god-art.mjs` to download god icons + wide art into `public/gods/<slug>/`, fall back to smitefire on miss, optional `God.imageSlug` for admin overrides.
 5. **CSP** — start in `Content-Security-Policy-Report-Only` mode, fix what breaks, then enforce.
 6. **Stricter ESLint** — at minimum `eqeqeq`, `no-console: ['warn', { allow: ['warn', 'error'] }]`, `prefer-const`.
-
-Each of these is independent and rollback-safe. Pick whatever the next deploy window comfortably tolerates.
