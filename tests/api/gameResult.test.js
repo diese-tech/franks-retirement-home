@@ -28,7 +28,7 @@ vi.mock('next/server', () => ({
 vi.mock('@/lib/db', () => {
   const prisma = {
     match: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
-    game: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
+    game: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
     $transaction: vi.fn(),
   };
   return { default: prisma };
@@ -102,6 +102,8 @@ beforeEach(() => {
   requireAdmin.mockReturnValue({ _body: { error: 'Unauthorized' }, _status: 401 });
   prisma.match.findUnique.mockResolvedValue(BASE_MATCH);
   prisma.game.findUnique.mockResolvedValue(BASE_GAME);
+  // Default: updateMany succeeds (1 row updated) — individual tests override as needed
+  prisma.game.updateMany.mockResolvedValue({ count: 1 });
   prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
 });
 
@@ -158,16 +160,13 @@ describe('POST /api/matches/[id]/games/[gameId]/result', () => {
   });
 
   it('home captain can report home team won', async () => {
-    prisma.game.update.mockResolvedValue({
-      ...BASE_GAME,
-      resultStatus: 'reported',
-      reportedWinnerTeamId: HOME_ID,
-      reportedByTeamId: HOME_ID,
-    });
+    // updateMany default is { count: 1 } from beforeEach
     const req = makeReqWithHeader({ winnerTeamId: HOME_ID }, HOME_KEY);
     const res = await POST(req, PARAMS);
     expect(unwrap(res).status).toBe(201);
-    expect(prisma.game.update).toHaveBeenCalledWith(expect.objectContaining({
+    // updateMany must be called with resultStatus: null guard
+    expect(prisma.game.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: GAME_ID, resultStatus: null }),
       data: expect.objectContaining({
         resultStatus: 'reported',
         reportedWinnerTeamId: HOME_ID,
@@ -177,18 +176,22 @@ describe('POST /api/matches/[id]/games/[gameId]/result', () => {
   });
 
   it('away captain can also report a winner', async () => {
-    prisma.game.update.mockResolvedValue({
-      ...BASE_GAME,
-      resultStatus: 'reported',
-      reportedWinnerTeamId: AWAY_ID,
-      reportedByTeamId: AWAY_ID,
-    });
     const req = makeReqWithHeader({ winnerTeamId: AWAY_ID }, AWAY_KEY);
     const res = await POST(req, PARAMS);
     expect(unwrap(res).status).toBe(201);
-    expect(prisma.game.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(prisma.game.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ reportedByTeamId: AWAY_ID }),
     }));
+  });
+
+  it('returns 409 when concurrent report wins the row (updateMany returns count=0)', async () => {
+    // Simulates: two requests pass the pre-check simultaneously; updateMany finds 0
+    // rows with resultStatus=null because the first writer already set it.
+    prisma.game.updateMany.mockResolvedValue({ count: 0 });
+    const req = makeReqWithHeader({ winnerTeamId: HOME_ID }, HOME_KEY);
+    const res = await POST(req, PARAMS);
+    expect(unwrap(res).status).toBe(409);
+    expect(unwrap(res).body.error).toMatch(/already been reported/i);
   });
 });
 
@@ -426,6 +429,23 @@ describe('PATCH /api/matches/[id]/games/[gameId]/result', () => {
     const res = await PATCH(req, PARAMS);
     expect(unwrap(res).status).toBe(400);
     expect(unwrap(res).body.error).toMatch(/disputed/i);
+  });
+
+  it('reporting captain cannot dispute their own report (same guard as confirm)', async () => {
+    // Guard at result/route.js:206 blocks both confirm and dispute from the reporter.
+    // Regression: ensure a future refactor doesn't drop the guard for dispute alone.
+    const reportedGame = {
+      ...BASE_GAME,
+      resultStatus: 'reported',
+      reportedByTeamId: HOME_ID,
+      reportedWinnerTeamId: HOME_ID,
+    };
+    prisma.game.findUnique.mockResolvedValue(reportedGame);
+
+    const req = makeReqWithHeader({ action: 'dispute' }, HOME_KEY); // reporter trying to dispute own report
+    const res = await PATCH(req, PARAMS);
+    expect(unwrap(res).status).toBe(403);
+    expect(unwrap(res).body.error).toMatch(/cannot confirm/i);
   });
 });
 
