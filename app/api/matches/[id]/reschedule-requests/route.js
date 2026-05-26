@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { logAudit } from '@/lib/audit';
-import { resolveCaptainSide } from '@/lib/matchWindow';
+import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,8 +47,6 @@ export async function GET(req, { params }) {
 // Body: { proposedScheduledAt: string (ISO), evidenceText?: string }
 
 export async function POST(req, { params }) {
-  const captainKey = req.headers.get('x-captain-key');
-
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -68,7 +66,8 @@ export async function POST(req, { params }) {
     const match = await fetchMatch(params.id);
     if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
-    const captainSide = resolveCaptainSide(match, captainKey);
+    const auth = await resolveMatchCaptainAuth(req, match);
+    const captainSide = auth.side;
     if (!captainSide) {
       return NextResponse.json({ error: 'Invalid captain key' }, { status: 401 });
     }

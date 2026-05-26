@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
 import { addUsedGodId, readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
+import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,8 @@ export async function POST(request, { params }) {
   const draft = await prisma.draft.findUnique({ where: { id } });
   if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
 
-  const role = resolveRole(key, draft);
+  const auth = await resolveDraftCaptainAuth(request, draft, key);
+  const role = auth.role;
   if (role === 'spectator') {
     return NextResponse.json({ error: 'Not authorized to pick' }, { status: 403 });
   }

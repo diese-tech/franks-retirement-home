@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { resolveRole } from '@/lib/draftAuth';
+import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,8 @@ export async function POST(request, { params }) {
     const draft = await prisma.draft.findUnique({ where: { id } });
     if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
 
-    const role = resolveRole(body.key, draft);
+    const auth = await resolveDraftCaptainAuth(request, draft, body.key);
+    const role = auth.role;
     if (role !== 'captainA' && role !== 'captainB') {
       return NextResponse.json({ error: 'Only captains can ready up' }, { status: 403 });
     }
