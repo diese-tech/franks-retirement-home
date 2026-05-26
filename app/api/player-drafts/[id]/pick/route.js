@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
-import { buildPlayerDraftFormat, getFirstDraftTurn, getNextDraftTurn, totalPicks, currentPickTeam } from '@/lib/playerDraftOrder';
+import { buildPlayerDraftFormat, getFirstDraftTurn, getNextDraftTurn, totalPicks } from '@/lib/playerDraftOrder';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export async function POST(req, { params }) {
         turn = getNextDraftTurn(format, turn.phaseIndex, turn.stepIndex);
       }
 
-      const activeTeamId = turn ? currentPickTeam(format, turn.phaseIndex, turn.stepIndex) : null;
+      const activeTeamId = turn ? turn.teamId : null;
       if (activeTeamId !== teamId) {
         throw Object.assign(new Error(`It is not ${teamId}'s turn`), { status: 400 });
       }

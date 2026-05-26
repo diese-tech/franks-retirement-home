@@ -32,10 +32,19 @@ export async function POST(request, { params }) {
       data: { [readyField]: true, version: { increment: 1 } },
     });
 
-    // Auto-transition when both are ready
+    // Auto-transition when both are ready.
+    // Check the updated row — if both flags are now true, transition atomically.
+    // We use updateMany with a WHERE that requires both flags to be true so that
+    // if two captains hit ready simultaneously, exactly one of them wins the
+    // transition; the other's update is a no-op (no rows matched).
     if (updated.captainAReady && updated.captainBReady) {
-      await prisma.draft.update({
-        where: { id },
+      await prisma.draft.updateMany({
+        where: {
+          id,
+          captainAReady: true,
+          captainBReady: true,
+          status: 'lobby',
+        },
         data: {
           status: 'banning',
           captainAReady: false,
