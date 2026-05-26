@@ -12,8 +12,10 @@ export default function IntroScreen() {
   useEffect(() => {
     if (!sessionStorage.getItem('frh-intro-seen')) {
       setVisible(true);
+      const timer = setTimeout(() => dismiss(), 2500);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [dismiss]);
 
   const dismiss = useCallback(() => {
     if (dismissingRef.current) return;
