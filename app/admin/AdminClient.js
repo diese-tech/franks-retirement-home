@@ -1267,7 +1267,7 @@ function PlayerDraftBoard({ draftId, divisionId, teams }) {
       <div className={`px-3 py-2 border-2 ${draft.status === 'active' ? 'border-frh-yellow/50 bg-frh-yellow/5' : 'border-brand-700'}`}>
         <p className="font-mono text-xs text-gray-300">
           {draft.status === 'active' && currentTeam ? (
-            <>Pick <span className="text-frh-yellow font-bold">{draft.currentPickIndex + 1}</span> — <span className="text-frh-yellow">{currentTeam.name}</span> is on the clock{secondsRemaining != null ? <span className="text-gray-500"> ({secondsRemaining}s)</span> : ''}</>
+            <>Pick <span className="text-frh-yellow font-bold">{draft.currentPickIndex + 1}</span> — <span className="text-frh-yellow">{currentTeam.name}</span> is on the clock{secondsRemaining !== null && secondsRemaining !== undefined ? <span className="text-gray-500"> ({secondsRemaining}s)</span> : ''}</>
           ) : (
             <span className="capitalize text-gray-500">{draft.status}</span>
           )}
