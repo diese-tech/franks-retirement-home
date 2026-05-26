@@ -10,6 +10,23 @@ function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Con
 function del(url) { return api(url, { method: 'DELETE' }); }
 function patchJson(url, body) { return api(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 
+function RoleBadge({ role, secondary = false }) {
+  const colors = ROLE_COLORS[role] ?? 'bg-gray-500/15 text-gray-400';
+  if (secondary) {
+    const textColor = colors.split(' ').find(c => c.startsWith('text-')) ?? 'text-gray-500';
+    return (
+      <span className={`${textColor} font-mono text-[8px] uppercase border border-current px-1 opacity-60`}>
+        {role}
+      </span>
+    );
+  }
+  return (
+    <span className={`${colors} font-mono text-[10px] uppercase px-1.5 py-0.5`}>
+      {role}
+    </span>
+  );
+}
+
 function PasswordGate({ onAuthed }) {
   const [pw, setPw] = useState('');
   const [error, setError] = useState('');
@@ -1017,25 +1034,38 @@ const ROLE_ALIASES = {
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  return lines.slice(1).map((line) => {
-    const cols = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQ = !inQ; }
-      else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-      else { cur += ch; }
-    }
-    cols.push(cur);
+  // Stop at the Captains section header or trailing blank rows
+  const stopIdx = lines.findIndex(l => l.split(',')[0].trim().toLowerCase() === 'captains');
+  const playerLines = stopIdx >= 0 ? lines.slice(0, stopIdx) : lines;
 
-    const rawName = (cols[6] || '').replace(/\(.*?\)/g, '').trim();
-    const rawDiscord = (cols[8] || '').trim();
-    const rawRole = (cols[14] || '').trim().toLowerCase();
-    const role = ROLE_ALIASES[rawRole] || null;
+  return playerLines
+    .filter(l => l.split(',')[0].trim()) // skip blank rows
+    .map((line) => {
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+        else { cur += ch; }
+      }
+      cols.push(cur);
 
-    return { name: rawName, discordUsername: rawDiscord, role, _rawRole: cols[14]?.trim() };
-  }).filter((r) => r.name);
+      const name = (cols[0] || '').trim();
+      const discordUsername = (cols[2] || '').trim() || null;
+      const timezone = (cols[7] || '').trim() || null;
+      const rawRole = (cols[8] || '').trim().toLowerCase();
+      const role = ROLE_ALIASES[rawRole] || null;
+      const secondaryRoles = (cols[9] || '').split(',')
+        .map(r => ROLE_ALIASES[r.trim().toLowerCase()])
+        .filter(Boolean);
+      // Normalize division: first word before space/comma/parenthesis
+      const rawDiv = (cols[12] || '').trim();
+      const division = rawDiv.split(/[\s,(]/)[0] || null;
+
+      return { name, discordUsername, timezone, role, secondaryRoles, division, _rawRole: cols[8]?.trim() };
+    })
+    .filter(r => r.name);
 }
 
 function ImportPanel({ onRefresh }) {
@@ -1061,7 +1091,9 @@ function ImportPanel({ onRefresh }) {
       name: r.name,
       role: r.role,
       discordUsername: r.discordUsername || null,
-      division: division.trim() || null,
+      division: r.division || division.trim() || null,
+      timezone: r.timezone || null,
+      secondaryRoles: r.secondaryRoles || [],
     }));
     const res = await postJson('/api/players/import', { players: payload });
     setResult(res);
@@ -1131,8 +1163,9 @@ function ImportPanel({ onRefresh }) {
                 <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
                   <th className="text-left py-2 px-2">IGN</th>
                   <th className="text-left py-2 px-2">Discord</th>
-                  <th className="text-left py-2 px-2">Role</th>
+                  <th className="text-left py-2 px-2">Roles</th>
                   <th className="text-left py-2 px-2">Division</th>
+                  <th className="text-left py-2 px-2">TZ</th>
                   <th className="text-left py-2 px-2">Status</th>
                 </tr>
               </thead>
@@ -1142,17 +1175,21 @@ function ImportPanel({ onRefresh }) {
                     <td className="py-1.5 px-2 font-display font-medium text-gray-300">{r.name}</td>
                     <td className="py-1.5 px-2 font-mono text-gray-500">{r.discordUsername || '—'}</td>
                     <td className="py-1.5 px-2">
-                      {r.role
-                        ? <span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[r.role]}`}>{r.role}</span>
-                        : (
-                          <select value="" onChange={(e) => updateRow(i, 'role', e.target.value)} className="select-field text-[10px] py-0.5 px-1">
-                            <option value="">Pick role…</option>
-                            {PLAYER_ROLES.map((ro) => <option key={ro} value={ro}>{ro}</option>)}
-                          </select>
-                        )
-                      }
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {r.role
+                          ? <RoleBadge role={r.role} />
+                          : (
+                            <select value="" onChange={(e) => updateRow(i, 'role', e.target.value)} className="select-field text-[10px] py-0.5 px-1">
+                              <option value="">Pick role…</option>
+                              {PLAYER_ROLES.map((ro) => <option key={ro} value={ro}>{ro}</option>)}
+                            </select>
+                          )
+                        }
+                        {(r.secondaryRoles ?? []).map(sr => <RoleBadge key={sr} role={sr} secondary />)}
+                      </div>
                     </td>
-                    <td className="py-1.5 px-2 text-gray-500">{division || <span className="text-gray-700">—</span>}</td>
+                    <td className="py-1.5 px-2 text-gray-500">{r.division || division || <span className="text-gray-700">—</span>}</td>
+                    <td className="py-1.5 px-2 font-mono text-[9px] text-gray-600 max-w-[80px] truncate">{r.timezone ? r.timezone.replace('Standard Time', '').replace('Daylight Time', '').trim() : '—'}</td>
                     <td className="py-1.5 px-2">
                       {r.role
                         ? <span className="text-[9px] text-green-400 font-display font-bold uppercase">Ready</span>
@@ -1172,6 +1209,111 @@ function ImportPanel({ onRefresh }) {
 
 // ─── Player Draft Panel ──────────────────────────────
 
+function PlayerCard({ player, onPick, disabled }) {
+  return (
+    <button
+      onClick={onPick}
+      disabled={disabled}
+      className="text-left w-full border-2 border-brand-700 hover:border-frh-yellow bg-brand-950/40 hover:bg-brand-900/60 transition-all p-2 disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <p className="font-mono text-xs text-gray-200 truncate mb-1.5">{player.name}</p>
+      <div className="flex flex-wrap gap-1 items-center">
+        <RoleBadge role={player.role} />
+        {(player.secondaryRoles ?? []).map(r => <RoleBadge key={r} role={r} secondary />)}
+      </div>
+      {player.timezone && (
+        <p className="font-mono text-[9px] text-gray-600 mt-1 truncate">
+          {player.timezone.replace('Standard Time', '').replace('Daylight Time', '').trim()}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function PlayerDraftBoard({ draftId, divisionId, teams }) {
+  const [state, setState] = useState(null);
+  const [picking, setPicking] = useState(false);
+
+  useEffect(() => {
+    const es = new EventSource(`/api/player-drafts/${draftId}/stream`);
+    es.addEventListener('state', (e) => setState(JSON.parse(e.data)));
+    es.addEventListener('error', () => es.close());
+    return () => es.close();
+  }, [draftId]);
+
+  if (!state) return <p className="text-xs text-gray-600 py-4 text-center">Connecting to draft stream…</p>;
+
+  const { draft, eligiblePlayers = [], picks = [], currentTeamId, secondsRemaining } = state;
+  const divTeams = teams.filter(t => t.divisionId === divisionId);
+  const currentTeam = divTeams.find(t => t.id === currentTeamId);
+
+  const picksByTeam = {};
+  for (const p of picks) {
+    if (!picksByTeam[p.teamId]) picksByTeam[p.teamId] = [];
+    picksByTeam[p.teamId].push(p);
+  }
+
+  const doPick = async (playerId) => {
+    if (!currentTeamId || picking) return;
+    setPicking(true);
+    const res = await postJson(`/api/player-drafts/${draftId}/pick`, { playerId, teamId: currentTeamId });
+    setPicking(false);
+    if (res.error) alert(res.error);
+  };
+
+  return (
+    <div className="space-y-4 pt-3 border-t border-brand-700">
+      {/* Current turn banner */}
+      <div className={`px-3 py-2 border-2 ${draft.status === 'active' ? 'border-frh-yellow/50 bg-frh-yellow/5' : 'border-brand-700'}`}>
+        <p className="font-mono text-xs text-gray-300">
+          {draft.status === 'active' && currentTeam ? (
+            <>Pick <span className="text-frh-yellow font-bold">{draft.currentPickIndex + 1}</span> — <span className="text-frh-yellow">{currentTeam.name}</span> is on the clock{secondsRemaining !== null && secondsRemaining !== undefined ? <span className="text-gray-500"> ({secondsRemaining}s)</span> : ''}</>
+          ) : (
+            <span className="capitalize text-gray-500">{draft.status}</span>
+          )}
+        </p>
+      </div>
+
+      {/* Team columns */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {divTeams.map(team => (
+          <div key={team.id} className={`border-2 p-2 min-h-[60px] ${team.id === currentTeamId ? 'border-frh-yellow' : 'border-brand-700'}`}>
+            <p className="font-ui text-[10px] uppercase text-gray-500 mb-2">{team.tag}</p>
+            <div className="space-y-1">
+              {(picksByTeam[team.id] ?? []).map(p => (
+                <div key={p.id} className="flex items-center gap-1.5">
+                  <RoleBadge role={p.player.role} />
+                  <span className="font-mono text-[10px] text-gray-300 truncate">{p.player.name}</span>
+                </div>
+              ))}
+              {!(picksByTeam[team.id]?.length) && (
+                <p className="text-[9px] text-gray-700">No picks yet</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Available player cards */}
+      {draft.status === 'active' && (
+        <div>
+          <p className="font-ui text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+            Available — {eligiblePlayers.length} players
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+            {eligiblePlayers.map(p => (
+              <PlayerCard key={p.id} player={p} onPick={() => doPick(p.id)} disabled={picking || !currentTeamId || draft.status !== 'active'} />
+            ))}
+          </div>
+          {eligiblePlayers.length === 0 && (
+            <p className="text-xs text-gray-600 text-center py-4">All players have been drafted.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SUBMISSION_STATUS_COLOR = {
   pending: 'blue',
   in_review: 'purple',
@@ -1184,6 +1326,7 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [form, setForm] = useState({ seasonId: '', divisionId: '', name: '', rounds: 5, pickTimerSeconds: 120 });
+  const [boardId, setBoardId] = useState(null);
 
   const allDivisions = seasons.flatMap((s) =>
     s.divisions.map((d) => ({ ...d, seasonName: s.name, label: `${s.name} — ${d.name}` }))
@@ -1342,11 +1485,24 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
                       )}
                     </div>
                   </div>
+                  {(pd.status === 'active' || pd.status === 'paused') && (
+                    <button
+                      onClick={() => setBoardId(boardId === pd.id ? null : pd.id)}
+                      className="ml-auto font-mono text-[10px] text-frh-yellow underline hover:text-frh-orange"
+                    >
+                      {boardId === pd.id ? 'Hide Board' : 'View Board'}
+                    </button>
+                  )}
                   {pd.status === 'pending' && divTeams.length === 0 && (
                     <div className="px-3 py-2 border-t border-brand-700 bg-brand-900/20">
                       <p className="text-[10px] text-yellow-500">
                         No teams found in {pd.division?.name}. Add teams in the Teams tab before starting.
                       </p>
+                    </div>
+                  )}
+                  {boardId === pd.id && (
+                    <div className="px-3 pb-3">
+                      <PlayerDraftBoard draftId={pd.id} divisionId={pd.divisionId} teams={teams} />
                     </div>
                   )}
                 </div>

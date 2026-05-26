@@ -32,6 +32,10 @@ export async function POST(request) {
     const role = typeof row.role === 'string' ? row.role.trim() : '';
     const discordUsername = typeof row.discordUsername === 'string' ? row.discordUsername.trim() || null : null;
     const division = typeof row.division === 'string' ? row.division.trim() || null : null;
+    const timezone = typeof row.timezone === 'string' ? row.timezone.trim() || null : null;
+    const secondaryRoles = Array.isArray(row.secondaryRoles)
+      ? row.secondaryRoles.filter(r => PLAYER_ROLES.includes(r))
+      : [];
 
     if (!name) { results.errors.push({ row, reason: 'Missing name' }); continue; }
     if (name.length > 100) { results.errors.push({ row, reason: 'name exceeds 100 chars' }); continue; }
@@ -50,20 +54,22 @@ export async function POST(request) {
           existing.name === name &&
           existing.role === role &&
           existing.discordUsername === discordUsername &&
-          existing.division === division;
+          existing.division === division &&
+          (existing.secondaryRoles ?? []).join(',') === secondaryRoles.join(',') &&
+          existing.timezone === timezone;
 
         if (unchanged) {
           results.skipped++;
         } else {
           await prisma.player.update({
             where: { id: existing.id },
-            data: { name, role, discordUsername, division },
+            data: { name, role, discordUsername, division, timezone, secondaryRoles },
           });
           results.updated++;
         }
       } else {
         await prisma.player.create({
-          data: { name, role, discordUsername, division },
+          data: { name, role, discordUsername, division, timezone, secondaryRoles },
         });
         results.imported++;
       }
