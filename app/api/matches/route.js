@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
+import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
 
 const FORMAT_GAME_COUNTS = { BO1: 1, BO3: 3, BO5: 5 };
 
@@ -98,6 +99,10 @@ export async function POST(req) {
       return created;
     });
 
+    // Auto-provision Draft rooms for every game in the match.
+    // This runs after the transaction so each draft creation can look up team
+    // members. Failures are non-fatal — drafts can still be created manually
+    // from the admin Schedule tab if provisioning partially fails.
     const full = await prisma.match.findUnique({
       where: { id: match.id },
       include: {
@@ -109,7 +114,27 @@ export async function POST(req) {
       },
     });
 
-    return NextResponse.json(full, { status: 201 });
+    // Provision drafts for all games (best-effort, errors logged but not surfaced)
+    await Promise.allSettled(
+      full.games.map((game) => buildDraftForGame(match.id, game.id))
+    );
+
+    // Re-fetch to include draft links in the response
+    const fullWithDrafts = await prisma.match.findUnique({
+      where: { id: match.id },
+      include: {
+        season: { select: { id: true, name: true, slug: true } },
+        division: { select: { id: true, name: true } },
+        homeTeam: { select: { id: true, name: true, tag: true } },
+        awayTeam: { select: { id: true, name: true, tag: true } },
+        games: {
+          orderBy: { gameNumber: 'asc' },
+          include: { draft: { select: { id: true, status: true } } },
+        },
+      },
+    });
+
+    return NextResponse.json(fullWithDrafts, { status: 201 });
   } catch (e) {
     if (e.code === 'P2003') {
       return NextResponse.json({ error: 'Invalid seasonId, divisionId, homeTeamId, or awayTeamId' }, { status: 400 });

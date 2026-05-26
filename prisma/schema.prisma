@@ -113,9 +113,24 @@ model Game {
   id              String   @id @default(cuid())
   matchId         String
   gameNumber      Int      // 1-based within the match
-  winnerTeamId    String?
+  winnerTeamId    String?  // set when result is confirmed (or by admin override)
   durationSeconds Int?
   createdAt       DateTime @default(now())
+
+  // ── Layer 1: live captain result flow ─────────────────────────────────────
+  // Status machine: pending → reported → confirmed | disputed
+  // Transitions:
+  //   pending   → reported  : one captain POSTs a result
+  //   reported  → confirmed : opposing captain PATCHes action=confirm
+  //   reported  → disputed  : opposing captain PATCHes action=dispute
+  //   disputed  → confirmed : admin PATCHes action=resolve (sets winnerTeamId)
+  resultStatus          String?  // pending | reported | confirmed | disputed
+  reportedWinnerTeamId  String?  // which team the reporting captain says won
+  reportedByTeamId      String?  // which team submitted the report (home or away)
+  confirmedByTeamId     String?  // which team confirmed the result
+  resultReportedAt      DateTime?
+  resultConfirmedAt     DateTime?
+  resultDisputedAt      DateTime?
 
   match          Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
   draft          Draft?

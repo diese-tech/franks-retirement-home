@@ -19,7 +19,7 @@ export async function GET(_req, { params }) {
   }
 }
 
-// PATCH /api/matches/[id]/games — update a game (e.g., set winnerTeamId or durationSeconds)
+// PATCH /api/matches/[id]/games — admin: update a game directly (winnerTeamId override, durationSeconds)
 export async function PATCH(req, { params }) {
   const authError = await requireAdmin(req);
   if (authError) return authError;
