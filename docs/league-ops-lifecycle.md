@@ -133,7 +133,9 @@ New Season
 → Match scheduling begins
 ```
 
-A player may only belong to one active team per season.
+A player may only hold one primary active team assignment per season.
+
+Admin-approved substitute appearances are exceptions to match participation, not additional primary team memberships.
 
 Sub appearances do not duplicate player identity.
 
@@ -141,7 +143,9 @@ Sub appearances do not duplicate player identity.
 
 # 5. Team and Roster Rules
 
-A player belongs to exactly one active team per season.
+A player belongs to exactly one primary active team per season.
+
+Players may appear for another team only through an admin-approved substitute or emergency substitute record.
 
 Players persist permanently.
 Teams do not.
@@ -160,7 +164,8 @@ Suggested operational modeling:
 
 ```text
 Player = permanent identity
-TeamMember = seasonal assignment
+TeamMember = primary seasonal assignment
+SubApproval = temporary participation exception
 StatLine = actual game participation
 ```
 
@@ -386,6 +391,7 @@ Operational assumptions:
 - same-division substitutes preferred
 - admin approval required
 - emergency substitutes allowed if approved
+- substitute appearances do not change the player's primary seasonal team
 
 Eligibility model:
 
@@ -543,6 +549,8 @@ These rules are binding.
 ```text
 - Players persist across seasons
 - Teams do not persist across seasons
+- Each player has one primary active team assignment per season
+- Admin-approved substitute appearances are participation exceptions, not extra team memberships
 - Approved stats become canonical truth
 - Public routes never read staging data
 - Match windows derive from defaultScheduledAt
