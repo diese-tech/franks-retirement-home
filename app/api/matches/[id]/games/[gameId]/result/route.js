@@ -4,7 +4,7 @@ import { checkMatchWindow } from '@/lib/matchWindow';
 import { requireAdmin } from '@/lib/adminSession';
 import { checkSeriesComplete } from '@/lib/seriesResult';
 import { invalidateAllStandings } from '@/lib/standings';
-import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
+import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -164,7 +164,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "action must be 'confirm', 'dispute', or 'resolve'" }, { status: 400 });
   }
 
-  const adminErr = await requireAdmin(req);
+  const adminErr = await resolveAdminAuth(req);
   const isAdmin = adminErr === null;
 
   if (action === 'resolve' && !isAdmin) {

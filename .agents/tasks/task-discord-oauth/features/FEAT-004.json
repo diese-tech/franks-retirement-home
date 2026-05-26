@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Add comprehensive tests for Discord OAuth authorization logic covering all auth scenarios: admin override, correct captain+team+division, wrong team, wrong division, missing captain role, missing team role, fallback to key-based auth, and no-session spectator behavior.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create `tests/unit/discordAuth.test.js` testing the core resolution functions in lib/discordAuth.js: (a) hasDiscordAdminRole returns true for admin role, false otherwise. (b) validateDiscordEnv returns valid:false with missing list when env vars are absent. (c) Session cookie sign/verify round-trip works correctly. (d) Expired sessions are rejected.",
     "Create `tests/unit/resolveAuth.test.js` testing lib/resolveAuth.js: (a) resolveMatchCaptainAuth with Discord session - admin role overrides and returns any side as admin. (b) resolveMatchCaptainAuth with Discord session - captain role + correct team role + correct division role returns correct side ('home' or 'away'). (c) resolveMatchCaptainAuth with Discord session - captain role + wrong team role returns null. (d) resolveMatchCaptainAuth with Discord session - captain role + wrong division role returns null. (e) resolveMatchCaptainAuth with Discord session - team role without captain role returns null. (f) resolveMatchCaptainAuth with Discord session - captain role without team role returns null. (g) resolveMatchCaptainAuth without Discord session falls back to X-Captain-Key and returns correct side. (h) resolveMatchCaptainAuth with no session and no key returns null (spectator).",
@@ -20,5 +20,5 @@
     "npm run test"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 56 new tests pass. The discordAuth.test.js file has 37 tests covering validateDiscordEnv, hasDiscordAdminRole, hasDiscordCaptainRole, resolveTeamFromRoles, resolveDivisionFromRoles, session cookie round-trip, resolveCaptainSideFromDiscord, and resolveDraftRoleFromDiscord. The resolveAuth.test.js file has 19 tests covering resolveMatchCaptainAuth (8 scenarios), resolveDraftCaptainAuth (6 scenarios), and resolveAdminAuth (5 scenarios). Used top-level await import pattern for modules under test and standard vi.mock for dependencies. Used createHmac from node:crypto directly (static import) for manual cookie construction in edge case tests."
 }

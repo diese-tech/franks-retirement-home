@@ -13,6 +13,8 @@ export const dynamic = 'force-dynamic';
 // GET /api/auth/discord/callback
 // Handles the OAuth2 redirect from Discord.
 // Exchanges code for token, fetches user info, sets session cookie.
+// NOTE: state param is used for return-URL only, not CSRF mitigation.
+// A nonce-in-state-with-cookie approach should be added in a future iteration.
 export async function GET(request) {
   const env = validateDiscordEnv();
   if (!env.valid) {
@@ -81,7 +83,11 @@ export async function GET(request) {
     roles: member.roles || [],
   });
 
-  const returnUrl = state || '/';
+  // Validate returnUrl to prevent open redirects
+  const rawReturnUrl = state || '/';
+  const returnUrl = (rawReturnUrl.startsWith('/') && !rawReturnUrl.includes('://'))
+    ? rawReturnUrl
+    : '/';
   const response = NextResponse.redirect(new URL(returnUrl, baseUrl), 302);
   response.headers.set('Set-Cookie', buildSetCookieHeader(cookieValue));
   return response;
