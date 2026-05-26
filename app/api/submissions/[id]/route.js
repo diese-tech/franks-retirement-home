@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { logAudit } from '@/lib/audit';
+import { invalidateAllStandings } from '@/lib/standings';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,6 +135,7 @@ export async function PATCH(req, { params }) {
       adminId,
       payload: { gameId: submission.gameId, reportedWinnerTeamId: submission.reportedWinnerTeamId },
     });
+    invalidateAllStandings();
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: 'Failed to update submission' }, { status: 500 });

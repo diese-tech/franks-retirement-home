@@ -1521,6 +1521,22 @@ function ReviewQueuePanel({ submissions, onRefresh }) {
   const [busy, setBusy] = useState({});
   const [rejectId, setRejectId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [recomputing, setRecomputing] = useState(false);
+  const [recomputedAt, setRecomputedAt] = useState(null);
+
+  const recomputeStandings = async () => {
+    setRecomputing(true);
+    try {
+      const res = await fetch('/api/standings/recompute', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) setRecomputedAt(new Date(data.recomputedAt).toLocaleTimeString());
+      else alert(data.error ?? 'Recompute failed');
+    } catch {
+      alert('Recompute failed');
+    } finally {
+      setRecomputing(false);
+    }
+  };
 
   const act = async (id, action, extra = {}) => {
     setBusy((b) => ({ ...b, [id]: true }));
@@ -1563,9 +1579,15 @@ function ReviewQueuePanel({ submissions, onRefresh }) {
       <RetroWindow title="MATCH RESULT REVIEW QUEUE">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Open Submissions</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <PixelBadge label={`${submissions.length} open`} color={submissions.length > 0 ? 'orange' : 'cream'} />
             <BrutalButton onClick={onRefresh} variant="secondary" size="sm">Refresh</BrutalButton>
+            <BrutalButton onClick={recomputeStandings} disabled={recomputing} variant="secondary" size="sm">
+              {recomputing ? 'Working…' : 'Recompute Standings'}
+            </BrutalButton>
+            {recomputedAt && (
+              <span className="font-mono text-[10px] text-frh-lime">Flushed {recomputedAt}</span>
+            )}
           </div>
         </div>
 

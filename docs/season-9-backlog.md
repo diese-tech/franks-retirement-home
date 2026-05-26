@@ -47,8 +47,7 @@ These decisions hold across every issue below. Any deviation requires an explici
 
 - **FRH is the source of truth for League Ops.** Seasons, teams, matches, games, drafts, submissions, standings, and approved stats all live in FRH's Neon/Postgres database.
 - **FRH stays on Prisma + Neon.** Do not migrate to Supabase. SAL's stack choice is irrelevant.
-- **ForgeLens is an external OCR/stat extraction worker.** Not the system of record. Calls Gemini. Returns raw + parsed output to FRH for review.
-- **Gemini is invoked only by ForgeLens.** Never by FRH. The Gemini API key never enters FRH's environment.
+- **FRH calls Gemini directly for OCR.** The original ForgeLens external worker plan was replaced before S9 launched. `lib/gemini.js` calls the Gemini Vision API; `GEMINI_API_KEY` is an FRH environment variable. The staging table schema (`OcrExtraction`, `ExtractedStatLine`) is unchanged.
 - **CSV/Excel is first-class.** Approved-only public exports vs admin-only pending/raw exports must be visually and structurally distinguished.
 - **Human-in-the-loop review is mandatory** for every stat-affecting record. OCR, CSV imports, manual entries, and screenshot-derived data all traverse the review queue before becoming canonical.
 - **Pending OCR/imported data lives in staging tables**, not status-flagged canonical rows. Public pages and exports never read staging tables.
