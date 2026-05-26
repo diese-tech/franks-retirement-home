@@ -157,6 +157,31 @@ async function main() {
 
   console.log('  ✓ Season 9 seeded (Hospice + Rehabilitation divisions)');
 
+  // ── Teams ─────────────────────────────────────────
+  const teams = [
+    // Hospice division
+    { id: 'team-galactic-stingers', name: 'The Galactic Stingers', tag: 'GLXS', divisionId: 'div-s9-hospice' },
+    { id: 'team-caustic-crusaders', name: 'Caustic Crusaders', tag: 'CSTC', divisionId: 'div-s9-hospice' },
+    { id: 'team-death-dealers', name: 'Death Dealers', tag: 'DEAD', divisionId: 'div-s9-hospice' },
+    { id: 'team-wheezys-mafia', name: "Wheezy's Mafia", tag: 'WHZY', divisionId: 'div-s9-hospice' },
+    // Rehabilitation division
+    { id: 'team-ruined-order', name: 'The Ruined Order', tag: 'RUIN', divisionId: 'div-s9-rehabilitation' },
+    { id: 'team-kappa-corp', name: 'Kappa Corp', tag: 'KAPA', divisionId: 'div-s9-rehabilitation' },
+    { id: 'team-exile-extinction', name: 'Exile Extinction', tag: 'EXIL', divisionId: 'div-s9-rehabilitation' },
+    { id: 'team-valhalla-vikings', name: 'Valhalla Vikings', tag: 'VALK', divisionId: 'div-s9-rehabilitation' },
+    { id: 'team-babas-kitchen', name: "Baba's Kitchen", tag: 'BABA', divisionId: 'div-s9-rehabilitation' },
+    { id: 'team-cyberpunk-otters', name: 'Cyberpunk Otters', tag: 'CYBR', divisionId: 'div-s9-rehabilitation' },
+  ];
+
+  for (const team of teams) {
+    await prisma.team.upsert({
+      where: { id: team.id },
+      update: { name: team.name, tag: team.tag },
+      create: team,
+    });
+  }
+  console.log(`  ✓ ${teams.length} teams seeded`);
+
   // ── Sample Draft ──────────────────────────────────
   await prisma.draft.upsert({
     where: { id: 'sample-draft-1' },
