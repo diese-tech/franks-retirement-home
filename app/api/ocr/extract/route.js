@@ -3,12 +3,14 @@ import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { logAudit } from '@/lib/audit';
 import { extractSmite2Details } from '@/lib/gemini';
+import { checkMatchWindow, resolveCaptainSide } from '@/lib/matchWindow';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/ocr/extract
 // Accepts either an admin session cookie OR a valid X-Captain-Key for the match.
 // Captains can upload screenshots; only admins can approve via /api/ocr/[id]/submit.
+// Captains are subject to the match eligibility window; admins bypass it.
 // Body: { gameId, imageBase64, mimeType? }
 // Returns: { ok: true } for captains (no extraction data exposed); full result for admins.
 export async function POST(req) {
@@ -29,7 +31,14 @@ export async function POST(req) {
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    include: { match: { include: { homeTeam: { select: { id: true, name: true, tag: true } }, awayTeam: { select: { id: true, name: true, tag: true } } } } },
+    include: {
+      match: {
+        include: {
+          homeTeam: { select: { id: true, name: true, tag: true } },
+          awayTeam: { select: { id: true, name: true, tag: true } },
+        },
+      },
+    },
   });
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
@@ -37,11 +46,17 @@ export async function POST(req) {
   let isCaptain = false;
   if (adminGuard !== null) {
     const captainKey = req.headers.get('x-captain-key');
-    const { homeTeamCaptainKey, awayTeamCaptainKey } = game.match;
-    if (!captainKey || (captainKey !== homeTeamCaptainKey && captainKey !== awayTeamCaptainKey)) {
+    const captainSide = resolveCaptainSide(game.match, captainKey);
+    if (!captainSide) {
       return adminGuard; // return the original 401
     }
     isCaptain = true;
+
+    // Captains are subject to the match eligibility window (§7).
+    const windowCheck = checkMatchWindow(game.match, { adminOverride: false });
+    if (!windowCheck.ok) {
+      return NextResponse.json({ error: windowCheck.reason }, { status: 403 });
+    }
   }
 
   const extraction = await prisma.ocrExtraction.create({

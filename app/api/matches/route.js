@@ -64,6 +64,12 @@ export async function POST(req) {
 
   try {
     const match = await prisma.$transaction(async (tx) => {
+      // Both timestamps are set from the same input on creation.
+      // defaultScheduledAt is the immutable eligibility-window anchor (§7).
+      // scheduledAt is the currently approved play time and may be updated later
+      // via an approved RescheduleRequest.
+      const anchorDate = scheduledAt ? new Date(scheduledAt) : null;
+
       const created = await tx.match.create({
         data: {
           seasonId,
@@ -71,7 +77,8 @@ export async function POST(req) {
           homeTeamId,
           awayTeamId,
           week: parseInt(week, 10),
-          scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+          defaultScheduledAt: anchorDate,
+          scheduledAt: anchorDate,
           format: fmt,
           streamUrl: streamUrl || null,
           vodUrl: vodUrl || null,
