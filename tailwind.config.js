@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './app/**/*.{js,jsx}',
     './components/**/*.{js,jsx}',
@@ -7,8 +8,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Rajdhani', 'sans-serif'],
-        body: ['Exo 2', 'sans-serif'],
+        display: ['Boogaloo', 'sans-serif'],
+        body: ['Verdana', 'Geneva', 'Tahoma', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
         ui: ['Share Tech Mono', 'monospace'],
       },
@@ -31,6 +32,18 @@ module.exports = {
         'frh-cream':      '#f4e0b5',
         'frh-ink':        '#111111',
         'frh-deep-green': '#163b00',
+        'frh-peach':      '#F5C8A0',
+        'frh-tan':        '#C8B89A',
+        'frh-blue':       '#2B5BA8',
+        'frh-olive':      '#5C6B2E',
+        'frh-red':        '#CC3300',
+        'frh-base':         'var(--frh-base)',
+        'frh-surface':      'var(--frh-surface)',
+        'frh-surface-alt':  'var(--frh-surface-alt)',
+        'frh-border':       'var(--frh-border)',
+        'frh-border-strong':'var(--frh-border-strong)',
+        'frh-text':         'var(--frh-text)',
+        'frh-text-muted':   'var(--frh-text-muted)',
       },
       animation: {
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',

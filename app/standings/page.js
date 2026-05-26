@@ -11,7 +11,7 @@ function WinLoss({ wins, losses }) {
   return (
     <span className="font-mono text-sm">
       <span className="text-green-400 font-bold">{wins}</span>
-      <span className="text-gray-600">–</span>
+      <span className="text-frh-text-muted">–</span>
       <span className="text-red-400 font-bold">{losses}</span>
     </span>
   );
@@ -20,7 +20,7 @@ function WinLoss({ wins, losses }) {
 function StandingsTable({ rows, divisionName }) {
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-gray-600 text-center py-6">
+      <p className="text-sm text-frh-text-muted text-center py-6">
         No completed matches in {divisionName} yet.
       </p>
     );
@@ -30,7 +30,7 @@ function StandingsTable({ rows, divisionName }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b-2 border-brand-700">
+          <tr className="text-[10px] font-ui uppercase tracking-widest text-frh-text-muted border-b-2 border-frh-border">
             <th className="text-left py-2 px-3 w-8">#</th>
             <th className="text-left py-2 px-3">Team</th>
             <th className="text-center py-2 px-3">W–L</th>
@@ -43,32 +43,32 @@ function StandingsTable({ rows, divisionName }) {
           {rows.map((row, i) => (
             <tr
               key={row.teamId}
-              className={`border-b border-brand-700/40 hover:bg-brand-700/20 transition-colors ${i === 0 ? 'bg-frh-yellow/5' : ''}`}
+              className={`border-b border-frh-border/40 hover:bg-frh-surface-alt/20 transition-colors ${i === 0 ? 'bg-frh-yellow/5' : ''}`}
             >
               <td className="py-3 px-3">
-                <span className={`font-ui text-xs ${i === 0 ? 'text-frh-yellow font-bold' : 'text-gray-600'}`}>
+                <span className={`font-ui text-xs ${i === 0 ? 'text-frh-yellow font-bold' : 'text-frh-text-muted'}`}>
                   {i + 1}
                 </span>
               </td>
               <td className="py-3 px-3">
                 <Link href={`/teams/${row.teamId}`} className="hover:text-frh-yellow transition-colors">
-                  <span className="font-display font-bold text-gray-200">{row.teamName}</span>
-                  <span className="ml-2 font-mono text-[10px] text-gray-600 border border-brand-600 px-1">[{row.teamTag}]</span>
+                  <span className="font-display font-bold text-frh-text">{row.teamName}</span>
+                  <span className="ml-2 font-mono text-[10px] text-frh-text-muted border border-frh-border px-1">[{row.teamTag}]</span>
                 </Link>
               </td>
               <td className="py-3 px-3 text-center">
                 <WinLoss wins={row.wins} losses={row.losses} />
               </td>
-              <td className="py-3 px-3 text-center font-mono text-xs text-gray-500">{row.played}</td>
+              <td className="py-3 px-3 text-center font-mono text-xs text-frh-text-muted">{row.played}</td>
               <td className="py-3 px-3 text-center">
                 <span className="font-mono text-xs">
                   <span className="text-green-400">{row.gameWins}</span>
-                  <span className="text-gray-600">–</span>
+                  <span className="text-frh-text-muted">–</span>
                   <span className="text-red-400">{row.gameLosses}</span>
                 </span>
               </td>
               <td className="py-3 px-3 text-center hidden sm:table-cell">
-                <span className={`font-mono text-xs font-bold ${row.gameDiff > 0 ? 'text-green-400' : row.gameDiff < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                <span className={`font-mono text-xs font-bold ${row.gameDiff > 0 ? 'text-green-400' : row.gameDiff < 0 ? 'text-red-400' : 'text-frh-text-muted'}`}>
                   {row.gameDiff > 0 ? '+' : ''}{row.gameDiff}
                 </span>
               </td>
@@ -95,7 +95,7 @@ export default async function StandingsPage() {
         <RetroWindow title="STANDINGS.EXE" titleBarColor="yellow">
           <div className="text-center py-12">
             <PixelBadge label="No Season" color="orange" />
-            <p className="mt-4 text-xs text-gray-600">No season data yet.</p>
+            <p className="mt-4 text-xs text-frh-text-muted">No season data yet.</p>
           </div>
         </RetroWindow>
       </div>
@@ -119,7 +119,7 @@ export default async function StandingsPage() {
       {divisionStandings.map(({ division, rows }) => (
         <RetroWindow key={division.id} title={`${division.name.toUpperCase()} DIVISION`} titleBarColor={DIVISION_COLORS[division.name] ?? 'blue'}>
           <div className="flex items-center justify-between mb-4">
-            <span className="font-ui text-xs uppercase tracking-widest text-gray-400">{division.name}</span>
+            <span className="font-ui text-xs uppercase tracking-widest text-frh-text-muted">{division.name}</span>
             <PixelBadge label={`${rows.length} team${rows.length !== 1 ? 's' : ''}`} color="cream" />
           </div>
           <StandingsTable rows={rows} divisionName={division.name} />
@@ -129,12 +129,12 @@ export default async function StandingsPage() {
       {divisionStandings.length === 0 && (
         <RetroWindow title="STANDINGS.EXE" titleBarColor="yellow">
           <div className="text-center py-8">
-            <p className="text-sm text-gray-600">No divisions configured for {activeSeason.name}.</p>
+            <p className="text-sm text-frh-text-muted">No divisions configured for {activeSeason.name}.</p>
           </div>
         </RetroWindow>
       )}
 
-      <p className="text-[10px] text-gray-700 text-center">
+      <p className="text-[10px] text-frh-text-muted text-center">
         Only completed matches count toward standings · Game diff used as tiebreaker
       </p>
     </div>

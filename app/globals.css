@@ -1,24 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Boogaloo&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono:wght@400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --shadow-hard:   4px 4px 0px rgba(0, 0, 0, 0.6);
-  --shadow-yellow: 4px 4px 0px #b89600;
-  --shadow-blue:   4px 4px 0px #1040aa;
-  --shadow-purple: 4px 4px 0px #4a1faa;
-  --shadow-lg:     6px 6px 0px rgba(0, 0, 0, 0.6);
+  --frh-base:          #FDF0DC;
+  --frh-surface:       #FFFCF5;
+  --frh-surface-alt:   #ECE9D8;
+  --frh-border:        #C8B89A;
+  --frh-border-strong: #1A1A1A40;
+  --frh-text:          #1A1A1A;
+  --frh-text-muted:    #6B5A3E;
+  --shadow-hard:       4px 4px 0px rgba(26,26,26,0.25);
+  --shadow-yellow:     4px 4px 0px #b89600;
+  --shadow-blue:       4px 4px 0px #1040aa;
+  --shadow-purple:     4px 4px 0px #4a1faa;
+  --shadow-lg:         6px 6px 0px rgba(26,26,26,0.3);
+}
+
+.dark {
+  --frh-base:          #06080f;
+  --frh-surface:       #0a0e1a;
+  --frh-surface-alt:   #111827;
+  --frh-border:        #1a2235;
+  --frh-border-strong: #243049;
+  --frh-text:          #e2e8f0;
+  --frh-text-muted:    #6b7280;
+  --shadow-hard:       4px 4px 0px rgba(0,0,0,0.6);
+  --shadow-yellow:     4px 4px 0px #b89600;
+  --shadow-blue:       4px 4px 0px #1040aa;
+  --shadow-purple:     4px 4px 0px #4a1faa;
+  --shadow-lg:         6px 6px 0px rgba(0,0,0,0.6);
 }
 
 @layer base {
   body {
-    @apply bg-brand-900 text-gray-100 font-body antialiased;
+    @apply bg-frh-base text-frh-text font-body antialiased;
   }
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-brand-800; }
-  ::-webkit-scrollbar-thumb { @apply bg-brand-600 rounded-full; }
+  ::-webkit-scrollbar-track { background: var(--frh-surface-alt); }
+  ::-webkit-scrollbar-thumb { background: var(--frh-border); border-radius: 9999px; }
 }
 
 @layer components {
