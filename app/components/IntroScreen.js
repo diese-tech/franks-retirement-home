@@ -9,14 +9,6 @@ export default function IntroScreen() {
   const videoRef = useRef(null);
   const dismissingRef = useRef(false);
 
-  useEffect(() => {
-    if (!sessionStorage.getItem('frh-intro-seen')) {
-      setVisible(true);
-      const timer = setTimeout(() => dismiss(), 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [dismiss]);
-
   const dismiss = useCallback(() => {
     if (dismissingRef.current) return;
     dismissingRef.current = true;
@@ -45,6 +37,14 @@ export default function IntroScreen() {
       });
     });
   }, []);
+
+  useEffect(() => {
+    if (!sessionStorage.getItem('frh-intro-seen')) {
+      setVisible(true);
+      const timer = setTimeout(() => dismiss(), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [dismiss]);
 
   if (!visible) return null;
 
