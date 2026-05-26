@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Add comprehensive tests for Discord OAuth authorization logic covering all auth scenarios: admin override, correct captain+team+division, wrong team, wrong division, missing captain role, missing team role, fallback to key-based auth, and no-session spectator behavior.",
+  "status": "in_progress",
+  "steps": [
+    "Create `tests/unit/discordAuth.test.js` testing the core resolution functions in lib/discordAuth.js: (a) hasDiscordAdminRole returns true for admin role, false otherwise. (b) validateDiscordEnv returns valid:false with missing list when env vars are absent. (c) Session cookie sign/verify round-trip works correctly. (d) Expired sessions are rejected.",
+    "Create `tests/unit/resolveAuth.test.js` testing lib/resolveAuth.js: (a) resolveMatchCaptainAuth with Discord session - admin role overrides and returns any side as admin. (b) resolveMatchCaptainAuth with Discord session - captain role + correct team role + correct division role returns correct side ('home' or 'away'). (c) resolveMatchCaptainAuth with Discord session - captain role + wrong team role returns null. (d) resolveMatchCaptainAuth with Discord session - captain role + wrong division role returns null. (e) resolveMatchCaptainAuth with Discord session - team role without captain role returns null. (f) resolveMatchCaptainAuth with Discord session - captain role without team role returns null. (g) resolveMatchCaptainAuth without Discord session falls back to X-Captain-Key and returns correct side. (h) resolveMatchCaptainAuth with no session and no key returns null (spectator).",
+    "Create `tests/unit/resolveDraftAuth.test.js` testing resolveDraftCaptainAuth: (a) Discord admin role resolves to 'admin'. (b) Discord captain+team role resolves to correct captainA/captainB based on draft->game->match team mapping. (c) Wrong team role resolves to 'spectator'. (d) No Discord session falls back to body.key-based resolveRole. (e) No session and no key resolves to 'spectator'.",
+    "In all test files, follow the existing mock pattern: vi.mock('@/lib/db') with mock prisma, vi.mock('next/server') for NextResponse, and use makeReq/_helpers patterns from tests/api/_helpers.js. Mock the Discord API calls and env vars using vi.stubEnv() or process.env assignment in beforeEach."
+  ],
+  "acceptance_criteria": [
+    "tests/unit/discordAuth.test.js passes with all specified scenarios",
+    "tests/unit/resolveAuth.test.js covers all 8 auth scenarios for match captain resolution",
+    "tests/unit/resolveDraftAuth.test.js covers draft role resolution with Discord and fallback",
+    "All tests pass: `npm run test`",
+    "Tests would fail if the authorization logic were reverted (they exercise real code paths, not just mocks)"
+  ],
+  "verification": [
+    "npm run test"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
