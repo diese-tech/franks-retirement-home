@@ -124,8 +124,10 @@ export async function POST(req, { params }) {
       ? null
       : captainSide === 'home' ? match.homeTeamId : match.awayTeamId;
 
-    const updated = await prisma.game.update({
-      where: { id: gameId },
+    // Use updateMany with a resultStatus guard so two simultaneous reports
+    // can't both succeed — the second writer gets zero rows and returns 409.
+    const { count } = await prisma.game.updateMany({
+      where: { id: gameId, resultStatus: null },
       data: {
         resultStatus: 'reported',
         reportedWinnerTeamId: winnerTeamId,
@@ -137,6 +139,14 @@ export async function POST(req, { params }) {
       },
     });
 
+    if (count === 0) {
+      return NextResponse.json(
+        { error: 'A result has already been reported for this game' },
+        { status: 409 }
+      );
+    }
+
+    const updated = await prisma.game.findUnique({ where: { id: gameId } });
     return NextResponse.json(updated, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to report result' }, { status: 500 });

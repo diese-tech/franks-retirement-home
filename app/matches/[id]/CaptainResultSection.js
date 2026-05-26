@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 async function apiResult(matchId, gameId, method, body, captainKey) {
   const res = await fetch(`/api/matches/${matchId}/games/${gameId}/result`, {

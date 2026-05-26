@@ -341,7 +341,12 @@ export default async function MatchDetailPage({ params, searchParams }) {
             matchId={match.id}
             captainKey={captainKey}
             captainSide={captainSide}
-            games={match.games}
+            games={match.games.map(({ draft, ...g }) => ({
+              ...g,
+              // Strip draft captain keys before serializing into RSC payload —
+              // they are only needed server-side for draftCaptainUrl() above.
+              draft: draft ? { id: draft.id, status: draft.status } : null,
+            }))}
             homeTeam={{ id: match.homeTeamId, name: match.homeTeam?.name }}
             awayTeam={{ id: match.awayTeamId, name: match.awayTeam?.name }}
           />
