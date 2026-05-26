@@ -662,6 +662,17 @@ export default function HomepageClient({
           <FrhCrtPanel isLive={hasLive} liveMatch={liveMatch} />
         </div>
 
+        {/* Captain login CTA */}
+        <div className="frh-captain-cta">
+          <div className="frh-captain-cta__inner">
+            <span className="frh-captain-cta__label">CAPTAINS</span>
+            <span className="frh-captain-cta__text">Log in with Discord to access your match dashboard</span>
+            <Link href="/api/auth/discord?returnUrl=/captain">
+              <BrutalButton size="sm" variant="primary">Captain Login</BrutalButton>
+            </Link>
+          </div>
+        </div>
+
         {/* Active draft interrupt */}
         {hasDrafts && (
           <>

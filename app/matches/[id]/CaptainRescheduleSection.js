@@ -76,8 +76,12 @@ export default function CaptainRescheduleSection({ matchId, captainKey, captainS
     // the same GET but keyed. Since GET is admin-only, captains see their
     // relevant state embedded in the page on load (passed as initialRequests).
     // Here we re-fetch with the captain key so the state stays live after actions.
+    const headers = {};
+    if (captainKey) {
+      headers['x-captain-key'] = captainKey;
+    }
     const { ok, data } = await apiFetch(`/api/matches/${matchId}/reschedule-requests`, {
-      headers: { 'x-captain-key': captainKey },
+      headers,
     });
     setRequests(ok && Array.isArray(data) ? data : []);
     setLoading(false);
@@ -97,10 +101,14 @@ export default function CaptainRescheduleSection({ matchId, captainKey, captainS
     setSubmitOk(false);
     if (!proposedAt) { setSubmitErr('Please select a proposed date and time.'); return; }
     setSubmitting(true);
+    const headers = {};
+    if (captainKey) {
+      headers['x-captain-key'] = captainKey;
+    }
     const { ok, data } = await postJson(
       `/api/matches/${matchId}/reschedule-requests`,
       { proposedScheduledAt: new Date(proposedAt).toISOString(), evidenceText: evidenceText.trim() || undefined },
-      { 'x-captain-key': captainKey },
+      headers,
     );
     setSubmitting(false);
     if (!ok) { setSubmitErr(data.error ?? 'Failed to submit request.'); return; }
@@ -115,10 +123,14 @@ export default function CaptainRescheduleSection({ matchId, captainKey, captainS
     if (!openRequest) return;
     setRespondErr('');
     setResponding(true);
+    const headers = {};
+    if (captainKey) {
+      headers['x-captain-key'] = captainKey;
+    }
     const { ok, data } = await patchJson(
       `/api/matches/${matchId}/reschedule-requests/${openRequest.id}`,
       { action, note: responseNote.trim() || undefined },
-      { 'x-captain-key': captainKey },
+      headers,
     );
     setResponding(false);
     if (!ok) { setRespondErr(data.error ?? 'Failed to respond.'); return; }

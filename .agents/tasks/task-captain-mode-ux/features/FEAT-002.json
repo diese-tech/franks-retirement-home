@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create Captain Dashboard page, Discord-aware match page, Discord-aware draft page, and navigation improvements. This is the core Captain Mode implementation: a dedicated /captain page that shows a logged-in captain's matches with direct CTAs, plus updating the match page and draft page to resolve captain identity from Discord session (not just URL keys), and hiding admin links from non-admin users.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1 - Create /api/captain/matches API route: A new API endpoint that accepts the Discord session cookie and returns the captain's matches (upcoming, live, completed). It resolves the captain's team from their Discord roles using resolveTeamFromRoles(), then queries matches where homeTeamId or awayTeamId matches. Include game/draft status for each match. Return team info so the dashboard can show which team they captain.",
     "Step 2 - Create /captain page (app/captain/page.js + CaptainDashboardClient.js): Server component that renders the client component. The client component calls /api/auth/discord/me on mount to check auth state. If not logged in, shows a Discord Login CTA button (links to /api/auth/discord?returnUrl=/captain). If logged in, fetches /api/captain/matches and renders: team identity header (team name, division, tag), three match sections (Live Now, Upcoming, Recent/Completed), and per-match CTA buttons (Enter Draft, Report Result, Confirm Result, Upload Screenshots, Request Reschedule) based on match/game state. Use RetroWindow and BrutalButton components matching the existing retro-gaming UI system. Show BO3 series score inline. Handle empty states (no matches, waiting for opponent, etc.).",

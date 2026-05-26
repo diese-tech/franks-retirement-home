@@ -1,13 +1,16 @@
 import prisma from '@/lib/db';
+import { cookies } from 'next/headers';
 import { resolveRole } from '@/lib/draftAuth';
 import { buildDraftState } from '@/lib/draftState';
+import { getDiscordSessionUser, resolveDraftRoleFromDiscord } from '@/lib/discordAuth';
 import DraftClient from './DraftClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DraftPage({ params, searchParams }) {
   const { id } = await params;
-  const key = searchParams?.key ?? null;
+  const awaitedSearch = await searchParams;
+  const key = awaitedSearch?.key ?? null;
 
   const draft = await prisma.draft.findUnique({ where: { id } });
   if (!draft) {
@@ -19,14 +22,34 @@ export default async function DraftPage({ params, searchParams }) {
     );
   }
 
-  const role = resolveRole(key, draft);
+  let role = 'spectator';
+  let effectiveKey = key;
+
+  // Try Discord session first
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.getAll().map(c => c.name + '=' + c.value).join('; ');
+  const fakeReq = { headers: { get: (h) => h === 'cookie' ? cookieHeader : null } };
+  const discordSession = getDiscordSessionUser(fakeReq);
+
+  if (discordSession) {
+    const discordRole = await resolveDraftRoleFromDiscord(draft.id, discordSession.roles);
+    if (discordRole !== 'spectator') {
+      role = discordRole;
+      effectiveKey = key || null;
+    } else {
+      role = resolveRole(key, draft);
+    }
+  } else {
+    role = resolveRole(key, draft);
+  }
+
   const state = await buildDraftState(id);
 
   return (
     <DraftClient
       initialState={JSON.parse(JSON.stringify(state))}
       role={role}
-      draftKey={key}
+      draftKey={effectiveKey}
     />
   );
 }

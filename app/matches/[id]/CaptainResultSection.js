@@ -3,12 +3,13 @@
 import { useState, useCallback } from 'react';
 
 async function apiResult(matchId, gameId, method, body, captainKey) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (captainKey) {
+    headers['X-Captain-Key'] = captainKey;
+  }
   const res = await fetch(`/api/matches/${matchId}/games/${gameId}/result`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Captain-Key': captainKey,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));

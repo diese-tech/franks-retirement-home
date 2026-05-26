@@ -1,11 +1,13 @@
 import prisma from '@/lib/db';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { RetroWindow, PixelBadge, BrutalButton } from '@/components/ui';
 import CaptainUploadSection from './CaptainUploadSection';
 import CaptainRescheduleSection from './CaptainRescheduleSection';
 import CaptainResultSection from './CaptainResultSection';
 import { computeScore } from '@/lib/seriesResult';
+import { getDiscordSessionUser, resolveCaptainSideFromDiscord } from '@/lib/discordAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,8 +151,27 @@ export default async function MatchDetailPage({ params, searchParams }) {
   if (!match) notFound();
 
   const captainKey = awaitedSearch?.key ?? null;
-  const captainTeamId = verifyCaptainKey(match, captainKey);
-  const captainSide = resolveCaptainSideFromKey(match, captainKey);
+  let captainTeamId = verifyCaptainKey(match, captainKey);
+  let captainSide = resolveCaptainSideFromKey(match, captainKey);
+  let resolvedViaDiscord = false;
+
+  // Try Discord session if key-based auth did not resolve
+  if (!captainSide) {
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.getAll().map(c => c.name + '=' + c.value).join('; ');
+    const fakeReq = { headers: { get: (h) => h === 'cookie' ? cookieHeader : null } };
+    const discordSession = getDiscordSessionUser(fakeReq);
+    if (discordSession) {
+      const discordSide = await resolveCaptainSideFromDiscord(match.id, discordSession.roles);
+      if (discordSide) {
+        captainSide = discordSide;
+        captainTeamId = discordSide === 'home' ? match.homeTeamId : match.awayTeamId;
+        resolvedViaDiscord = true;
+      }
+    }
+  }
+
+  const effectiveCaptainKey = resolvedViaDiscord ? null : captainKey;
   const isLive = match.status === 'live';
   const isCompleted = match.status === 'completed';
 
@@ -339,7 +360,7 @@ export default async function MatchDetailPage({ params, searchParams }) {
         {captainSide && !isCompleted && (
           <CaptainResultSection
             matchId={match.id}
-            captainKey={captainKey}
+            captainKey={effectiveCaptainKey}
             captainSide={captainSide}
             games={match.games.map(({ draft, ...g }) => ({
               ...g,
@@ -368,7 +389,7 @@ export default async function MatchDetailPage({ params, searchParams }) {
               <div className="mt-4">
                 <CaptainUploadSection
                   games={match.games}
-                  captainKey={captainKey}
+                  captainKey={effectiveCaptainKey}
                 />
               </div>
             )}
@@ -382,7 +403,7 @@ export default async function MatchDetailPage({ params, searchParams }) {
           captainTeamId && (
             <CaptainUploadSection
               games={match.games}
-              captainKey={captainKey}
+              captainKey={effectiveCaptainKey}
             />
           )
         )}
@@ -390,7 +411,7 @@ export default async function MatchDetailPage({ params, searchParams }) {
         {captainSide && (
           <CaptainRescheduleSection
             matchId={match.id}
-            captainKey={captainKey}
+            captainKey={effectiveCaptainKey}
             captainSide={captainSide}
           />
         )}
