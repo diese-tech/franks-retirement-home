@@ -84,27 +84,29 @@ model TeamMember {
 }
 
 model Match {
-  id                 String    @id @default(cuid())
-  seasonId           String
-  divisionId         String
-  week               Int
-  scheduledAt        DateTime?
-  status             String    @default("scheduled") // scheduled | live | completed | postponed
-  homeTeamId         String
-  awayTeamId         String
-  format             String    @default("BO1")        // BO1 | BO3 | BO5
-  streamUrl          String?
-  vodUrl             String?
-  homeTeamCaptainKey String?   @unique
-  awayTeamCaptainKey String?   @unique
-  createdAt          DateTime  @default(now())
+  id                   String    @id @default(cuid())
+  seasonId             String
+  divisionId           String
+  week                 Int
+  defaultScheduledAt   DateTime? // Immutable original schedule anchor — eligibility window derives from this only
+  scheduledAt          DateTime? // Currently approved play time — updated by approved reschedule requests
+  status               String    @default("scheduled") // scheduled | live | completed | postponed
+  homeTeamId           String
+  awayTeamId           String
+  format               String    @default("BO1")        // BO1 | BO3 | BO5
+  streamUrl            String?
+  vodUrl               String?
+  homeTeamCaptainKey   String?   @unique
+  awayTeamCaptainKey   String?   @unique
+  createdAt            DateTime  @default(now())
 
-  season      Season            @relation(fields: [seasonId], references: [id])
-  division    Division          @relation(fields: [divisionId], references: [id])
-  homeTeam    Team              @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam    Team              @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  games       Game[]
-  submissions MatchSubmission[]
+  season              Season              @relation(fields: [seasonId], references: [id])
+  division            Division            @relation(fields: [divisionId], references: [id])
+  homeTeam            Team                @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam            Team                @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  games               Game[]
+  submissions         MatchSubmission[]
+  rescheduleRequests  RescheduleRequest[]
 }
 
 model Game {
@@ -339,6 +341,36 @@ model StatLine {
   god    God?   @relation(fields: [godId], references: [id], onDelete: SetNull)
 
   @@unique([gameId, playerId]) // one stat line per player per game
+}
+
+// ─── Reschedule Requests ─────────────────────────────────────────────────────
+
+// Governance workflow for match rescheduling.
+// Status machine: pending → acknowledged | disputed → approved | denied
+// Only admin approval updates Match.scheduledAt.
+// Match.defaultScheduledAt (eligibility window anchor) is NEVER changed.
+model RescheduleRequest {
+  id                    String    @id @default(cuid())
+  matchId               String
+  proposedScheduledAt   DateTime
+  // Which captain side submitted: "home" | "away"
+  requestedByCaptainSide String
+  // "pending" | "acknowledged" | "disputed" | "approved" | "denied"
+  status                String    @default("pending")
+  evidenceText          String?
+  // Opposing captain response text (optional note alongside ack/dispute)
+  opposingCaptainNote   String?
+  // Admin decision fields
+  adminNote             String?
+  adminId               String?   // opaque admin identifier — no User table in S9
+  decidedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([status])
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────

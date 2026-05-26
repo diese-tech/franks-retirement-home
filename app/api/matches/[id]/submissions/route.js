@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
+import { checkMatchWindow, resolveCaptainSide } from '@/lib/matchWindow';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export async function GET(req, { params }) {
 
 // POST /api/matches/[id]/submissions
 // Captain-key gated (match homeTeamCaptainKey or awayTeamCaptainKey in header X-Captain-Key).
+// Admins may submit without a captain key and are not subject to the eligibility window.
 // Body: { gameId?, reportedWinnerTeamId?, notes?, attachments?: [{ url, kind, mimeType?, byteSize? }] }
 export async function POST(req, { params }) {
   const captainKey = req.headers.get('x-captain-key');
@@ -35,17 +37,31 @@ export async function POST(req, { params }) {
   try {
     const match = await prisma.match.findUnique({
       where: { id: params.id },
-      select: { id: true, homeTeamCaptainKey: true, awayTeamCaptainKey: true, status: true },
+      select: {
+        id: true,
+        homeTeamCaptainKey: true,
+        awayTeamCaptainKey: true,
+        status: true,
+        defaultScheduledAt: true,
+      },
     });
     if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
-    // Verify captain key (or admin can also submit)
-    const isAdminReq = !captainKey;
-    if (!isAdminReq) {
-      const adminErr = await requireAdmin(req);
-      const isCaptain = captainKey === match.homeTeamCaptainKey || captainKey === match.awayTeamCaptainKey;
-      if (!isCaptain && adminErr) {
-        return NextResponse.json({ error: 'Invalid captain key' }, { status: 401 });
+    // Determine whether this is an admin request or a captain request.
+    const adminErr = await requireAdmin(req);
+    const isAdmin = adminErr === null;
+    const captainSide = resolveCaptainSide(match, captainKey);
+    const isCaptain = captainSide !== null;
+
+    if (!isAdmin && !isCaptain) {
+      return NextResponse.json({ error: 'Invalid captain key' }, { status: 401 });
+    }
+
+    // Captains are subject to the eligibility window; admins bypass it.
+    if (isCaptain) {
+      const windowCheck = checkMatchWindow(match, { adminOverride: false });
+      if (!windowCheck.ok) {
+        return NextResponse.json({ error: windowCheck.reason }, { status: 403 });
       }
     }
 

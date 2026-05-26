@@ -1021,7 +1021,156 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
           </RetroWindow>
         ))
       )}
+
+      {/* ── Reschedule Request Queue ──────────────────────────────────────── */}
+      <RescheduleQueue matches={matches} onMatchRefresh={onRefresh} />
     </div>
+  );
+}
+
+// ─── RescheduleQueue ─────────────────────────────────────────────────────────
+// Admin-only panel. Shows all open (non-terminal) reschedule requests across
+// all loaded matches. Allows approve / deny with an optional note.
+
+const RESCHEDULE_STATUS_COLOR = {
+  pending:      'text-frh-yellow',
+  acknowledged: 'text-frh-lime',
+  disputed:     'text-ember-400',
+  approved:     'text-frh-lime',
+  denied:       'text-gray-500',
+};
+
+function RescheduleQueue({ matches, onMatchRefresh }) {
+  const [requests, setRequests]   = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [actionState, setAction]  = useState({}); // { [reqId]: { busy, adminNote, err } }
+
+  const loadRequests = async () => {
+    setLoading(true);
+    try {
+      // Fan out to all matches that have an id; dedupe open requests.
+      const results = await Promise.all(
+        matches.map((m) =>
+          fetch(`/api/matches/${m.id}/reschedule-requests`, { credentials: 'same-origin' })
+            .then((r) => r.ok ? r.json() : [])
+            .catch(() => [])
+        )
+      );
+      const flat = results.flat().filter((r) => !['approved', 'denied'].includes(r.status));
+      flat.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRequests(flat);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (matches.length > 0) loadRequests();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]);
+
+  const setReqAction = (reqId, patch) =>
+    setAction((prev) => ({ ...prev, [reqId]: { ...prev[reqId], ...patch } }));
+
+  const decide = async (req, action) => {
+    const state = actionState[req.id] ?? {};
+    setReqAction(req.id, { busy: true, err: '' });
+    const res = await patchJson(
+      `/api/matches/${req.matchId}/reschedule-requests/${req.id}`,
+      { action, adminNote: state.adminNote || '' },
+    );
+    setReqAction(req.id, { busy: false });
+    if (res.error) {
+      setReqAction(req.id, { err: res.error });
+      return;
+    }
+    await loadRequests();
+    await onMatchRefresh();
+  };
+
+  const matchName = (matchId) => {
+    const m = matches.find((x) => x.id === matchId);
+    return m ? `${m.homeTeam?.name ?? '?'} vs ${m.awayTeam?.name ?? '?'} (Wk ${m.week})` : matchId;
+  };
+
+  return (
+    <RetroWindow title="RESCHEDULE REQUESTS">
+      {loading && <p className="text-xs text-gray-500 py-2">Loading…</p>}
+      {!loading && requests.length === 0 && (
+        <p className="text-xs text-gray-600 py-2">No open reschedule requests.</p>
+      )}
+      {!loading && requests.length > 0 && (
+        <div className="space-y-4">
+          {requests.map((req) => {
+            const s = actionState[req.id] ?? {};
+            return (
+              <div key={req.id} className="border-2 border-brand-700 p-3 space-y-2">
+                {/* Header row */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-ui text-xs text-gray-200">{matchName(req.matchId)}</span>
+                  <span className={`font-mono text-[10px] uppercase ${RESCHEDULE_STATUS_COLOR[req.status] ?? 'text-gray-400'}`}>
+                    {req.status}
+                  </span>
+                  <span className="text-[10px] text-gray-600 ml-auto">
+                    by {req.requestedByCaptainSide} captain · {new Date(req.createdAt).toLocaleString()}
+                  </span>
+                </div>
+
+                {/* Proposed time */}
+                <div className="text-xs text-gray-300">
+                  <span className="text-gray-600 font-ui uppercase text-[10px]">Proposed: </span>
+                  {new Date(req.proposedScheduledAt).toLocaleString()}
+                </div>
+
+                {/* Evidence */}
+                {req.evidenceText && (
+                  <div className="text-[11px] text-gray-400 bg-brand-900/40 px-2 py-1 border border-brand-700">
+                    <span className="text-gray-600 font-ui uppercase text-[10px]">Evidence: </span>
+                    {req.evidenceText}
+                  </div>
+                )}
+
+                {/* Opposing captain note */}
+                {req.opposingCaptainNote && (
+                  <div className="text-[11px] text-gray-400 bg-brand-900/40 px-2 py-1 border border-brand-700">
+                    <span className="text-gray-600 font-ui uppercase text-[10px]">Opposing captain: </span>
+                    {req.opposingCaptainNote}
+                  </div>
+                )}
+
+                {/* Admin note input + actions */}
+                <div className="flex flex-wrap gap-2 items-end pt-1">
+                  <input
+                    type="text"
+                    placeholder="Admin note (optional)"
+                    value={s.adminNote ?? ''}
+                    onChange={(e) => setReqAction(req.id, { adminNote: e.target.value })}
+                    className="input-field flex-1 min-w-0 text-xs py-1"
+                    disabled={s.busy}
+                  />
+                  <BrutalButton
+                    size="sm"
+                    onClick={() => decide(req, 'approve')}
+                    disabled={s.busy}
+                  >
+                    {s.busy ? '…' : 'Approve'}
+                  </BrutalButton>
+                  <BrutalButton
+                    variant="danger"
+                    size="sm"
+                    onClick={() => decide(req, 'deny')}
+                    disabled={s.busy}
+                  >
+                    {s.busy ? '…' : 'Deny'}
+                  </BrutalButton>
+                </div>
+                {s.err && <p className="text-[10px] text-red-400">{s.err}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </RetroWindow>
   );
 }
 

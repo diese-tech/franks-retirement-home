@@ -3,13 +3,23 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { RetroWindow, PixelBadge, BrutalButton } from '@/components/ui';
 import CaptainUploadSection from './CaptainUploadSection';
+import CaptainRescheduleSection from './CaptainRescheduleSection';
 
 export const dynamic = 'force-dynamic';
 
+// Returns the teamId the captain key belongs to, or null.
 function verifyCaptainKey(match, key) {
   if (!key) return null;
   if (key === match.homeTeamCaptainKey) return match.homeTeamId;
   if (key === match.awayTeamCaptainKey) return match.awayTeamId;
+  return null;
+}
+
+// Returns 'home' | 'away' | null — used for the reschedule section.
+function resolveCaptainSideFromKey(match, key) {
+  if (!key) return null;
+  if (key === match.homeTeamCaptainKey) return 'home';
+  if (key === match.awayTeamCaptainKey) return 'away';
   return null;
 }
 
@@ -91,6 +101,7 @@ export default async function MatchDetailPage({ params, searchParams }) {
 
   const captainKey = searchParams?.key ?? null;
   const captainTeamId = verifyCaptainKey(match, captainKey);
+  const captainSide = resolveCaptainSideFromKey(match, captainKey);
   const isLive = match.status === 'live';
 
   return (
@@ -129,6 +140,12 @@ export default async function MatchDetailPage({ params, searchParams }) {
                 </>
               ) : (
                 <p className="text-[10px] text-frh-text-muted">Time TBD</p>
+              )}
+              {match.defaultScheduledAt && (
+                <p className="font-mono text-[9px] text-gray-600 mt-1">
+                  Window: {new Date(new Date(match.defaultScheduledAt).getTime() - 6*24*60*60*1000).toLocaleDateString()} –{' '}
+                  {new Date(new Date(match.defaultScheduledAt).getTime() + 6*24*60*60*1000).toLocaleDateString()}
+                </p>
               )}
             </div>
           </div>
@@ -200,6 +217,14 @@ export default async function MatchDetailPage({ params, searchParams }) {
           <CaptainUploadSection
             games={match.games}
             captainKey={captainKey}
+          />
+        )}
+
+        {captainSide && (
+          <CaptainRescheduleSection
+            matchId={match.id}
+            captainKey={captainKey}
+            captainSide={captainSide}
           />
         )}
 

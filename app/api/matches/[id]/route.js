@@ -36,6 +36,10 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  // 'scheduledAt' is intentionally in the allowed list so admins can make
+  // one-off time corrections directly. The eligibility-window anchor
+  // (defaultScheduledAt) is immutable after creation and is NOT in this list.
+  // Captains update scheduledAt only via the RescheduleRequest workflow.
   const allowed = ['week', 'scheduledAt', 'status', 'streamUrl', 'vodUrl', 'homeTeamCaptainKey', 'awayTeamCaptainKey'];
   const data = {};
   for (const key of allowed) {
@@ -44,6 +48,14 @@ export async function PATCH(req, { params }) {
                   key === 'scheduledAt' && body[key] ? new Date(body[key]) :
                   body[key];
     }
+  }
+
+  // Explicitly reject any attempt to mutate the eligibility anchor.
+  if ('defaultScheduledAt' in body) {
+    return NextResponse.json(
+      { error: 'defaultScheduledAt is immutable after creation and cannot be changed via PATCH.' },
+      { status: 400 },
+    );
   }
 
   if (Object.keys(data).length === 0) {
