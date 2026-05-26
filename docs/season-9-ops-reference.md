@@ -57,7 +57,7 @@ and breaks `prisma migrate deploy`.
 | Player | 20 |
 | God | 81 |
 | Draft | 1 (sample standalone draft) |
-| **Team** | **0 — teams not yet created** |
+| **Team** | **10 (4 Hospice + 6 Rehabilitation)** |
 | Match | 0 |
 | Game | 0 |
 
@@ -73,47 +73,31 @@ and breaks `prisma migrate deploy`.
 
 ## 2. Current Team Roster
 
-**As of 2026-05-26, zero Team rows exist in the database.** The following
-10 teams are expected for Season 9 and must be created before match scheduling,
-player drafting, or Discord OAuth mapping can be finalized.
+**As of this implementation, all 10 Season 9 teams are seeded with deterministic IDs.**
 
 ### Hospice Division (`div-s9-hospice`, tier 1)
 
-| Team Name | Tag | DB Status |
-|---|---|---|
-| The Galactic Stingers | TBD | ❌ Not created |
-| Caustic Crusaders | TBD | ❌ Not created |
-| Death Dealers | TBD | ❌ Not created |
-| Wheezy's Mafia | TBD | ❌ Not created |
+| Team Name | Tag | Team ID | DB Status |
+|---|---|---|---|
+| The Galactic Stingers | GLXS | `team-galactic-stingers` | Seeded |
+| Caustic Crusaders | CSTC | `team-caustic-crusaders` | Seeded |
+| Death Dealers | DEAD | `team-death-dealers` | Seeded |
+| Wheezy's Mafia | WHZY | `team-wheezys-mafia` | Seeded |
 
 ### Rehabilitation Division (`div-s9-rehabilitation`, tier 2)
 
-| Team Name | Tag | DB Status |
-|---|---|---|
-| The Ruined Order | TBD | ❌ Not created |
-| Kappa Corp | TBD | ❌ Not created |
-| Exile Extinction | TBD | ❌ Not created |
-| Valhalla Vikings | TBD | ❌ Not created |
-| Baba's Kitchen | TBD | ❌ Not created |
-| Cyberpunk Otters | TBD | ❌ Not created |
-
-### How to create teams
-
-Use the Admin Dashboard → Teams tab, or call the API directly:
-
-```bash
-# Requires admin session cookie. divisionId from the table above.
-curl -s -X POST https://YOUR_HOST/api/teams \
-  -H "Content-Type: application/json" \
-  -b "frh_admin_session=<token>" \
-  -d '{
-    "name": "The Galactic Stingers",
-    "tag": "GLXS",
-    "divisionId": "div-s9-hospice"
-  }'
-```
+| Team Name | Tag | Team ID | DB Status |
+|---|---|---|---|
+| The Ruined Order | RUIN | `team-ruined-order` | Seeded |
+| Kappa Corp | KAPA | `team-kappa-corp` | Seeded |
+| Exile Extinction | EXIL | `team-exile-extinction` | Seeded |
+| Valhalla Vikings | VALK | `team-valhalla-vikings` | Seeded |
+| Baba's Kitchen | BABA | `team-babas-kitchen` | Seeded |
+| Cyberpunk Otters | CYBR | `team-cyberpunk-otters` | Seeded |
 
 ### How to retrieve team IDs after creation
+
+> **Note:** Teams are now auto-seeded with deterministic IDs by `prisma/seed.mjs`. Manual creation is no longer required.
 
 ```sql
 SELECT id, name, tag, "divisionId"
@@ -127,8 +111,23 @@ Or via API (no auth required):
 curl https://YOUR_HOST/api/teams
 ```
 
-Once teams are created, fill in the **team IDs** in section 7 of this document
-and in `DISCORD_TEAM_ROLE_MAP_JSON`.
+### How to create teams
+
+> **Note:** Teams are now auto-seeded. This section is retained for reference only.
+
+Use the Admin Dashboard > Teams tab, or call the API directly:
+
+```bash
+# Requires admin session cookie. divisionId from the table above.
+curl -s -X POST https://YOUR_HOST/api/teams \
+  -H "Content-Type: application/json" \
+  -b "frh_admin_session=<token>" \
+  -d '{
+    "name": "The Galactic Stingers",
+    "tag": "GLXS",
+    "divisionId": "div-s9-hospice"
+  }'
+```
 
 ---
 
@@ -248,48 +247,39 @@ See Bug 1 above — this was the same root cause found in the prior session.
 
 ## 5. Remaining Workflow Gaps & Blockers
 
-### BLOCKER — Captain links not surfaced on match page
+> **Note (post-PR #94 / #95):** Captain-confirmed BO3 results, auto-created drafts per game,
+> captain draft links surfaced on match page, and match auto-completion are all implemented.
+> The gaps below reflect remaining items only.
 
-**Symptom:** A captain visiting `/matches/[id]?key=<matchCaptainKey>` sees
-"Draft (status)" links that navigate to spectator view. The match
-`homeTeamCaptainKey`/`awayTeamCaptainKey` and the draft
-`captainAKey`/`captainBKey` are different UUIDs with no automatic join in the
-UI.  
-**Impact:** Admin must separately communicate draft URLs out-of-band. High
-friction for non-technical captains.  
-**File to change:** `app/matches/[id]/page.js` — join `Draft.captainA/BKey`
-at render time and build the correct `/draft/[id]?key=<captainKey>` URL.
+### ~~BLOCKER — Captain links not surfaced on match page~~ RESOLVED
 
-### BLOCKER — GodDraft rooms require manual admin creation per game
+~~**Symptom:** A captain visiting `/matches/[id]?key=<matchCaptainKey>` sees
+"Draft (status)" links that navigate to spectator view.~~
+**Resolution:** Captain draft URLs are now surfaced correctly on the match page.
 
-**Symptom:** After scheduling a match, Game rows exist but no Draft records.
-Admin must click "Open Draft" in the Schedule tab for each game.  
-**Impact:** Forgetting this step means captains arrive at the match page and see
-"Draft pending" with no way to proceed.  
-**Fix:** Auto-create Draft records when match status is set to `live`, or on
-first captain visit to the match page.
+### ~~BLOCKER — GodDraft rooms require manual admin creation per game~~ RESOLVED
 
-### HIGH — No automatic Game 2/3 draft creation in BO3/BO5
+~~**Symptom:** After scheduling a match, Game rows exist but no Draft records.
+Admin must click "Open Draft" in the Schedule tab for each game.~~
+**Resolution:** Draft records are now auto-created.
 
-**Symptom:** After Game 1 completes, admin must manually create Game 2's draft.
-No automation exists.  
-**Fix:** Inside `PATCH /api/submissions/[id]` approve transaction — after
-setting `Game.winnerTeamId`, check if series is still live and auto-create the
-next game's draft if it doesn't exist.
+### ~~HIGH — No automatic Game 2/3 draft creation in BO3/BO5~~ RESOLVED
 
-### MEDIUM — Match status `completed` is always manual
+~~**Symptom:** After Game 1 completes, admin must manually create Game 2's draft.
+No automation exists.~~
+**Resolution:** Next-game drafts are auto-created on game completion in BO3/BO5.
 
-**Symptom:** Admin must manually set `status: 'completed'` via the admin
-dropdown. No trigger fires when e.g. 2 of 3 games have winners.  
-**Fix:** In the submission-approve transaction, count wins per team. If the
-winning threshold is reached (`ceil(gameCount / 2)`), set
-`Match.status = 'completed'` atomically.
+### ~~MEDIUM — Match status `completed` is always manual~~ RESOLVED
+
+~~**Symptom:** Admin must manually set `status: 'completed'` via the admin
+dropdown.~~
+**Resolution:** Match auto-completes when the winning threshold is reached.
 
 ### MEDIUM — PlayerDraft picks are admin-only
 
 **Symptom:** `POST /api/player-drafts/[id]/pick` is guarded by `requireAdmin`.
 Captains cannot self-serve picks during the snake draft. Admin must manually
-enter every pick on behalf of each team.  
+enter every pick on behalf of each team.
 **Note:** This is an intentional design decision for S9. Captains communicate
 picks verbally or via Discord; admin operates the board. Captain self-service
 requires adding `captainAKey`/`captainBKey` to `PlayerDraft` (schema change)
@@ -300,7 +290,7 @@ and building a captain-facing pick UI.
 **Symptom:** The `nextGame` action in `/api/drafts/[id]/admin` resets godId
 assignments on the *current* Draft record (standalone mode). For match-bound
 BO3/BO5, each game has its own separate Draft row — `nextGame` does nothing
-useful for them.  
+useful for them.
 **Impact:** Low — admin using match-bound drafts would not call `nextGame`.
 But the button is visible in the UI and may confuse admins.
 
@@ -349,44 +339,55 @@ DISCORD_REHABILITATION_ROLE_ID="YOUR_REHABILITATION_ROLE_ID"
 
 # ─── Team → Discord Role Map ──────────────────────────────────────────────────
 # JSON: { "<frh_team_id>": "<discord_role_id>", ... }
-# FRH team IDs are cuid() values assigned at DB creation time.
-# Populate this AFTER creating the 10 teams (see section 2).
+# FRH team IDs are deterministic (seeded by prisma/seed.mjs).
 DISCORD_TEAM_ROLE_MAP_JSON='{
-  "TEAM_ID_GALACTIC_STINGERS":  "DISCORD_ROLE_ID",
-  "TEAM_ID_CAUSTIC_CRUSADERS":  "DISCORD_ROLE_ID",
-  "TEAM_ID_DEATH_DEALERS":      "DISCORD_ROLE_ID",
-  "TEAM_ID_WHEEZYS_MAFIA":      "DISCORD_ROLE_ID",
-  "TEAM_ID_RUINED_ORDER":       "DISCORD_ROLE_ID",
-  "TEAM_ID_KAPPA_CORP":         "DISCORD_ROLE_ID",
-  "TEAM_ID_EXILE_EXTINCTION":   "DISCORD_ROLE_ID",
-  "TEAM_ID_VALHALLA_VIKINGS":   "DISCORD_ROLE_ID",
-  "TEAM_ID_BABAS_KITCHEN":      "DISCORD_ROLE_ID",
-  "TEAM_ID_CYBERPUNK_OTTERS":   "DISCORD_ROLE_ID"
+  "team-galactic-stingers":  "DISCORD_ROLE_ID",
+  "team-caustic-crusaders":  "DISCORD_ROLE_ID",
+  "team-death-dealers":      "DISCORD_ROLE_ID",
+  "team-wheezys-mafia":      "DISCORD_ROLE_ID",
+  "team-ruined-order":       "DISCORD_ROLE_ID",
+  "team-kappa-corp":         "DISCORD_ROLE_ID",
+  "team-exile-extinction":   "DISCORD_ROLE_ID",
+  "team-valhalla-vikings":   "DISCORD_ROLE_ID",
+  "team-babas-kitchen":      "DISCORD_ROLE_ID",
+  "team-cyberpunk-otters":   "DISCORD_ROLE_ID"
 }'
 ```
 
-### How to fill in real team IDs
+### How to fill in Discord role IDs
 
-After creating teams (see section 2), run:
+After creating team roles in your Discord server:
 
-```bash
-curl https://YOUR_HOST/api/teams | jq '.[] | {id, name}'
-```
+1. Enable Developer Mode: Discord Settings > Advanced > Developer Mode
+2. Go to Server Settings > Roles
+3. Right-click each team role > Copy Role ID
+4. Replace the `DISCORD_ROLE_ID` placeholders above with the copied IDs
 
-Then replace each `TEAM_ID_*` placeholder with the returned cuid.
+Team IDs are deterministic and do not change between environments (set in `prisma/seed.mjs`).
 
 ### Key notes on Discord role mapping
 
 - **`DISCORD_TEAM_ROLE_MAP_JSON` is per-season.** If Discord role IDs change
-  between seasons, this env var must be updated. Consider storing team→role
+  between seasons, this env var must be updated. Consider storing team->role
   mapping in the `Team` table instead (a `discordRoleId` column) for a more
   durable solution.
 - **One Discord role per team, not per player.** The map resolves which team
   a Discord user captains; pick turn enforcement (A vs B) remains a runtime
   lookup based on `Match.homeTeamId` / `Match.awayTeamId`.
-- **Draft `captainAKey` ≠ match `homeTeamCaptainKey`.** These are separate
-  UUID auth tokens on separate records. Discord OAuth would replace both with
-  a single identity → team → role → draft-slot lookup.
+- **Draft `captainAKey` and match `homeTeamCaptainKey` are separate.** These are separate
+  UUID auth tokens on separate records. Discord OAuth replaces both with
+  a single identity -> team -> role -> draft-slot lookup.
+
+### Implementation Status
+
+Discord OAuth is fully implemented as of this update:
+- Login/logout/session: `GET /api/auth/discord`, `GET /api/auth/discord/callback`, `POST /api/auth/discord/logout`, `GET /api/auth/discord/me`
+- Core library: `lib/discordAuth.js` (session management, role resolution)
+- Unified auth: `lib/resolveAuth.js` (resolveMatchCaptainAuth, resolveDraftCaptainAuth, resolveAdminAuth)
+- All captain-facing routes accept Discord OAuth as primary auth with key-based fallback
+- 56 tests covering all authorization scenarios
+
+Graceful degradation: If Discord env vars are not configured, OAuth routes return HTTP 503 but all existing key-based auth continues to function normally.
 
 ---
 

@@ -103,6 +103,104 @@ npm run dev
 
 ---
 
+## Discord OAuth Setup
+
+FRH uses Discord OAuth as the primary authentication path for captains and admins. Existing key-based captain links remain as a fallback.
+
+### Prerequisites
+
+1. A Discord application at [Discord Developer Portal](https://discord.com/developers/applications)
+2. A Discord server (guild) with configured roles
+
+### Discord Developer Portal Setup
+
+1. Create a new application (or use existing) at https://discord.com/developers/applications
+2. Go to **OAuth2** tab
+3. Copy the **Client ID** and **Client Secret**
+4. Add redirect URIs:
+   - Local development: `http://localhost:3000/api/auth/discord/callback`
+   - Production: `https://YOUR_VERCEL_DOMAIN/api/auth/discord/callback`
+   - Vercel preview deploys: `https://*.vercel.app/api/auth/discord/callback`
+
+### Discord Server Roles
+
+Create these roles in your Discord server:
+
+| Role | Purpose |
+|------|---------|
+| Admin | Full admin access to FRH dashboard and admin APIs |
+| Captain | Generic captain role (all team captains must have this) |
+| Hospice | Division role for Hospice division captains |
+| Rehabilitation | Division role for Rehabilitation division captains |
+| Per-team roles (10) | One role per team for team-specific authorization |
+
+### Retrieving Discord Role IDs
+
+1. Enable Developer Mode: Discord Settings > Advanced > Developer Mode
+2. Go to Server Settings > Roles
+3. Right-click each role > Copy Role ID
+
+### Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in all Discord values. See the file for detailed comments.
+
+### DISCORD_TEAM_ROLE_MAP_JSON
+
+This maps FRH team IDs to Discord role IDs:
+
+```json
+{
+  "team-galactic-stingers": "DISCORD_ROLE_ID_HERE",
+  "team-caustic-crusaders": "DISCORD_ROLE_ID_HERE",
+  "team-death-dealers": "DISCORD_ROLE_ID_HERE",
+  "team-wheezys-mafia": "DISCORD_ROLE_ID_HERE",
+  "team-ruined-order": "DISCORD_ROLE_ID_HERE",
+  "team-kappa-corp": "DISCORD_ROLE_ID_HERE",
+  "team-exile-extinction": "DISCORD_ROLE_ID_HERE",
+  "team-valhalla-vikings": "DISCORD_ROLE_ID_HERE",
+  "team-babas-kitchen": "DISCORD_ROLE_ID_HERE",
+  "team-cyberpunk-otters": "DISCORD_ROLE_ID_HERE"
+}
+```
+
+### Vercel Deployment
+
+Set all Discord env vars in Vercel > Project Settings > Environment Variables:
+- DISCORD_CLIENT_ID
+- DISCORD_CLIENT_SECRET
+- DISCORD_GUILD_ID
+- DISCORD_SESSION_SECRET
+- DISCORD_ADMIN_ROLE_ID
+- DISCORD_CAPTAIN_ROLE_ID
+- DISCORD_HOSPICE_ROLE_ID
+- DISCORD_REHABILITATION_ROLE_ID
+- DISCORD_TEAM_ROLE_MAP_JSON
+- NEXTAUTH_URL (set to your production domain)
+
+### Auth Behavior
+
+- Discord OAuth is the primary auth path when configured
+- If Discord env vars are missing, OAuth routes return 503 but the app continues to work
+- Existing captain keys (X-Captain-Key header, URL ?key= params) remain as fallback
+- Admin session cookies continue to work alongside Discord admin role
+
+### Routes Supporting Discord OAuth (Captain)
+
+- Match result report/confirm/dispute
+- Match submissions / screenshot upload
+- GodDraft ready, ban, pick
+- Reschedule request creation and response
+- OCR extraction upload
+
+### Routes Remaining Admin-Only
+
+- Admin dashboard
+- GodDraft undo/reset/reopen
+- PlayerDraft lifecycle
+- Match scheduling/editing/deleting
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
