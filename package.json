@@ -1,18 +1,20 @@
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint",
-
-  "db:generate": "prisma generate",
-  "db:migrate:dev": "prisma migrate dev",
-  "db:migrate:deploy": "prisma migrate deploy",
-  "db:push:dev": "prisma db push",
-  "db:seed": "node prisma/seed.mjs",
-  "db:reset": "prisma migrate reset --force && node prisma/seed.mjs",
-  "db:studio": "prisma studio",
-  "setup": "npm install && prisma generate"
-},
+{
+  "name": "franks-retirement-home",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.mjs",
+    "db:reset": "prisma migrate reset --force && node prisma/seed.mjs",
+    "db:studio": "prisma studio",
+    "setup": "npm install && prisma generate"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.14.0",

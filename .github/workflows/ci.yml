@@ -20,6 +20,9 @@ jobs:
       - run: npm ci
 
       - run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://fake:fake@localhost:5432/fake"
+          DIRECT_URL: "postgresql://fake:fake@localhost:5432/fake"
 
       - run: npm run lint
 
@@ -27,3 +30,24 @@ jobs:
         env:
           DATABASE_URL: "postgresql://fake:fake@localhost:5432/fake"
           DIRECT_URL: "postgresql://fake:fake@localhost:5432/fake"
+
+  migrate:
+    runs-on: ubuntu-latest
+    # Only deploy migrations on pushes to main (not on PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply pending migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}

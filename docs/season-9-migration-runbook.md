@@ -10,6 +10,36 @@ The one destructive step in this runbook (`DraftPick.playerId` nullable) is expl
 
 ---
 
+## Current migration state
+
+FRH now uses **Prisma Migrate**. The `prisma/migrations/` folder is committed to the repository and is the authoritative source of schema history.
+
+**Do not use `prisma db push`** — it bypasses migration tracking and breaks `prisma migrate deploy`.
+
+The initial migration `20250526000000_init` contains the complete schema for all Season 9 tables. All prior steps in this runbook (Steps 1–8 below) are now captured in that single initial migration, which was applied via:
+
+```bash
+npm run db:reset
+# equivalent to: prisma migrate reset --force && node prisma/seed.mjs
+```
+
+### Adding future schema changes
+
+```bash
+# Edit prisma/schema.prisma, then:
+npm run db:migrate:dev -- --name describe-your-change
+# Commit the generated prisma/migrations/<timestamp>_<name>/migration.sql
+```
+
+### Deploying migrations to production
+
+```bash
+# Applied automatically by GitHub Actions on push to main, or manually:
+npx prisma migrate deploy
+```
+
+---
+
 ## Migration dependency order
 
 ```
@@ -35,23 +65,13 @@ ExtractedStatLine  (depends on OcrExtraction, Game, Team, God)
 PlayerAlias  (depends on Player)
 ```
 
+All of the above are included in `20250526000000_init`.
+
 ---
 
 ## Step 1 — Season + Division + Org + Team + TeamMember
 
-**Backlog issue:** #67 (supersedes #41)
-**Status:** Complete — migration applied and seeded.
-
-**Pre-check:**
-```sql
-SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
-```
-Confirm that `Season`, `Division`, `Org`, `Team`, `TeamMember` do not exist before running.
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-season-roster-foundation
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
@@ -62,32 +82,21 @@ SELECT id, name, tier FROM "Division" WHERE "seasonId" = 'season-9';
 -- Expect: Hospice (tier 1), Rehabilitation (tier 2)
 ```
 
-**Rollback plan:** Drop `TeamMember`, `Team`, `Org`, `Division`, `Season` in reverse order. This is safe pre-season because no match or draft data references these tables yet. After any match data exists, rolling back is destructive and requires a database restore.
+**Rollback plan:** Drop `TeamMember`, `Team`, `Org`, `Division`, `Season` in reverse order. Safe pre-season because no match or draft data references these tables yet. After any match data exists, rolling back is destructive and requires a database restore.
 
 ---
 
 ## Step 2 — Match + Game
 
-**Backlog issue:** #70 (supersedes #45)
-
-**Pre-check:**
-Confirm Step 1 is complete. Check `Team` rows exist (at least two teams needed to schedule a match).
-```sql
-SELECT COUNT(*) FROM "Team";
-```
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-match-game
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('Match', 'Game');
 -- Expect both tables to appear
 
--- Verify unique constraint on Game(matchId, gameNumber):
 \d "Game"
+-- Verify unique constraint on (matchId, gameNumber)
 ```
 
 **Rollback plan:** Drop `Game`, then `Match`. Safe pre-season. After any approved match result exists, rolling back requires a full database restore.
@@ -96,59 +105,29 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' A
 
 ## Step 3 — Draft.gameId nullable FK to Game
 
-**Backlog issue:** #72 (supersedes #49)
-
-**Pre-check:**
-Confirm Step 2 is complete.
-```sql
-SELECT id, name, status FROM "Match" LIMIT 5;
-```
-Confirm that the `Draft` table exists and has rows with `gameId IS NULL` (existing standalone drafts).
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-draft-gameid-fk
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
--- Existing standalone drafts must still have gameId = NULL
-SELECT COUNT(*) FROM "Draft" WHERE "gameId" IS NULL;
--- Must match the count before migration
-
--- The column should exist and be nullable
 SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = 'Draft' AND column_name = 'gameId';
+-- Expect: is_nullable = YES
 ```
 
-**Rollback plan:** `ALTER TABLE "Draft" DROP COLUMN "gameId"`. Safe at any time — the column starts null and no production queries depend on it yet. After match-bound drafts exist, dropping it orphans draft-game bindings; restore from backup instead.
+**Rollback plan:** `ALTER TABLE "Draft" DROP COLUMN "gameId"`. Safe at any time — the column starts null. After match-bound drafts exist, dropping it orphans draft-game bindings; restore from backup instead.
 
 ---
 
 ## Step 4 — PlayerDraft + PlayerDraftPick
 
-**Backlog issue:** #75
-
-**Pre-check:**
-Confirm Step 1 is complete (Season, Division, Team, Player all exist).
-```sql
-SELECT COUNT(*) FROM "Season";
-SELECT COUNT(*) FROM "Division";
-SELECT COUNT(*) FROM "Team";
-SELECT COUNT(*) FROM "Player";
-```
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-player-draft
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('PlayerDraft', 'PlayerDraftPick');
 -- Expect both tables to appear
 
--- Verify unique constraint on PlayerDraft(seasonId, divisionId):
 \d "PlayerDraft"
+-- Verify unique constraint on (seasonId, divisionId)
 ```
 
 **Rollback plan:** Drop `PlayerDraftPick`, then `PlayerDraft`. Safe pre-player-draft. After any picks have been recorded, dropping these tables destroys draft history; restore from backup.
@@ -157,54 +136,24 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' A
 
 ## Step 5 — DraftPick.playerId nullable (**PRE-SEASON ONLY**)
 
-**Backlog issue:** #74 (supersedes #51)
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 > **WARNING: DESTRUCTIVE — PRE-SEASON ONLY.**
-> This step makes `DraftPick.playerId` nullable and drops/relaxes the `@@unique([draftId, playerId])` constraint. It must NOT be run after any match has been played with linked DraftPick records. Dropping the unique constraint can silently allow duplicate player entries on existing drafts if the application logic is not updated first.
-
-**Pre-check:**
-```sql
--- Verify no approved matches exist
-SELECT COUNT(*) FROM "Match" WHERE status = 'completed';
--- Must be 0
-
--- Confirm current DraftPick rows:
-SELECT COUNT(*), COUNT("playerId") as with_player FROM "DraftPick";
-```
-
-**Command:**
-```bash
-npx prisma migrate dev --name relax-draftpick-playerid
-```
-
-Prisma will emit a warning about a destructive change. Confirm it.
+> This step makes `DraftPick.playerId` nullable and relaxes the `@@unique([draftId, playerId])` constraint. It must NOT be run after any match has been played with linked DraftPick records.
 
 **Post-check:**
 ```sql
--- playerId must now allow NULL
 SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = 'DraftPick' AND column_name = 'playerId';
 -- Expect: is_nullable = YES
-
--- Existing picks must be undamaged
-SELECT COUNT(*) FROM "DraftPick" WHERE "playerId" IS NOT NULL;
--- Must equal the original with_player count from pre-check
 ```
 
-**Rollback plan:** Restore from a pre-migration backup. There is no safe in-place rollback for making a column NOT NULL again if any null rows have been written. Take a database snapshot before running this step.
+**Rollback plan:** Restore from a pre-migration backup. There is no safe in-place rollback for making a column NOT NULL again if any null rows have been written.
 
 ---
 
 ## Step 6 — MatchSubmission + SubmissionAttachment
 
-**Backlog issue:** #52
-
-**Pre-check:**
-Confirm Step 2 (Match, Game) is complete.
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-match-submission
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
@@ -217,15 +166,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' A
 
 ## Step 7 — StatLine
 
-**Backlog issue:** #54
-
-**Pre-check:**
-Confirm Steps 2 and 6 are complete.
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-statline
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
@@ -238,22 +179,14 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' A
 
 ## Step 8 — OcrExtraction + ExtractedStatLine + PlayerAlias
 
-**Backlog issue:** #63
-
-**Pre-check:**
-Confirm Steps 6 and 7 are complete. These are staging/auxiliary tables; the sequence matters less than the canonical tables, but all canonical table deps must be present.
-
-**Command:**
-```bash
-npx prisma migrate dev --name add-forgelens-staging
-```
+**Status:** ✅ Complete — included in `20250526000000_init`.
 
 **Post-check:**
 ```sql
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('OcrExtraction', 'ExtractedStatLine', 'PlayerAlias');
 ```
 
-**Rollback plan:** Drop `ExtractedStatLine`, `OcrExtraction`, `PlayerAlias`. These are staging tables; data loss is not catastrophic because they contain unreviewed OCR output, not canonical stats. However, any pending extractions awaiting review will be lost.
+**Rollback plan:** Drop `ExtractedStatLine`, `OcrExtraction`, `PlayerAlias`. These are staging tables; data loss is not catastrophic because they contain unreviewed OCR output, not canonical stats.
 
 ---
 
@@ -277,39 +210,26 @@ If any of these conditions is not met, the migration is not safe for mid-season 
 
 FRH uses Neon PostgreSQL. Neon supports:
 
-- The `directUrl` env var for migration operations (bypasses connection pooling)
+- The `directUrl` env var for migration operations (bypasses connection pooling) — set as `DIRECT_URL` in `.env` / Vercel env vars
 - Point-in-time restore via the Neon dashboard
 
-**Important:** FRH does **not** use a Prisma migrations folder. `prisma/schema.prisma` is the source of truth. All schema changes are applied via:
-
-```bash
-npm run db:push
-# equivalent to: DATABASE_URL=... DIRECT_URL=... npx prisma db push
-```
-
-`DIRECT_URL` must be the non-pooled Neon connection string. `db push` requires a direct connection to apply DDL changes. If the deployment environment cannot reach Neon (e.g., Vercel's build sandbox), run `npm run db:push` from a local terminal with the production env vars set, or use the Neon console.
-
-Do **not** use `prisma migrate dev` or `prisma migrate deploy` — they expect a migration folder that does not exist.
+`prisma migrate deploy` and `prisma migrate reset` both use `DIRECT_URL` (the non-pooled connection string). `DATABASE_URL` uses the pooler and is used only at runtime by the Next.js app.
 
 ---
 
 ## Post-S9-launch additive changes
 
-The following columns were added after the initial S9 schema was pushed to production. They are additive and safe to apply mid-season.
-
-### Player model additions (PR #82)
-
-```
-Player.timezone       String?           -- nullable, default null
-Player.secondaryRoles String[]          -- default []
-```
-
-Applied via `npm run db:push`. No data loss. Existing rows get `null` / `[]`.
+Future additive changes go here. Each entry should include:
+- The issue/PR number
+- The migration name created by `prisma migrate dev`
+- A post-check SQL query
+- Whether it is mid-season safe
 
 ---
 
 ## Cross-references
 
+- `docs/DEPLOYMENT_NOTES.md` — deployment workflow and Vercel env var reference
 - `docs/review-queue-policy.md` — approval policies that these tables enforce
 - `docs/forgelens-worker-architecture.md` — contract for ForgeLens integration (Steps 8+)
 - `docs/season-9-backlog.md` — issue mapping and milestone plan
