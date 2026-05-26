@@ -2,7 +2,56 @@
 
 Operational steps required when shipping recent changes. Append new sections at the top as more deployment-relevant work lands.
 
-If you're deploying from `main` for the first time after the audit work (issues #4–#16), do **all four** steps below.
+---
+
+## S9 initial deployment (schema + env vars)
+
+Run **once** when deploying Season 9 to a fresh production Neon database, or after any schema change that has not yet been applied to production.
+
+**Note:** FRH uses `prisma db push` directly against Neon — there is no migration folder. The commands below use the package scripts defined in `package.json`.
+
+**Step 1 — Apply the schema to production:**
+
+```bash
+# Requires DATABASE_URL and DIRECT_URL in your environment.
+# DIRECT_URL must be the non-pooled Neon connection string.
+npm run db:push
+```
+
+If Vercel's build environment cannot reach Neon, run this from a local terminal with the production env vars set, or use the Neon console's SQL editor to apply any additive changes manually.
+
+**Step 2 — Required Vercel environment variables:**
+
+| Var | Purpose |
+|---|---|
+| `DATABASE_URL` | Pooled Neon connection string (used by Prisma at runtime) |
+| `DIRECT_URL` | Non-pooled Neon connection string (required for `db push` and migrations) |
+| `ADMIN_SESSION_SECRET` | HMAC secret for admin session cookies. Min 16 chars; generate with `openssl rand -base64 48`. Required in production. |
+| `ADMIN_AUTH_REQUIRED` | Set to `true` in production to enforce admin session cookies on all mutating endpoints. |
+| `GEMINI_API_KEY` | Google Gemini API key — used by `lib/gemini.js` for screenshot OCR via `/api/ocr/extract`. Required for captain screenshot uploads to work. |
+
+**Step 3 — Captain key URL pattern:**
+
+Captains authenticate to match pages via a URL query param:
+
+```
+/matches/[matchId]?key=<captainKey>
+```
+
+`homeTeamCaptainKey` and `awayTeamCaptainKey` are stored on each `Match` row. Admins share these URLs with team captains. The key unlocks the captain upload section for screenshot submission.
+
+**Step 4 — Recent additive schema changes (Player model):**
+
+After the S9 player import work (PR #82), the `Player` table has two new nullable/default columns:
+
+- `timezone String?`
+- `secondaryRoles String[] @default([])`
+
+These are additive. `npm run db:push` applies them safely to existing rows (null / empty array defaults).
+
+---
+
+If you're deploying from `main` for the first time after the original audit work (issues #4–#16), also do the four steps below.
 
 ---
 

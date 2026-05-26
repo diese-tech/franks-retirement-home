@@ -96,16 +96,19 @@ A superseded submission's `StatLine` rows are not deleted; they are replaced by 
 
 ---
 
-## Reconciliation expectations between FRH and ForgeLens
+## Reconciliation expectations between FRH and Gemini OCR
 
-FRH is the source of truth. ForgeLens is a worker. Approved `StatLine` rows in FRH are canonical regardless of what ForgeLens originally produced. The reconciliation flow is:
+FRH is the source of truth. Gemini OCR is the extraction layer. Approved `StatLine` rows in FRH are canonical regardless of what OCR originally produced. The reconciliation flow is:
 
-1. ForgeLens returns `ExtractedStatLine` rows via callback.
-2. Admin reviews the rows for accuracy, corrects any discrepancies in the admin UI, and approves.
-3. Approval writes `StatLine` rows from the (potentially corrected) `ExtractedStatLine` rows.
-4. If ForgeLens later re-processes the same screenshot (e.g., after a parser fix), the resulting `OcrExtraction` is a new supersede candidate — it does not automatically overwrite the approved `StatLine`.
+1. Captain uploads a screenshot to `/api/ocr/extract` using their captain key.
+2. FRH calls the Gemini Vision API directly via `lib/gemini.js` and stores the result as an `OcrExtraction` row with `ExtractedStatLine` rows.
+3. Admin reviews the extracted rows for accuracy, corrects any discrepancies in the admin UI, and approves.
+4. Approval writes `StatLine` rows from the (potentially corrected) `ExtractedStatLine` rows.
+5. If a screenshot must be re-processed (e.g., after an OCR prompt fix), the resulting `OcrExtraction` is a new supersede candidate — it does not automatically overwrite the approved `StatLine`.
 
-ForgeLens regressions (parser changes that alter output) are surfaced by comparing new `ExtractedStatLine` rows against existing approved `StatLine` rows during review. The admin decides whether to supersede or keep existing canonical rows.
+OCR regressions (prompt or model changes that alter output) are surfaced by comparing new `ExtractedStatLine` rows against existing approved `StatLine` rows during review. The admin decides whether to supersede or keep existing canonical rows.
+
+**Note:** The original ForgeLens external worker architecture was replaced by FRH's native Gemini integration before Season 9 launched. `GEMINI_API_KEY` is an FRH environment variable. `lib/gemini.js` is the sole caller. The staging table schema (`OcrExtraction`, `ExtractedStatLine`) is unchanged.
 
 ---
 

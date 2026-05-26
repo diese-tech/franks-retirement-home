@@ -277,16 +277,34 @@ If any of these conditions is not met, the migration is not safe for mid-season 
 
 FRH uses Neon PostgreSQL. Neon supports:
 
-- Standard Prisma migrations (`prisma migrate deploy` in production)
 - The `directUrl` env var for migration operations (bypasses connection pooling)
 - Point-in-time restore via the Neon dashboard
 
-For production deployments:
+**Important:** FRH does **not** use a Prisma migrations folder. `prisma/schema.prisma` is the source of truth. All schema changes are applied via:
+
 ```bash
-DATABASE_URL=$POOLED_URL DIRECT_URL=$DIRECT_URL npx prisma migrate deploy
+npm run db:push
+# equivalent to: DATABASE_URL=... DIRECT_URL=... npx prisma db push
 ```
 
-Do not use `prisma migrate dev` against the production database. Use `prisma migrate dev` locally or on a branch database, then `prisma migrate deploy` in production.
+`DIRECT_URL` must be the non-pooled Neon connection string. `db push` requires a direct connection to apply DDL changes. If the deployment environment cannot reach Neon (e.g., Vercel's build sandbox), run `npm run db:push` from a local terminal with the production env vars set, or use the Neon console.
+
+Do **not** use `prisma migrate dev` or `prisma migrate deploy` — they expect a migration folder that does not exist.
+
+---
+
+## Post-S9-launch additive changes
+
+The following columns were added after the initial S9 schema was pushed to production. They are additive and safe to apply mid-season.
+
+### Player model additions (PR #82)
+
+```
+Player.timezone       String?           -- nullable, default null
+Player.secondaryRoles String[]          -- default []
+```
+
+Applied via `npm run db:push`. No data loss. Existing rows get `null` / `[]`.
 
 ---
 
