@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Environment setup - install dependencies, run existing build and test suite, confirm baseline is green.",
+  "status": "completed",
+  "steps": [
+    "Run `npm install` in the project root",
+    "Run `npx prisma generate` to generate Prisma client (uses fake DB URL for build)",
+    "Run `npm run test` to confirm all 286 tests pass",
+    "Run `npm run build` to confirm the Next.js production build succeeds",
+    "Document any issues found"
+  ],
+  "acceptance_criteria": [
+    "`npm run test` passes all existing tests with zero failures",
+    "`npm run build` completes without errors"
+  ],
+  "verification": [
+    "npm run test",
+    "npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": "All 286 tests pass. Next.js build succeeds (19 static pages generated). npm install added 51 packages (564 total). 5 npm audit vulnerabilities (1 moderate, 4 high) but not blocking. Prisma client v5.22.0 generated successfully."
+}

@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create Captain Dashboard page, Discord-aware match page, Discord-aware draft page, and navigation improvements. This is the core Captain Mode implementation: a dedicated /captain page that shows a logged-in captain's matches with direct CTAs, plus updating the match page and draft page to resolve captain identity from Discord session (not just URL keys), and hiding admin links from non-admin users.",
+  "status": "pending",
+  "steps": [
+    "Step 1 - Create /api/captain/matches API route: A new API endpoint that accepts the Discord session cookie and returns the captain's matches (upcoming, live, completed). It resolves the captain's team from their Discord roles using resolveTeamFromRoles(), then queries matches where homeTeamId or awayTeamId matches. Include game/draft status for each match. Return team info so the dashboard can show which team they captain.",
+    "Step 2 - Create /captain page (app/captain/page.js + CaptainDashboardClient.js): Server component that renders the client component. The client component calls /api/auth/discord/me on mount to check auth state. If not logged in, shows a Discord Login CTA button (links to /api/auth/discord?returnUrl=/captain). If logged in, fetches /api/captain/matches and renders: team identity header (team name, division, tag), three match sections (Live Now, Upcoming, Recent/Completed), and per-match CTA buttons (Enter Draft, Report Result, Confirm Result, Upload Screenshots, Request Reschedule) based on match/game state. Use RetroWindow and BrutalButton components matching the existing retro-gaming UI system. Show BO3 series score inline. Handle empty states (no matches, waiting for opponent, etc.).",
+    "Step 3 - Update match page (app/matches/[id]/page.js) to resolve captain identity from Discord session: Import getDiscordSessionUser and resolveCaptainSideFromDiscord from lib/discordAuth. At the top of the server component, read the Discord session from the request cookies (via next/headers). If a Discord session exists and resolves to a captain side for this match, use that as the captainSide (even without a ?key= URL param). Keep the existing key-based fallback: if no Discord session resolves, still check searchParams.key as before. This means OAuth captains can visit /matches/[id] directly without needing a key URL.",
+    "Step 4 - Update draft page (app/draft/[id]/page.js) to resolve role from Discord session: Import getDiscordSessionUser and resolveDraftRoleFromDiscord from lib/discordAuth. Read the Discord session from request cookies (via next/headers). If session exists, call resolveDraftRoleFromDiscord(draftId, session.roles). If that returns a non-spectator role, use it. Otherwise fall back to the existing resolveRole(key, draft) logic. This means OAuth captains can visit /draft/[id] without needing ?key= in the URL.",
+    "Step 5 - Update CaptainResultSection, CaptainUploadSection, and CaptainRescheduleSection to support Discord OAuth for API calls: Currently these components pass captainKey in X-Captain-Key headers. Add logic: if captainKey is null/undefined (Discord-auth path), omit the X-Captain-Key header - the API routes already read the Discord session cookie and resolve captain identity from it via resolveMatchCaptainAuth. No API route changes needed since resolveMatchCaptainAuth already tries Discord first. Pass captainKey as null from the match page when auth was resolved via Discord.",
+    "Step 6 - Update Nav component (components/Nav.js): Add conditional rendering of nav links based on auth state. On mount, call /api/auth/discord/me. If the user is a captain (response has teamId), show a 'Captain' link to /captain. If the user is an admin (response has isAdmin:true), keep the Admin link. If not logged in or neither captain nor admin, hide Admin link entirely. Add a Login/Logout toggle button in the nav right section. Show the Discord username when logged in. Keep all public links (Home, Schedule, Teams, Standings, Players) visible to everyone.",
+    "Step 7 - Update Homepage (app/HomepageClient.js) to add a Captain Login CTA: Add a small prominent section near the top (after the broadcast hero, before the editorial content) that says 'Captains: Log in with Discord to access your match dashboard' with a BrutalButton linking to /api/auth/discord?returnUrl=/captain. This provides a discovery path for captains landing on the homepage. Keep it visually clean and non-intrusive."
+  ],
+  "acceptance_criteria": [
+    "A new page exists at /captain that shows captain dashboard when logged in via Discord",
+    "The /captain page shows a Discord login CTA when not authenticated",
+    "Match page resolves captain identity from Discord session without requiring ?key= URL param",
+    "Draft page resolves captain role from Discord session without requiring ?key= URL param",
+    "Captain sections (result, upload, reschedule) work without captainKey when Discord-authed",
+    "Nav shows Captain link for captains, hides Admin from non-admins",
+    "Homepage has a captain login CTA",
+    "All existing key-based auth paths continue to work unchanged",
+    "npm run build succeeds",
+    "npm run test passes (no regressions)"
+  ],
+  "verification": [
+    "npm run build",
+    "npm run test"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

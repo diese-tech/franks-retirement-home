@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Add Captain Mode tests covering the new captain dashboard, Discord-aware navigation, OAuth-resolved match/draft pages, and match-night progression workflow. Also add lightweight operational logging for key captain actions.",
+  "status": "pending",
+  "steps": [
+    "Step 1 - Create tests/unit/captainDashboard.test.js: Test the /api/captain/matches API route logic. Mock prisma and discordAuth. Test cases: (a) returns 401 when no Discord session, (b) returns 401 when session has no team role, (c) returns matches for the captain's team (both home and away), (d) correctly categorizes matches by status (live/scheduled/completed), (e) includes game/draft state in response.",
+    "Step 2 - Create tests/unit/captainNavigation.test.js: Test the Nav component auth-aware rendering using @testing-library/react. Mock the /api/auth/discord/me fetch. Test cases: (a) shows Login button when not authenticated, (b) shows Captain link and username when captain is logged in, (c) shows Admin link when admin is logged in, (d) hides Admin link for non-admin users, (e) shows Logout when authenticated.",
+    "Step 3 - Create tests/unit/matchPageDiscordAuth.test.js: Test that the match page resolves captain identity from Discord session. Since the match page is a server component, test the resolution logic in isolation. Create a helper that mimics the Discord resolution flow and test: (a) Discord session with matching team resolves to captain side, (b) Discord session without match resolves falls back to key, (c) No session with key still works, (d) No session and no key gives spectator view.",
+    "Step 4 - Create tests/unit/draftPageDiscordAuth.test.js: Test draft page Discord resolution logic in isolation. Test cases: (a) Discord session resolving to captainA returns captainA role, (b) Discord session resolving to spectator falls back to key, (c) No session uses key-based resolveRole.",
+    "Step 5 - Add lightweight operational logging utility at lib/captainLog.js: Create a simple logging function that writes structured JSON to console (for Vercel log ingestion). Log format: { event, timestamp, matchId?, gameId?, captainSide?, source ('discord'|'key'), detail? }. Events to log: 'captain_result_reported', 'captain_result_confirmed', 'captain_result_disputed', 'captain_auth_failed', 'captain_role_mismatch'. Import and call this in the relevant API routes: app/api/matches/[id]/games/[gameId]/result/route.js (on report/confirm/dispute actions).",
+    "Step 6 - Create tests/unit/captainLog.test.js: Test the logging utility emits correct structured JSON for each event type. Mock console.log and verify output format."
+  ],
+  "acceptance_criteria": [
+    "tests/unit/captainDashboard.test.js passes with all test cases covering the captain matches API",
+    "tests/unit/captainNavigation.test.js passes with all test cases for auth-aware nav",
+    "tests/unit/matchPageDiscordAuth.test.js passes testing Discord session resolution on match page",
+    "tests/unit/draftPageDiscordAuth.test.js passes testing Discord session resolution on draft page",
+    "tests/unit/captainLog.test.js passes testing operational logging",
+    "lib/captainLog.js exists and is imported in at least one API route",
+    "npm run test passes all tests (old + new)",
+    "npm run build succeeds"
+  ],
+  "verification": [
+    "npm run test",
+    "npm run build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
