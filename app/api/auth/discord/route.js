@@ -18,12 +18,24 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const rawReturnUrl = searchParams.get('returnUrl') || '/';
-  // Validate returnUrl to prevent open redirects via state parameter
-  const returnUrl = (rawReturnUrl.startsWith('/') && !rawReturnUrl.includes('://'))
-    ? rawReturnUrl
-    : undefined;
+  const rawReturnUrl = searchParams.get('returnUrl');
 
-  const authorizeUrl = getDiscordAuthUrl(returnUrl);
+  // Validate returnUrl: must resolve to same origin to prevent open redirect
+  let safeReturnUrl;
+  if (rawReturnUrl) {
+    try {
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000');
+      const candidate = new URL(rawReturnUrl, baseUrl);
+      safeReturnUrl = candidate.origin === new URL(baseUrl).origin
+        ? candidate.pathname + candidate.search
+        : undefined;
+    } catch {
+      safeReturnUrl = undefined;
+    }
+  }
+
+  const authorizeUrl = getDiscordAuthUrl(safeReturnUrl);
   return NextResponse.redirect(authorizeUrl, 302);
 }

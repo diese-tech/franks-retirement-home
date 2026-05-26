@@ -83,12 +83,19 @@ export async function GET(request) {
     roles: member.roles || [],
   });
 
-  // Validate returnUrl to prevent open redirects
-  const rawReturnUrl = state || '/';
-  const returnUrl = (rawReturnUrl.startsWith('/') && !rawReturnUrl.includes('://'))
-    ? rawReturnUrl
-    : '/';
-  const response = NextResponse.redirect(new URL(returnUrl, baseUrl), 302);
+  // Validate returnUrl: must resolve to same origin to prevent open redirect
+  let safeReturnUrl = '/';
+  if (state) {
+    try {
+      const candidate = new URL(state, baseUrl);
+      safeReturnUrl = candidate.origin === new URL(baseUrl).origin
+        ? candidate.pathname + candidate.search
+        : '/';
+    } catch {
+      safeReturnUrl = '/';
+    }
+  }
+  const response = NextResponse.redirect(new URL(safeReturnUrl, baseUrl), 302);
   response.headers.set('Set-Cookie', buildSetCookieHeader(cookieValue));
   return response;
 }
