@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ThemeToggle from '@/app/components/ThemeToggle';
 
 const NAV_LINKS = [
@@ -17,69 +17,61 @@ const NAV_LINKS = [
 export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [time, setTime] = useState('');
+
+  useEffect(() => {
+    const tick = () =>
+      setTime(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const isActive = (href) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <nav className="sticky top-0 z-50 bg-frh-surface/95 backdrop-blur-md border-b-2 border-frh-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-gold-400 to-ember-500 flex items-center justify-center font-display font-bold text-brand-900 text-sm group-hover:shadow-lg group-hover:shadow-gold-500/30 transition-shadow">
-            F
-          </div>
-          <span className="font-display font-bold text-base uppercase tracking-wider text-frh-text group-hover:text-frh-yellow transition-colors hidden sm:block">
-            Frank&apos;s Retirement Home
-          </span>
-        </Link>
+    <nav className="frh-menubar">
+      <Link href="/" className="frh-menubar__brand">
+        <span className="frh-menubar__dot" />
+        FRH
+      </Link>
 
-        {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={[
-                'px-3 py-1.5 text-xs font-ui uppercase tracking-widest transition-colors border-b-2',
-                isActive(href)
-                  ? 'text-frh-yellow border-b-frh-yellow'
-                  : 'text-frh-text-muted border-b-transparent hover:text-frh-text hover:border-b-frh-border',
-              ].join(' ')}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            className="md:hidden flex flex-col gap-1.5 p-2 group"
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Toggle menu"
+      <div className="frh-menubar__items">
+        {NAV_LINKS.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={'frh-menubar__item' + (isActive(href) ? ' is-active' : '')}
           >
-            <span className={`block w-6 h-0.5 bg-frh-text-muted transition-all group-hover:bg-frh-yellow ${open ? 'rotate-45 translate-y-2' : ''}`} />
-            <span className={`block w-6 h-0.5 bg-frh-text-muted transition-all group-hover:bg-frh-yellow ${open ? 'opacity-0' : ''}`} />
-            <span className={`block w-6 h-0.5 bg-frh-text-muted transition-all group-hover:bg-frh-yellow ${open ? '-rotate-45 -translate-y-2' : ''}`} />
-          </button>
-        </div>
+            <span className="u">{label[0]}</span>{label.slice(1)}
+          </Link>
+        ))}
       </div>
 
-      {/* Mobile drawer */}
+      <div className="frh-menubar__right">
+        <span className="frh-menubar__live-dot" />
+        {time ? `ON AIR · ${time}` : 'FRH LIVE'}
+        <ThemeToggle />
+        <button
+          className="frh-menubar__ham"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </div>
+
       {open && (
-        <div className="md:hidden border-t-2 border-frh-border bg-frh-surface">
+        <div className="frh-menubar__drawer">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={[
-                'block px-6 py-3 text-xs font-ui uppercase tracking-widest border-b border-frh-border transition-colors',
-                isActive(href)
-                  ? 'text-frh-yellow bg-frh-surface-alt'
-                  : 'text-frh-text-muted hover:text-frh-text hover:bg-frh-surface-alt',
-              ].join(' ')}
+              className={'frh-menubar__drawer-link' + (isActive(href) ? ' is-active' : '')}
             >
               {label}
             </Link>

@@ -14,14 +14,14 @@ export default async function HomePage() {
     include: { divisions: { orderBy: { tier: 'desc' } } },
   });
 
-  const [liveMatches, upcomingMatches, recentDrafts, playerCount, godCount] = await Promise.all([
+  const [liveMatches, upcomingMatches, recentDrafts, playerCount, godCount, matchCount, recentResults] = await Promise.all([
     prisma.match.findMany({
       where: { status: 'live' },
       orderBy: { scheduledAt: 'asc' },
       take: 3,
       include: {
-        homeTeam: { select: { id: true, name: true, tag: true } },
-        awayTeam: { select: { id: true, name: true, tag: true } },
+        homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+        awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
         division: { select: { name: true } },
         games: {
           orderBy: { gameNumber: 'asc' },
@@ -32,10 +32,10 @@ export default async function HomePage() {
     prisma.match.findMany({
       where: { status: 'scheduled' },
       orderBy: [{ week: 'asc' }, { scheduledAt: 'asc' }],
-      take: 4,
+      take: 5,
       include: {
-        homeTeam: { select: { id: true, name: true, tag: true } },
-        awayTeam: { select: { id: true, name: true, tag: true } },
+        homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+        awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
         division: { select: { name: true } },
       },
     }),
@@ -47,6 +47,17 @@ export default async function HomePage() {
     }),
     prisma.player.count(),
     prisma.god.count(),
+    prisma.match.count({ where: { status: 'completed' } }),
+    prisma.match.findMany({
+      where: { status: 'completed' },
+      orderBy: { scheduledAt: 'desc' },
+      take: 5,
+      include: {
+        homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+        awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+        division: { select: { name: true } },
+      },
+    }),
   ]);
 
   const divisionStandings = activeSeason
@@ -67,6 +78,8 @@ export default async function HomePage() {
       divisionStandings={JSON.parse(JSON.stringify(divisionStandings))}
       playerCount={playerCount}
       godCount={godCount}
+      matchCount={matchCount}
+      recentResults={JSON.parse(JSON.stringify(recentResults))}
     />
   );
 }
