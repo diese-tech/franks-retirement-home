@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { currentBanTeam, TOTAL_BANS } from '@/lib/draftOrder';
+import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,8 @@ export async function POST(request, { params }) {
   const draft = await prisma.draft.findUnique({ where: { id } });
   if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
 
-  const role = resolveRole(key, draft);
+  const auth = await resolveDraftCaptainAuth(request, draft, key);
+  const role = auth.role;
   if (role === 'spectator') {
     return NextResponse.json({ error: 'Not authorized to ban' }, { status: 403 });
   }

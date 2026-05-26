@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
-import { checkMatchWindow, resolveCaptainSide } from '@/lib/matchWindow';
+import { checkMatchWindow } from '@/lib/matchWindow';
+import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,6 @@ export async function GET(req, { params }) {
 // Admins may submit without a captain key and are not subject to the eligibility window.
 // Body: { gameId?, reportedWinnerTeamId?, notes?, attachments?: [{ url, kind, mimeType?, byteSize? }] }
 export async function POST(req, { params }) {
-  const captainKey = req.headers.get('x-captain-key');
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
@@ -49,8 +49,9 @@ export async function POST(req, { params }) {
 
     // Determine whether this is an admin request or a captain request.
     const adminErr = await requireAdmin(req);
-    const isAdmin = adminErr === null;
-    const captainSide = resolveCaptainSide(match, captainKey);
+    const auth = await resolveMatchCaptainAuth(req, match);
+    const isAdmin = adminErr === null || auth.isAdmin;
+    const captainSide = auth.side;
     const isCaptain = captainSide !== null;
 
     if (!isAdmin && !isCaptain) {

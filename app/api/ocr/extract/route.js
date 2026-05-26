@@ -3,7 +3,8 @@ import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { logAudit } from '@/lib/audit';
 import { extractSmite2Details } from '@/lib/gemini';
-import { checkMatchWindow, resolveCaptainSide } from '@/lib/matchWindow';
+import { checkMatchWindow } from '@/lib/matchWindow';
+import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,20 +43,23 @@ export async function POST(req) {
   });
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
-  // If admin auth failed, try captain key as fallback
+  // If admin auth failed, try Discord auth then captain key as fallback
   let isCaptain = false;
   if (adminGuard !== null) {
-    const captainKey = req.headers.get('x-captain-key');
-    const captainSide = resolveCaptainSide(game.match, captainKey);
-    if (!captainSide) {
+    const auth = await resolveMatchCaptainAuth(req, game.match);
+    if (!auth.side && !auth.isAdmin) {
       return adminGuard; // return the original 401
     }
-    isCaptain = true;
+    if (auth.isAdmin) {
+      // Discord admin - treat as admin path
+    } else {
+      isCaptain = true;
 
-    // Captains are subject to the match eligibility window (§7).
-    const windowCheck = checkMatchWindow(game.match, { adminOverride: false });
-    if (!windowCheck.ok) {
-      return NextResponse.json({ error: windowCheck.reason }, { status: 403 });
+      // Captains are subject to the match eligibility window (section 7).
+      const windowCheck = checkMatchWindow(game.match, { adminOverride: false });
+      if (!windowCheck.ok) {
+        return NextResponse.json({ error: windowCheck.reason }, { status: 403 });
+      }
     }
   }
 
