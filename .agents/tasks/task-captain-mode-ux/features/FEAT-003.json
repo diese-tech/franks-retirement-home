@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Add Captain Mode tests covering the new captain dashboard, Discord-aware navigation, OAuth-resolved match/draft pages, and match-night progression workflow. Also add lightweight operational logging for key captain actions.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1 - Create tests/unit/captainDashboard.test.js: Test the /api/captain/matches API route logic. Mock prisma and discordAuth. Test cases: (a) returns 401 when no Discord session, (b) returns 401 when session has no team role, (c) returns matches for the captain's team (both home and away), (d) correctly categorizes matches by status (live/scheduled/completed), (e) includes game/draft state in response.",
     "Step 2 - Create tests/unit/captainNavigation.test.js: Test the Nav component auth-aware rendering using @testing-library/react. Mock the /api/auth/discord/me fetch. Test cases: (a) shows Login button when not authenticated, (b) shows Captain link and username when captain is logged in, (c) shows Admin link when admin is logged in, (d) hides Admin link for non-admin users, (e) shows Logout when authenticated.",
@@ -26,5 +26,5 @@
     "npm run build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 6 steps implemented successfully. 313 tests pass (27 new). Build succeeds. Vitest config updated with oxc.lang='jsx' to support JSX in .js files for component testing (vite 8/oxc parser does not parse JSX in .js by default). captainLog integrated into game result route for report/confirm/dispute/auth-fail events. Nav component test uses createElement() instead of JSX syntax in test file (oxc parse issue in vi.mock factories)."
 }
