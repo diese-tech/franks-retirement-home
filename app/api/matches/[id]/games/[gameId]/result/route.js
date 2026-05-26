@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { resolveCaptainSide, checkMatchWindow } from '@/lib/matchWindow';
+import { checkMatchWindow } from '@/lib/matchWindow';
 import { requireAdmin } from '@/lib/adminSession';
 import { checkSeriesComplete } from '@/lib/seriesResult';
 import { invalidateAllStandings } from '@/lib/standings';
+import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,6 @@ async function loadMatchAndGame(matchId, gameId) {
 export async function POST(req, { params }) {
   const { id: matchId, gameId } = await params;
 
-  const captainKey = req.headers.get('x-captain-key');
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -73,29 +73,20 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'winnerTeamId is required' }, { status: 400 });
   }
 
-  const adminErr = await requireAdmin(req);
-  const isAdmin = adminErr === null;
-  const captainSide = captainKey
-    ? (await loadMatchAndGame(matchId, gameId)).match
-        ? resolveCaptainSide(
-            await prisma.match.findUnique({
-              where: { id: matchId },
-              select: { homeTeamCaptainKey: true, awayTeamCaptainKey: true },
-            }),
-            captainKey,
-          )
-        : null
-    : null;
+  const { match, game } = await loadMatchAndGame(matchId, gameId);
+  if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+  if (!game)  return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
-  if (!isAdmin && captainSide === null) {
+  const adminErr = await requireAdmin(req);
+  const auth = await resolveMatchCaptainAuth(req, match);
+  const isAdmin = adminErr === null || auth.isAdmin;
+  const captainSide = auth.side;
+
+  if (!isAdmin && !captainSide) {
     return NextResponse.json({ error: 'Valid captain key or admin session required' }, { status: 401 });
   }
 
   try {
-    const { match, game } = await loadMatchAndGame(matchId, gameId);
-    if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
-    if (!game)  return NextResponse.json({ error: 'Game not found' }, { status: 404 });
-
     if (['completed', 'postponed'].includes(match.status)) {
       return NextResponse.json({ error: 'Match is already completed or postponed' }, { status: 400 });
     }
@@ -163,7 +154,6 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   const { id: matchId, gameId } = await params;
 
-  const captainKey = req.headers.get('x-captain-key');
   let body;
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -174,7 +164,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "action must be 'confirm', 'dispute', or 'resolve'" }, { status: 400 });
   }
 
-  const adminErr = await requireAdmin(req);
+  const adminErr = await resolveAdminAuth(req);
   const isAdmin = adminErr === null;
 
   if (action === 'resolve' && !isAdmin) {
@@ -201,7 +191,8 @@ export async function PATCH(req, { params }) {
     }
 
     // confirm or dispute — requires captain key
-    const captainSide = resolveCaptainSide(match, captainKey);
+    const auth = await resolveMatchCaptainAuth(req, match);
+    const captainSide = auth.side;
     if (!captainSide) {
       return NextResponse.json({ error: 'Valid captain key required' }, { status: 401 });
     }

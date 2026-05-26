@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { logAudit } from '@/lib/audit';
-import { resolveCaptainSide } from '@/lib/matchWindow';
+import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,10 +82,10 @@ export async function PATCH(req, { params }) {
 // ─── Captain acknowledge / dispute ───────────────────────────────────────────
 
 async function handleCaptainResponse(req, rescheduleRequest, action, note) {
-  const captainKey = req.headers.get('x-captain-key');
   const match = rescheduleRequest.match;
 
-  const captainSide = resolveCaptainSide(match, captainKey);
+  const auth = await resolveMatchCaptainAuth(req, match);
+  const captainSide = auth.side;
   if (!captainSide) {
     return NextResponse.json({ error: 'Invalid captain key' }, { status: 401 });
   }
