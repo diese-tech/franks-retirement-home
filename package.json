@@ -1,19 +1,19 @@
-{
-  "name": "smite2-draft-league",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "db:generate": "npx prisma generate",
-    "db:push": "npx prisma db push",
-    "db:seed": "node prisma/seed.mjs",
-    "db:reset": "npx prisma db push --force-reset && node prisma/seed.mjs",
-    "db:studio": "npx prisma studio",
-    "setup": "npm install && npx prisma generate && npx prisma db push && node prisma/seed.mjs"
-  },
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+
+  "db:generate": "prisma generate",
+  "db:migrate:dev": "prisma migrate dev",
+  "db:migrate:deploy": "prisma migrate deploy",
+  "db:push": "prisma db push",
+  "db:seed": "node prisma/seed.mjs",
+  "db:reset": "prisma migrate reset --force && node prisma/seed.mjs",
+  "db:studio": "prisma studio",
+
+  "setup": "npm install && prisma generate"
+},
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.14.0",
