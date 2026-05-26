@@ -29,6 +29,22 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Cannot modify order of a completed draft' }, { status: 400 });
     }
 
+    // Validate that currentOrder contains exactly the same team IDs as the existing order.
+    // Prevent silently adding or removing teams via this endpoint.
+    const existingOrder = Array.isArray(draft.currentOrder) ? draft.currentOrder : [];
+    if (existingOrder.length > 0) {
+      const existing = new Set(existingOrder);
+      const incoming = new Set(currentOrder);
+      const sameSize = existing.size === incoming.size && currentOrder.length === existingOrder.length;
+      const sameTeams = [...existing].every((id) => incoming.has(id));
+      if (!sameSize || !sameTeams) {
+        return NextResponse.json(
+          { error: 'currentOrder must contain exactly the same team IDs as the existing order' },
+          { status: 400 }
+        );
+      }
+    }
+
     const updated = await prisma.playerDraft.update({
       where: { id: params.id },
       data: { currentOrder, version: { increment: 1 } },

@@ -1,7 +1,9 @@
 /**
- * PlayerDraft tests — pick route + completion transaction
+ * PlayerDraft tests — pick route + completion transaction + PATCH admin actions
  * Covers: app/api/player-drafts/[id]/pick/route.js
  *         app/api/player-drafts/[id]/complete/route.js
+ *         app/api/player-drafts/[id]/route.js   (PATCH start / skip / order)
+ *         app/api/player-drafts/[id]/order/route.js
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeReq, makeInvalidJsonReq, unwrap } from './_helpers.js';
@@ -18,11 +20,16 @@ vi.mock('@/lib/adminSession', () => ({
   requireAdmin: vi.fn(() => null), // null = authorized
 }));
 
+// ─── Mock @/lib/playerDraftState ─────────────────────────────────────────────
+vi.mock('@/lib/playerDraftState', () => ({
+  buildPlayerDraftState: vi.fn(async () => null),
+}));
+
 // ─── Mock @/lib/db ───────────────────────────────────────────────────────────
 vi.mock('@/lib/db', () => {
   const prisma = {
-    playerDraft: { findUnique: vi.fn(), update: vi.fn() },
-    playerDraftPick: { findUnique: vi.fn(), create: vi.fn() },
+    playerDraft: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    playerDraftPick: { findUnique: vi.fn(), create: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
     player: { findUnique: vi.fn() },
     teamMember: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
@@ -34,6 +41,8 @@ const { default: prisma } = await import('@/lib/db');
 const { requireAdmin } = await import('@/lib/adminSession');
 const { POST: pickPOST } = await import('@/app/api/player-drafts/[id]/pick/route.js');
 const { POST: completePOST } = await import('@/app/api/player-drafts/[id]/complete/route.js');
+const { PATCH: draftPATCH } = await import('@/app/api/player-drafts/[id]/route.js');
+const { PATCH: orderPATCH } = await import('@/app/api/player-drafts/[id]/order/route.js');
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 const DRAFT_ID = 'pd-1';
@@ -159,33 +168,55 @@ describe('POST /api/player-drafts/[id]/pick', () => {
     );
   });
 
-  it('snake order: currentPickTeam is called with (format, phaseIndex, stepIndex) from cursor', async () => {
-    // The route navigates a cursor to currentPickIndex, then calls:
-    //   currentPickTeam(format, turn.phaseIndex, turn.stepIndex)
-    // For index 4 with ['T1','T2','T3','T4'], 2 rounds:
-    //   cursor ends at { phaseIndex:1, stepIndex:0 }
-    //   currentPickTeam(format, 1, 0) → flatIndexToTurn(format, 1) → phase0 step1 → T2
-    // This is the current route behavior. The test verifies the route accepts T2 at index 4.
+  it('snake order: index 4 (first step of round 2) belongs to T4 — uses turn.teamId directly', async () => {
+    // After the bug fix, the route uses turn.teamId directly (not currentPickTeam(format, phaseIndex, stepIndex)).
+    // With currentOrder ['T1','T2','T3','T4'] and 2 rounds:
+    //   Round 1: T1, T2, T3, T4  (even phase, as-is)
+    //   Round 2: T4, T3, T2, T1  (odd phase, reversed)
+    // flat index 4 = phase 1, step 0 → turn.teamId = 'T4'
     prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
     prisma.playerDraft.findUnique.mockResolvedValue({ ...MOCK_DRAFT, currentPickIndex: 4 });
     prisma.player.findUnique.mockResolvedValue({ ...MOCK_PLAYER, division: 'Hospice' });
     prisma.playerDraftPick.findUnique.mockResolvedValue(null);
     prisma.playerDraftPick.create.mockResolvedValue({});
     prisma.playerDraft.update.mockResolvedValue({});
-    // With currentPickIndex=4, cursor=phase1/step0, currentPickTeam(format,1,0)=T2
-    const res = await pickPOST(makeReq({ teamId: 'T2', playerId: 'player-1' }), PARAMS);
-    expect(unwrap(res).status).toBe(200); // T2 is what the route computes as active
+    // T4 picks at index 4 — should succeed
+    const res = await pickPOST(makeReq({ teamId: 'T4', playerId: 'player-1' }), PARAMS);
+    expect(unwrap(res).status).toBe(200);
   });
 
-  it('snake order: wrong team at index 4 is rejected', async () => {
+  it('snake order: wrong team at index 4 is correctly rejected after bug fix', async () => {
+    // After the fix, T2 is not the active team at flat index 4 — T4 is.
     prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
     prisma.playerDraft.findUnique.mockResolvedValue({ ...MOCK_DRAFT, currentPickIndex: 4 });
     prisma.player.findUnique.mockResolvedValue({ ...MOCK_PLAYER, division: 'Hospice' });
     prisma.playerDraftPick.findUnique.mockResolvedValue(null);
-    // T3 is not the active team at index 4 per the route's cursor logic
-    const wrongRes = await pickPOST(makeReq({ teamId: 'T3', playerId: 'player-1' }), PARAMS);
+    // T2 tries to pick at index 4 — must be rejected (T4's turn)
+    const wrongRes = await pickPOST(makeReq({ teamId: 'T2', playerId: 'player-1' }), PARAMS);
     expect(unwrap(wrongRes).status).toBe(400);
     expect(unwrap(wrongRes).body.error).toMatch(/turn/i);
+  });
+
+  it('snake order: index 7 (last pick) belongs to T1', async () => {
+    // flat index 7 = phase 1, step 3 → turn.teamId = 'T1' (reversed T4,T3,T2,T1)
+    prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
+    prisma.playerDraft.findUnique.mockResolvedValue({ ...MOCK_DRAFT, currentPickIndex: 7 });
+    prisma.player.findUnique.mockResolvedValue({ ...MOCK_PLAYER, division: 'Hospice' });
+    prisma.playerDraftPick.findUnique.mockResolvedValue(null);
+    prisma.playerDraftPick.create.mockResolvedValue({});
+    prisma.playerDraft.update.mockResolvedValue({});
+    const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'player-1' }), PARAMS);
+    expect(unwrap(res).status).toBe(200);
+  });
+
+  it('snake order: T4 is rejected at index 7 (T1 turn)', async () => {
+    prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
+    prisma.playerDraft.findUnique.mockResolvedValue({ ...MOCK_DRAFT, currentPickIndex: 7 });
+    prisma.player.findUnique.mockResolvedValue({ ...MOCK_PLAYER, division: 'Hospice' });
+    prisma.playerDraftPick.findUnique.mockResolvedValue(null);
+    const res = await pickPOST(makeReq({ teamId: 'T4', playerId: 'player-1' }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/turn/i);
   });
 });
 
@@ -292,5 +323,124 @@ describe('POST /api/player-drafts/[id]/complete', () => {
     return completePOST(makeReq({}), PARAMS).then((res) => {
       expect(unwrap(res).status).toBe(200);
     });
+  });
+});
+
+
+// ─── PATCH admin actions (start, skip, order) ────────────────────────────────
+
+describe('PATCH /api/player-drafts/[id] — start action', () => {
+  const PENDING_DRAFT = {
+    id: DRAFT_ID,
+    status: 'pending',
+    rounds: 2,
+    currentOrder: ['T1', 'T2', 'T3', 'T4'],
+    baseOrder: [],
+    currentPickIndex: 0,
+    version: 0,
+  };
+
+  it('returns 400 when draft is not pending', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue({ ...PENDING_DRAFT, status: 'active' });
+    const res = await draftPATCH(makeReq({ action: 'start' }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/pending/i);
+  });
+
+  it('returns 400 when currentOrder is empty', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue({ ...PENDING_DRAFT, currentOrder: [] });
+    const res = await draftPATCH(makeReq({ action: 'start' }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/currentOrder/i);
+  });
+
+  it('freezes baseOrder to currentOrder when starting', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(PENDING_DRAFT);
+    let capturedData;
+    prisma.playerDraft.update.mockImplementation(({ data }) => {
+      capturedData = data;
+      return Promise.resolve({ ...PENDING_DRAFT, status: 'active', baseOrder: data.baseOrder });
+    });
+    const res = await draftPATCH(makeReq({ action: 'start' }), PARAMS);
+    expect(unwrap(res).status).toBe(200);
+    // baseOrder must be set to currentOrder at start — the freeze
+    expect(capturedData.baseOrder).toEqual(['T1', 'T2', 'T3', 'T4']);
+  });
+});
+
+describe('PATCH /api/player-drafts/[id] — skip action is disabled', () => {
+  it('returns 400 — skip is not supported (would corrupt index without pick record)', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue({
+      id: DRAFT_ID,
+      status: 'active',
+      rounds: 2,
+      currentOrder: ['T1', 'T2'],
+      currentPickIndex: 0,
+      version: 0,
+    });
+    const res = await draftPATCH(makeReq({ action: 'skip' }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/skip/i);
+  });
+});
+
+// ─── PATCH /api/player-drafts/[id]/order — team-ID validation ────────────────
+
+describe('PATCH /api/player-drafts/[id]/order', () => {
+  const ACTIVE_DRAFT = {
+    id: DRAFT_ID,
+    status: 'active',
+    currentOrder: ['T1', 'T2', 'T3', 'T4'],
+    version: 1,
+  };
+
+  it('returns 400 for invalid JSON', async () => {
+    const res = await orderPATCH(makeInvalidJsonReq(), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('returns 400 when currentOrder is missing or empty', async () => {
+    const res = await orderPATCH(makeReq({ currentOrder: [] }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('returns 404 when draft does not exist', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(null);
+    const res = await orderPATCH(makeReq({ currentOrder: ['T1', 'T2'] }), PARAMS);
+    expect(unwrap(res).status).toBe(404);
+  });
+
+  it('returns 400 when completed', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue({ ...ACTIVE_DRAFT, status: 'complete' });
+    const res = await orderPATCH(makeReq({ currentOrder: ['T1', 'T2', 'T3', 'T4'] }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/complete/i);
+  });
+
+  it('rejects currentOrder with different team IDs (cannot add new teams)', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(ACTIVE_DRAFT);
+    const res = await orderPATCH(makeReq({ currentOrder: ['T1', 'T2', 'T3', 'T99'] }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+    expect(unwrap(res).body.error).toMatch(/same team IDs/i);
+  });
+
+  it('rejects currentOrder with duplicate team IDs', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(ACTIVE_DRAFT);
+    // ['T1','T1','T3','T4'] has same Set size reduction but different length
+    const res = await orderPATCH(makeReq({ currentOrder: ['T1', 'T1', 'T3', 'T4'] }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('rejects currentOrder with fewer team IDs', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(ACTIVE_DRAFT);
+    const res = await orderPATCH(makeReq({ currentOrder: ['T1', 'T2', 'T3'] }), PARAMS);
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('accepts a valid reordering of the same teams', async () => {
+    prisma.playerDraft.findUnique.mockResolvedValue(ACTIVE_DRAFT);
+    prisma.playerDraft.update.mockResolvedValue({ ...ACTIVE_DRAFT, currentOrder: ['T4', 'T3', 'T2', 'T1'] });
+    const res = await orderPATCH(makeReq({ currentOrder: ['T4', 'T3', 'T2', 'T1'] }), PARAMS);
+    expect(unwrap(res).status).toBe(200);
   });
 });

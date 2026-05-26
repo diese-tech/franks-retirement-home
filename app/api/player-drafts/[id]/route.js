@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
 import { buildPlayerDraftState } from '@/lib/playerDraftState';
-import { buildPlayerDraftFormat, totalPicks } from '@/lib/playerDraftOrder';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +43,9 @@ export async function PATCH(req, { params }) {
           status: 'active',
           startedAt: new Date(),
           pickStartedAt: new Date(),
+          // Freeze baseOrder at start — it is the immutable audit trail.
+          // currentOrder remains mutable (slot trades), but baseOrder never changes after this.
+          baseOrder: order,
           version: { increment: 1 },
         },
       });
@@ -69,25 +71,10 @@ export async function PATCH(req, { params }) {
     }
 
     if (action === 'skip') {
-      if (draft.status !== 'active') return NextResponse.json({ error: 'Draft is not active' }, { status: 400 });
-      const format = buildPlayerDraftFormat(
-        Array.isArray(draft.currentOrder) ? draft.currentOrder : [],
-        draft.rounds
-      );
-      const total = totalPicks(format);
-      const nextIndex = draft.currentPickIndex + 1;
-      const isComplete = nextIndex >= total;
-      const updated = await prisma.playerDraft.update({
-        where: { id: params.id },
-        data: {
-          currentPickIndex: nextIndex,
-          status: isComplete ? 'complete' : 'active',
-          completedAt: isComplete ? new Date() : null,
-          pickStartedAt: isComplete ? null : new Date(),
-          version: { increment: 1 },
-        },
-      });
-      return NextResponse.json(updated);
+      // 'skip' is not supported — advancing currentPickIndex without a corresponding
+      // PlayerDraftPick row causes index drift that permanently prevents draft completion.
+      // Use 'undo' to step backward, or record the pick normally.
+      return NextResponse.json({ error: 'skip is not supported; use undo to rewind or record the pick' }, { status: 400 });
     }
 
     if (action === 'undo') {
