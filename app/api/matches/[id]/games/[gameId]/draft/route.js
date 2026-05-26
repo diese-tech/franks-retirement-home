@@ -1,83 +1,24 @@
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'node:crypto';
-import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/adminSession';
+import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
 
 // POST /api/matches/[id]/games/[gameId]/draft
-// Admin action: create a match-bound Draft for a specific game,
-// pre-seeded with DraftPick rows from the two teams' active rosters.
+// Admin action: create (or return existing) match-bound Draft for a specific game.
+// Idempotent — returns 200 with the existing draft if one already exists.
+// The provisioning logic is shared with the auto-creation path in POST /api/matches.
 export async function POST(req, { params }) {
   const authError = await requireAdmin(req);
   if (authError) return authError;
 
-  const { id: matchId, gameId } = params;
+  const { id: matchId, gameId } = await params;
 
   try {
-    const match = await prisma.match.findUnique({
-      where: { id: matchId },
-      include: {
-        homeTeam: {
-          include: {
-            members: {
-              where: { isSub: false, leftAt: null },
-              include: { player: true },
-            },
-          },
-        },
-        awayTeam: {
-          include: {
-            members: {
-              where: { isSub: false, leftAt: null },
-              include: { player: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
-
-    const game = await prisma.game.findUnique({ where: { id: gameId, matchId } });
-    if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
-
-    const existing = await prisma.draft.findUnique({ where: { gameId } });
-    if (existing) {
-      return NextResponse.json({ error: 'Draft already exists for this game', draftId: existing.id }, { status: 409 });
+    const { draft, created } = await buildDraftForGame(matchId, gameId);
+    return NextResponse.json(draft, { status: created ? 201 : 200 });
+  } catch (err) {
+    if (err.message.includes('not found')) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
-
-    const homeMembers = match.homeTeam.members;
-    const awayMembers = match.awayTeam.members;
-
-    const draft = await prisma.$transaction(async (tx) => {
-      const created = await tx.draft.create({
-        data: {
-          name: `${match.homeTeam.name} vs ${match.awayTeam.name} — Game ${game.gameNumber}`,
-          gameId,
-          captainAKey: randomUUID(),
-          captainBKey: randomUUID(),
-          adminKey: randomUUID(),
-          picks: {
-            create: [
-              ...homeMembers.map((m, i) => ({
-                playerId: m.playerId,
-                team: 'A',
-                pickOrder: i,
-              })),
-              ...awayMembers.map((m, i) => ({
-                playerId: m.playerId,
-                team: 'B',
-                pickOrder: i,
-              })),
-            ],
-          },
-        },
-        include: { picks: true },
-      });
-      return created;
-    });
-
-    return NextResponse.json(draft, { status: 201 });
-  } catch {
     return NextResponse.json({ error: 'Failed to create draft' }, { status: 500 });
   }
 }
