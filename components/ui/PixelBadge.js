@@ -5,7 +5,7 @@ const COLOR_CLASSES = {
   lime:   'border-frh-lime text-frh-lime',
   orange: 'border-frh-orange text-frh-orange',
   cream:  'border-frh-cream text-frh-cream',
-  gray:   'border-gray-600 text-gray-500',
+  gray:   'border-frh-border text-frh-text-muted',
 };
 
 export default function PixelBadge({ label, color = 'gray' }) {

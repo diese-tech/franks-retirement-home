@@ -2,9 +2,9 @@ import Link from 'next/link';
 
 const VARIANTS = {
   primary:   'bg-frh-yellow text-frh-ink border-2 border-frh-ink shadow-[4px_4px_0px_#b89600]',
-  secondary: 'bg-transparent text-gray-200 border-2 border-gray-600 shadow-[4px_4px_0px_rgba(0,0,0,0.5)]',
+  secondary: 'bg-transparent text-frh-text border-2 border-frh-border shadow-[var(--shadow-hard)]',
   danger:    'bg-ember-500 text-white border-2 border-gray-900 shadow-[4px_4px_0px_rgba(0,0,0,0.5)]',
-  ghost:     'bg-transparent text-gray-400 border border-gray-700',
+  ghost:     'bg-transparent text-frh-text-muted border border-frh-border',
 };
 
 const SIZES = {

@@ -15,28 +15,28 @@ function MatchRow({ match }) {
   const isLive = match.status === 'live';
   return (
     <Link href={`/matches/${match.id}`} className="block group">
-      <div className={`border-2 transition-colors p-3 bg-brand-950/40 ${isLive ? 'border-frh-lime animate-pulse-slow' : 'border-brand-700 group-hover:border-frh-yellow/50'}`}>
+      <div className={`border-2 transition-colors p-3 bg-frh-surface/40 ${isLive ? 'border-frh-lime animate-pulse-slow' : 'border-frh-border group-hover:border-frh-yellow/50'}`}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-ui text-sm text-gray-200 group-hover:text-frh-yellow transition-colors">
-                {match.homeTeam?.name} <span className="text-gray-600 text-xs">vs</span> {match.awayTeam?.name}
+              <span className="font-ui text-sm text-frh-text group-hover:text-frh-yellow transition-colors">
+                {match.homeTeam?.name} <span className="text-frh-text-muted text-xs">vs</span> {match.awayTeam?.name}
               </span>
               <PixelBadge label={match.format} color="purple" />
               <PixelBadge label={match.status} color={STATUS_COLOR[match.status] ?? 'gray'} />
             </div>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               {match.scheduledAt ? (
-                <span className="text-[10px] text-gray-600 font-mono">
+                <span className="text-[10px] text-frh-text-muted font-mono">
                   {new Date(match.scheduledAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                   {' '}
                   {new Date(match.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                 </span>
               ) : (
-                <span className="text-[10px] text-gray-700">TBD</span>
+                <span className="text-[10px] text-frh-text-muted">TBD</span>
               )}
               {match.division && (
-                <span className="text-[10px] text-gray-600">{match.division.name}</span>
+                <span className="text-[10px] text-frh-text-muted">{match.division.name}</span>
               )}
             </div>
           </div>
@@ -87,17 +87,17 @@ export default async function SchedulePage({ searchParams }) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <RetroWindow title="SCHEDULE.EXE" titleBarColor="yellow">
-        <div className="flex items-start justify-between gap-4 mb-6 border-b-2 border-brand-700 pb-4">
+        <div className="flex items-start justify-between gap-4 mb-6 border-b-2 border-frh-border pb-4">
           <div>
             <h1 className="font-ui text-xl uppercase tracking-widest text-frh-yellow mb-1">Schedule</h1>
             {activeSeason && (
-              <p className="text-sm text-gray-500">{activeSeason.name} — {matches.length} match{matches.length !== 1 ? 'es' : ''}</p>
+              <p className="text-sm text-frh-text-muted">{activeSeason.name} — {matches.length} match{matches.length !== 1 ? 'es' : ''}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Link href="/schedule" className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${!statusFilter && !weekFilter ? 'border-frh-yellow text-frh-yellow' : 'border-brand-600 text-gray-600 hover:border-gray-400'}`}>All</Link>
+            <Link href="/schedule" className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${!statusFilter && !weekFilter ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>All</Link>
             {['live', 'scheduled', 'completed'].map((s) => (
-              <Link key={s} href={`/schedule?status=${s}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${statusFilter === s ? 'border-frh-yellow text-frh-yellow' : 'border-brand-600 text-gray-600 hover:border-gray-400'}`}>
+              <Link key={s} href={`/schedule?status=${s}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${statusFilter === s ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
                 {s}
               </Link>
             ))}
@@ -108,7 +108,7 @@ export default async function SchedulePage({ searchParams }) {
         {weeks.length > 1 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {weeks.map((w) => (
-              <Link key={w} href={`/schedule?week=${w}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${weekFilter === w ? 'border-frh-yellow text-frh-yellow' : 'border-brand-600 text-gray-600 hover:border-gray-400'}`}>
+              <Link key={w} href={`/schedule?week=${w}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${weekFilter === w ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
                 Wk {w}
               </Link>
             ))}
@@ -116,7 +116,7 @@ export default async function SchedulePage({ searchParams }) {
         )}
 
         {matches.length === 0 ? (
-          <p className="text-sm text-gray-600 text-center py-8">
+          <p className="text-sm text-frh-text-muted text-center py-8">
             {statusFilter || weekFilter ? 'No matches match your filters.' : 'No matches scheduled yet. Probably recovering from last season.'}
           </p>
         ) : (
@@ -129,13 +129,13 @@ export default async function SchedulePage({ searchParams }) {
             )}
             {upcomingMatches.length > 0 && (
               <div>
-                <h2 className="font-ui text-xs uppercase tracking-widest text-gray-500 mb-2">Upcoming</h2>
+                <h2 className="font-ui text-xs uppercase tracking-widest text-frh-text-muted mb-2">Upcoming</h2>
                 {weekFilter ? (
                   <div className="space-y-2">{upcomingMatches.map((m) => <MatchRow key={m.id} match={m} />)}</div>
                 ) : (
                   [...new Set(upcomingMatches.map((m) => m.week))].sort((a, b) => a - b).map((week) => (
                     <div key={week} className="mb-4">
-                      <p className="text-[10px] font-ui uppercase text-gray-600 mb-2">Week {week}</p>
+                      <p className="text-[10px] font-ui uppercase text-frh-text-muted mb-2">Week {week}</p>
                       <div className="space-y-2">
                         {upcomingMatches.filter((m) => m.week === week).map((m) => <MatchRow key={m.id} match={m} />)}
                       </div>
@@ -146,7 +146,7 @@ export default async function SchedulePage({ searchParams }) {
             )}
             {pastMatches.length > 0 && (
               <div>
-                <h2 className="font-ui text-xs uppercase tracking-widest text-gray-500 mb-2">Past</h2>
+                <h2 className="font-ui text-xs uppercase tracking-widest text-frh-text-muted mb-2">Past</h2>
                 <div className="space-y-2">{pastMatches.map((m) => <MatchRow key={m.id} match={m} />)}</div>
               </div>
             )}
