@@ -187,3 +187,69 @@ If in doubt, **do not run `prisma migrate reset --force` on production**. Restor
 Both are set in `.env.local` for local development, in Vercel Environment Variables for production, and as GitHub Actions secrets for the CI migration job.
 
 See `.env.example` for the exact URL format.
+
+---
+
+## Supabase Connection Management
+
+### Finding connection strings in the Supabase dashboard
+
+1. Go to your Supabase project dashboard
+2. Navigate to **Settings > Database**
+3. Under **Connection string**, select the **URI** tab
+4. You will see two connection modes:
+   - **Transaction mode (port 6543):** Use this for `DATABASE_URL`. This goes through Supavisor connection pooling and is what the Next.js app uses at runtime.
+   - **Session mode (port 5432):** Use this for `DIRECT_URL`. This is a direct connection required by Prisma CLI commands (migrate, generate, studio).
+
+### Verifying connection strings are correct
+
+Run the environment verification script:
+
+```bash
+npm run verify:env
+```
+
+This checks:
+- `DATABASE_URL` uses port 6543 (Transaction/pooled mode)
+- `DIRECT_URL` uses port 5432 (Session/direct mode)
+- Both URLs reference the same Supabase project-ref
+- The project-ref format is valid
+
+You can also manually inspect the URL structure:
+
+```
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres  (DATABASE_URL)
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres  (DIRECT_URL)
+```
+
+### Port reference
+
+| Port | Supavisor Mode | Prisma Usage | Env Var |
+|---|---|---|---|
+| 6543 | Transaction (pooled) | Runtime queries | `DATABASE_URL` |
+| 5432 | Session (direct) | Migrations, generate, studio | `DIRECT_URL` |
+
+**Transaction mode (6543)** pools connections and is suitable for serverless environments like Vercel where many short-lived function invocations share connections.
+
+**Session mode (5432)** provides a direct, persistent connection. Prisma's migration engine requires this because it holds a connection open for the duration of the migration.
+
+### Common pitfalls
+
+| Pitfall | Symptom | Fix |
+|---|---|---|
+| Using port 5432 for `DATABASE_URL` | Works locally but connection exhaustion in production | Switch to port 6543 for `DATABASE_URL` |
+| Using port 6543 for `DIRECT_URL` | `prisma migrate deploy` hangs or fails with timeout | Switch to port 5432 for `DIRECT_URL` |
+| Wrong project-ref | P2021 errors (tables not found) | Verify project-ref matches your Supabase dashboard URL |
+| Expired or rotated password | Connection refused / auth errors | Get new password from Supabase dashboard > Settings > Database |
+| Mixing project-refs between vars | Migrations succeed but app queries wrong DB | Ensure both URLs use the same project-ref |
+
+### Rotating database password without downtime
+
+1. **Generate a new password** in Supabase dashboard > Settings > Database > Reset database password
+2. **Update Vercel env vars immediately** -- both `DATABASE_URL` and `DIRECT_URL` must get the new password
+3. **Update GitHub Actions secrets** if CI runs migrations (`DATABASE_URL` and `DIRECT_URL` secrets)
+4. **Update `.env.local`** for local development
+5. **Trigger a Vercel redeploy** to pick up the new env vars
+6. **Verify** with `npm run verify:env` and `node scripts/verify-db.mjs`
+
+Note: Supabase password rotation takes effect immediately. The old password stops working as soon as the new one is set. Update all consumers (Vercel, GitHub Actions, local) as quickly as possible to minimize downtime.

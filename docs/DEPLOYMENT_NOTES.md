@@ -6,6 +6,72 @@ Operational steps required when shipping recent changes. Append new sections at 
 
 ---
 
+## Vercel Environment Sync Checklist
+
+Use this checklist after any of the following events:
+- Creating a new Supabase project
+- Rotating database credentials
+- Migrating between Supabase projects
+- Debugging P2021 or connection errors
+
+### Step-by-step verification
+
+1. **Identify the target Supabase project.**
+   - Open [Supabase Dashboard](https://supabase.com/dashboard)
+   - Note the project-ref from the URL: `https://supabase.com/dashboard/project/[PROJECT-REF]`
+
+2. **Get the current connection strings.**
+   - Go to Settings > Database in your Supabase project
+   - Copy the Transaction mode URI (port 6543) for `DATABASE_URL`
+   - Copy the Session mode URI (port 5432) for `DIRECT_URL`
+
+3. **Compare against Vercel.**
+   - Open Vercel > Project > Settings > Environment Variables
+   - Verify `DATABASE_URL` matches the Transaction mode URI
+   - Verify `DIRECT_URL` matches the Session mode URI
+   - Confirm both use the same project-ref and password
+
+4. **Validate locally.**
+   ```bash
+   # Set the production values temporarily and run:
+   npm run verify:env
+   node scripts/verify-db.mjs
+   ```
+
+5. **Confirm GitHub Actions secrets (if CI runs migrations).**
+   - Go to GitHub > Settings > Secrets and Variables > Actions
+   - Verify `DATABASE_URL` and `DIRECT_URL` match the same Supabase project
+
+6. **Trigger a Vercel redeploy** after any env var changes.
+
+### After rotating credentials
+
+When the Supabase database password is rotated:
+
+- [ ] Update `DATABASE_URL` in Vercel (all environments: Production, Preview, Development)
+- [ ] Update `DIRECT_URL` in Vercel (all environments)
+- [ ] Update `DATABASE_URL` in GitHub Actions secrets
+- [ ] Update `DIRECT_URL` in GitHub Actions secrets
+- [ ] Update `.env.local` for local development
+- [ ] Trigger Vercel redeploy
+- [ ] Run `npm run verify:env` to confirm
+- [ ] Run `node scripts/verify-db.mjs` to confirm connectivity
+
+### After creating a new Supabase project
+
+When migrating to a new Supabase project (new project-ref):
+
+- [ ] Update `DATABASE_URL` in Vercel with new project-ref and password
+- [ ] Update `DIRECT_URL` in Vercel with new project-ref and password
+- [ ] Update GitHub Actions secrets
+- [ ] Run `npx prisma migrate deploy` against the new database
+- [ ] Run `node prisma/seed.mjs` if seed data is needed (see `docs/RECOVERY.md` for warnings)
+- [ ] Run `node scripts/verify-db.mjs` to confirm tables exist
+- [ ] Trigger Vercel redeploy
+- [ ] Verify the live application loads without P2021 errors
+
+---
+
 ## Production Database Verification
 
 Use the verification scripts to confirm that your production environment is correctly configured.
