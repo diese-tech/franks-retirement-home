@@ -6,16 +6,6 @@ export const dynamic = 'force-dynamic';
 
 const VALID_TYPES = ['announcement', 'match_hype', 'player_spotlight', 'team_roast', 'weekly_recap'];
 
-function generateSlug(title) {
-  const base = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `${base}-${suffix}`;
-}
-
 // GET /api/bulletin-board/[id]
 // Public for published posts, admin-only for draft/archived.
 export async function GET(request, { params }) {
@@ -80,7 +70,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
     }
     data.title = body.title.trim();
-    data.slug = generateSlug(body.title);
+    // Slug is only generated on creation; never regenerated on title edit to preserve existing URLs
   }
 
   if (body.type !== undefined) {

@@ -99,7 +99,7 @@ export default async function HomePage() {
         relatedPlayer: { select: { id: true, name: true } },
       },
     });
-  } catch (err) { /* BulletinPost model not yet available */ }
+  } catch (err) { console.error('[homepage]', err); }
 
   return (
     <HomepageClient

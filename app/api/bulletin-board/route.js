@@ -28,7 +28,10 @@ export async function GET(request) {
 
   const where = {};
 
-  // Only admins can filter by non-published statuses
+  // Only admins can filter by non-published statuses.
+  // Non-admin requests with a status param are silently downgraded to published
+  // (fail-closed): this prevents information disclosure while still returning a
+  // useful 200 response for public clients that accidentally pass the param.
   if (statusFilter && admin) {
     where.status = statusFilter;
   } else {
@@ -82,37 +85,51 @@ export async function POST(request) {
     return NextResponse.json({ error: `Type must be one of: ${VALID_TYPES.join(', ')}` }, { status: 400 });
   }
 
-  const slug = generateSlug(title);
   const postStatus = status || 'draft';
   const publishedAt = postStatus === 'published' ? new Date() : null;
 
-  try {
-    const post = await prisma.bulletinPost.create({
-      data: {
-        title: title.trim(),
-        slug,
-        type,
-        body: postBody || '',
-        excerpt: excerpt || null,
-        pinned: pinned || false,
-        status: postStatus,
-        publishedAt,
-        relatedPlayerId: relatedPlayerId || null,
-        relatedTeamId: relatedTeamId || null,
-        relatedMatchId: relatedMatchId || null,
-        relatedDivisionId: relatedDivisionId || null,
-        relatedSeasonId: relatedSeasonId || null,
-        createdBy: admin?.username || null,
-      },
-      include: {
-        relatedTeam: { select: { id: true, name: true, tag: true } },
-        relatedPlayer: { select: { id: true, name: true } },
-      },
-    });
+  // Retry up to 3 times on slug collision (Prisma P2002 unique constraint error)
+  const MAX_SLUG_ATTEMPTS = 3;
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    const slug = generateSlug(title);
+    try {
+      const post = await prisma.bulletinPost.create({
+        data: {
+          title: title.trim(),
+          slug,
+          type,
+          body: postBody || '',
+          excerpt: excerpt || null,
+          pinned: pinned || false,
+          status: postStatus,
+          publishedAt,
+          relatedPlayerId: relatedPlayerId || null,
+          relatedTeamId: relatedTeamId || null,
+          relatedMatchId: relatedMatchId || null,
+          relatedDivisionId: relatedDivisionId || null,
+          relatedSeasonId: relatedSeasonId || null,
+          createdBy: admin?.username || null,
+        },
+        include: {
+          relatedTeam: { select: { id: true, name: true, tag: true } },
+          relatedPlayer: { select: { id: true, name: true } },
+        },
+      });
 
-    return NextResponse.json(post, { status: 201 });
-  } catch (err) {
-    console.error('[bulletin-board] POST error:', err);
-    return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+      return NextResponse.json(post, { status: 201 });
+    } catch (err) {
+      // P2002 = unique constraint violation (slug collision) — retry with new slug
+      if (err.code === 'P2002' && attempt < MAX_SLUG_ATTEMPTS - 1) {
+        continue;
+      }
+      if (err.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Unable to generate a unique slug after multiple attempts. Please try again.' },
+          { status: 409 }
+        );
+      }
+      console.error('[bulletin-board] POST error:', err);
+      return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+    }
   }
 }
