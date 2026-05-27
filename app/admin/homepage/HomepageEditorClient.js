@@ -141,7 +141,7 @@ export default function HomepageEditorClient({
   savedAt: initialSavedAt,
   // DB-driven homepage props passed through to HomepageClient
   activeSeason, liveMatches, upcomingMatches, recentDrafts,
-  divisionStandings, playerCount, matchCount,
+  divisionStandings, playerCount, matchCount, recentResults,
 }) {
   const [authed, setAuthed] = useState(() => {
     if (typeof window !== 'undefined') return sessionStorage.getItem('frh_admin') === '1';
@@ -325,6 +325,7 @@ export default function HomepageEditorClient({
         divisionStandings={divisionStandings}
         playerCount={playerCount}
         matchCount={matchCount}
+        recentResults={recentResults}
       />
 
       {/* Toast */}
