@@ -12,6 +12,7 @@ The platform now supports:
 - Human-reviewed OCR stat ingestion
 - Public standings and league pages
 - Admin operational tooling
+- Bulletin Board (public editorial/community system)
 
 FRH is the canonical source of truth for league operations.
 
@@ -26,6 +27,7 @@ FRH is the canonical source of truth for league operations.
 5. Standings accuracy
 6. Public league UX
 7. Standalone draft preservation
+8. Bulletin Board editorial system
 
 ---
 
@@ -39,6 +41,7 @@ FRH is the canonical source of truth for league operations.
 | Review Queue | Human approval boundary |
 | CSV/Excel | Operational export/import layer |
 | Standalone Drafts | Scrims/testing fallback |
+| Bulletin Board | Community editorial layer (admin-editable, public-readable) |
 
 ---
 
@@ -73,6 +76,21 @@ See:
 
 ---
 
+## Bulletin Board
+
+The Bulletin Board is FRH's public-facing community/editorial system -- a "league newspaper" narrative layer for community content grounded in real league data.
+
+- **Public-readable**: all published posts visible to everyone
+- **Admin-editable**: requires Discord admin role (`DISCORD_ADMIN_ROLE_ID`)
+- **Post types**: announcement, match_hype, player_spotlight, team_roast, weekly_recap
+- **Lifecycle**: draft -> published -> archived
+- **Routes**: `/bulletin-board` (list), `/bulletin-board/[slug]` (single post)
+- **API**: `/api/bulletin-board` (CRUD, admin-only for writes)
+
+See `docs/BULLETIN_BOARD.md` for full architecture documentation.
+
+---
+
 ## League Ops Policies
 
 | Document | Purpose |
@@ -80,6 +98,7 @@ See:
 | `docs/SETUP.md` | Fresh environment setup guide -- start here |
 | `docs/PRISMA_WORKFLOW.md` | Prisma migration policy and workflow reference |
 | `docs/ARCHITECTURE.md` | System architecture -- shared components, admin mirror pattern |
+| `docs/BULLETIN_BOARD.md` | Bulletin Board system architecture and API reference |
 | `docs/DEPLOYMENT_NOTES.md` | Production deployment workflow and operational steps |
 | `docs/RECOVERY.md` | Production recovery procedures -- P2021, failed migrations, re-seed |
 | `docs/review-queue-policy.md` | Human approval rules + staging boundaries |

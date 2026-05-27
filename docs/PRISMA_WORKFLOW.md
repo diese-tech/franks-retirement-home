@@ -98,6 +98,13 @@ No code changes are needed — just ensure both env vars are set correctly.
 
 ## Adding a schema change: step-by-step
 
+### Recent schema changes
+
+- **Removed**: `HomepageContent` model (the old admin-editable homepage content system has been replaced by a data-driven homepage)
+- **Added**: `BulletinPost` model (community/editorial bulletin board system with post types, lifecycle states, and entity linking)
+
+These changes were applied via `prisma db push` during active iteration per the project's iteration policy.
+
 ```bash
 # 1. Edit prisma/schema.prisma
 
