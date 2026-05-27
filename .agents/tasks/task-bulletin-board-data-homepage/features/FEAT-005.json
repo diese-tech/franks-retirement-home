@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-005",
+  "type": "docs",
+  "description": "Documentation update covering all changes made in this task. Update README, add/update setup docs, document Bulletin Board architecture, update Prisma workflow docs, and provide a QA checklist.",
+  "status": "completed",
+  "steps": [
+    "Update README.md: add Bulletin Board to the architecture summary table, add it to the 'platform now supports' list, add a brief Bulletin Board section explaining the system (public-readable, admin-editable, editorial/community content). Remove any references to the old homepage editor system. Update the Current Product Priorities list to include Bulletin Board.",
+    "Update docs/SETUP.md (if it references homepage editor, remove those references). Add note about Bulletin Board being admin-editable via Discord role auth.",
+    "Create docs/BULLETIN_BOARD.md documenting: purpose (community/editorial layer), architecture (shared public/admin components, inline editing), post types (announcement, match_hype, player_spotlight, team_roast, weekly_recap), post lifecycle (draft->published->archived), admin authorization (Discord admin role), API routes (GET/POST /api/bulletin-board, GET/PATCH/DELETE /api/bulletin-board/[id]), template system, related entity linking, and the 'Latest from Bulletin Board' homepage integration.",
+    "Update docs/PRISMA_WORKFLOW.md if it exists to note the HomepageContent model removal and BulletinPost addition. If it doesn't exist, skip this step.",
+    "Run npm run lint to confirm no issues with any docs changes that affect code"
+  ],
+  "acceptance_criteria": [
+    "README.md references Bulletin Board system",
+    "README.md no longer references homepage editor",
+    "docs/BULLETIN_BOARD.md exists with architecture documentation",
+    "npm run lint passes"
+  ],
+  "verification": [
+    "npm run lint exits with code 0",
+    "grep 'Bulletin Board' README.md returns results",
+    "test -f docs/BULLETIN_BOARD.md returns true"
+  ],
+  "blocked_reason": null,
+  "findings": "All documentation updates applied cleanly. No references to homepage editor existed in README.md. docs/ARCHITECTURE.md still contains stale homepage editor references but was not in scope for this feature. Lint passes with only pre-existing console warning in lib/captainLog.js."
+}
