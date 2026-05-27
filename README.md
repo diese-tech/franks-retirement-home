@@ -34,7 +34,7 @@ FRH is the canonical source of truth for league operations.
 | Layer | Responsibility |
 |---|---|
 | FRH | Canonical source of truth |
-| Prisma + Neon | Primary persistence layer |
+| Prisma + Supabase | Primary persistence layer |
 | Gemini (`lib/gemini.js`) | OCR extraction |
 | Review Queue | Human approval boundary |
 | CSV/Excel | Operational export/import layer |
@@ -77,10 +77,16 @@ See:
 
 | Document | Purpose |
 |---|---|
+| `docs/SETUP.md` | Fresh environment setup guide — start here |
+| `docs/PRISMA_WORKFLOW.md` | Prisma migration policy and workflow reference |
+| `docs/ARCHITECTURE.md` | System architecture — shared components, admin mirror pattern |
+| `docs/DEPLOYMENT_NOTES.md` | Production deployment workflow and operational steps |
 | `docs/review-queue-policy.md` | Human approval rules + staging boundaries |
 | `docs/forgelens-worker-architecture.md` | Native Gemini OCR architecture |
 | `docs/season-9-migration-runbook.md` | Migration sequencing + operational safeguards |
 | `docs/draft-architecture.md` | Draft system boundaries + invariants |
+| `docs/league-ops-lifecycle.md` | Season lifecycle and operational doctrine |
+| `docs/season-9-ops-reference.md` | S9 ops reference — teams, routes, scripts |
 | `docs/season-9-backlog.md` | Historical S9 planning reference |
 
 ---
@@ -100,6 +106,8 @@ npm install
 npm run db:reset   # resets DB, applies migrations, seeds mock data
 npm run dev
 ```
+
+See `docs/SETUP.md` for a full environment setup guide including Supabase project creation, connection string configuration, and Discord OAuth setup.
 
 ---
 
@@ -208,10 +216,10 @@ Set all Discord env vars in Vercel > Project Settings > Environment Variables:
 |---|---|
 | Framework | Next.js |
 | ORM | Prisma |
-| Database | Neon PostgreSQL |
+| Database | Supabase PostgreSQL |
 | Realtime | SSE |
 | OCR | Gemini Vision |
-| Hosting | Vercel / Node hosts |
+| Hosting | Vercel |
 
 ---
 

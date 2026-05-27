@@ -18,7 +18,7 @@ The previous standalone ForgeLens worker architecture is deprecated and retained
 |---|---|
 | FRH | Canonical source of truth, review queue owner, OCR orchestration, Gemini caller |
 | Gemini | Vision extraction model used for screenshot parsing |
-| Neon/Postgres | Canonical database |
+| Supabase PostgreSQL | Canonical database |
 | CSV/Excel | Export + fallback import layer |
 | Discord | Social + operational notification layer |
 

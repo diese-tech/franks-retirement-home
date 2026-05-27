@@ -10,6 +10,8 @@ FRH now uses **Prisma Migrate** as the source of truth. The `prisma/migrations/`
 
 **Never use `prisma db push` for deployments.** It bypasses the migration history, leaves the `_prisma_migrations` table out of sync, and causes `prisma migrate deploy` to fail or produce a drift error on the next run.
 
+See `docs/PRISMA_WORKFLOW.md` for the complete workflow policy and guidance on when `db push` is acceptable locally.
+
 ### Fresh database setup
 
 ```bash
@@ -48,8 +50,8 @@ npx prisma migrate deploy
 
 | Var | Purpose |
 |---|---|
-| `DATABASE_URL` | Pooled Neon connection string (used by Prisma at runtime) |
-| `DIRECT_URL` | Non-pooled Neon connection string (required for migrations — remove `-pooler` from hostname) |
+| `DATABASE_URL` | Supabase pooled connection string — Supavisor **Transaction** mode, port 6543 (used by Prisma at runtime) |
+| `DIRECT_URL` | Supabase direct connection string — Supavisor **Session** mode, port 5432 (required for Prisma migrations) |
 | `ADMIN_SESSION_SECRET` | HMAC secret for admin session cookies. Min 16 chars; generate with `openssl rand -base64 48`. Required in production. |
 | `ADMIN_AUTH_REQUIRED` | Set to `true` in production to enforce admin session cookies on all mutating endpoints. |
 | `GEMINI_API_KEY` | Google Gemini API key — used by `lib/gemini.js` for screenshot OCR via `/api/ocr/extract`. Required for captain screenshot uploads to work. |
