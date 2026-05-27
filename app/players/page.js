@@ -34,7 +34,7 @@ export default async function PlayersPage({ searchParams }) {
       prisma.player.findMany({ distinct: ['role'], select: { role: true }, orderBy: { role: 'asc' } }),
       prisma.player.findMany({ distinct: ['division'], where: { division: { not: null } }, select: { division: true }, orderBy: { division: 'asc' } }),
     ]);
-  } catch (_) {}
+  } catch (err) { console.error('[players]', err); }
 
   if (players === null) {
     return (

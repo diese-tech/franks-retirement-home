@@ -16,7 +16,8 @@ export default async function DraftPage({ params, searchParams }) {
   let dbError = false;
   try {
     draft = await prisma.draft.findUnique({ where: { id } });
-  } catch (_) {
+  } catch (err) {
+    console.error('[draft]', err);
     dbError = true;
   }
 
@@ -62,7 +63,8 @@ export default async function DraftPage({ params, searchParams }) {
   let state = null;
   try {
     state = await buildDraftState(id);
-  } catch (_) {
+  } catch (err) {
+    console.error('[draft]', err);
     return (
       <div className="max-w-md mx-auto mt-20 text-center card">
         <p className="text-red-400 mb-4">Unable to load draft state. Database may be unreachable.</p>

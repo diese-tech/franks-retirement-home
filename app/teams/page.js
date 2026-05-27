@@ -37,7 +37,7 @@ export default async function TeamsPage() {
           },
         })
       : [];
-  } catch (_) {}
+  } catch (err) { console.error('[teams]', err); }
 
   if (teams === null) {
     return (

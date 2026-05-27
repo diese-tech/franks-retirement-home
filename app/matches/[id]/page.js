@@ -150,7 +150,8 @@ export default async function MatchDetailPage({ params, searchParams }) {
         },
       },
     });
-  } catch (_) {
+  } catch (err) {
+    console.error('[match-detail]', err);
     dbError = true;
   }
 
