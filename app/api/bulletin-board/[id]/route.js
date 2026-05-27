@@ -5,6 +5,7 @@ import { getBulletinAdmin, requireBulletinAdmin } from '@/lib/bulletinAuth';
 export const dynamic = 'force-dynamic';
 
 const VALID_TYPES = ['announcement', 'match_hype', 'player_spotlight', 'team_roast', 'weekly_recap'];
+const VALID_STATUSES = ['draft', 'published', 'archived'];
 
 // GET /api/bulletin-board/[id]
 // Public for published posts, admin-only for draft/archived.
@@ -91,6 +92,9 @@ export async function PATCH(request, { params }) {
   if (body.relatedSeasonId !== undefined) data.relatedSeasonId = body.relatedSeasonId || null;
 
   if (body.status !== undefined) {
+    if (!VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: `Status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
+    }
     data.status = body.status;
     // If transitioning to published and publishedAt not yet set
     if (body.status === 'published' && !existing.publishedAt) {
