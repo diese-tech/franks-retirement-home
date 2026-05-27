@@ -3,5 +3,12 @@
   "task_description": "FRH autonomous stabilization + Bulletin Board implementation. Remove old homepage editor and fake content, rebuild homepage as data-driven dashboard, implement Bulletin Board system with public/admin views and inline editing, update documentation.",
   "status": "in_progress",
   "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All 357 tests pass (29 new bulletin board tests), lint clean, build generates 21 static pages + all dynamic routes. Semantic review fixes applied: slug collision retry, PATCH slug fix, shared auth helper, error logging, tests."
+  }
 }
