@@ -28,6 +28,7 @@ export default async function AdminHomepagePage() {
   let playerCount = 0;
   let matchCount = 0;
   let divisionStandings = [];
+  let recentResults = [];
 
   try {
     activeSeason = await prisma.season.findFirst({
@@ -40,7 +41,7 @@ export default async function AdminHomepagePage() {
   } catch (_) {}
 
   try {
-    [liveMatches, upcomingMatches, recentDrafts, playerCount, matchCount] = await Promise.all([
+    [liveMatches, upcomingMatches, recentDrafts, playerCount, matchCount, recentResults] = await Promise.all([
       prisma.match.findMany({
         where: { status: 'live' }, orderBy: { scheduledAt: 'asc' }, take: 3,
         include: {
@@ -65,6 +66,16 @@ export default async function AdminHomepagePage() {
       }),
       prisma.player.count(),
       prisma.match.count({ where: { status: 'completed' } }),
+      prisma.match.findMany({
+        where: { status: 'completed' },
+        orderBy: { scheduledAt: 'desc' },
+        take: 5,
+        include: {
+          homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+          awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
+          division: { select: { name: true } },
+        },
+      }),
     ]);
   } catch (_) {}
 
@@ -94,6 +105,7 @@ export default async function AdminHomepagePage() {
       divisionStandings={JSON.parse(JSON.stringify(divisionStandings))}
       playerCount={playerCount}
       matchCount={matchCount}
+      recentResults={JSON.parse(JSON.stringify(recentResults))}
     />
   );
 }

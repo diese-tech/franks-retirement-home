@@ -197,10 +197,40 @@ All write endpoints are guarded by `requireAdmin`.
 | `/players` | DB: `Player` | Admin Players tab |
 | `/matches/[id]` | DB: `Match`, `Game`, `Draft` | Admin Schedule tab |
 | `/draft/[id]` | DB: `Draft` + SSE | Admin Drafts tab |
-| `/captain` | DB: captain's matches (Discord auth) | N/A — self-service |
+| `/captain` | DB: captain's matches (Discord auth) | N/A -- self-service |
 | `/` (homepage) | DB: live data + `HomepageContent` (editorial) | **Admin Homepage Editor** `/admin/homepage` |
 
 The homepage is the only public page with both data-driven content (live matches, standings) and admin-editable editorial content (ticker, headlines, etc.). All other public pages are fully data-driven and managed through the existing admin dashboard tabs.
+
+### Homepage section breakdown
+
+The homepage contains two categories of sections:
+
+**Editorial sections** (admin-editable via `/admin/homepage`):
+| Section | Default source | Admin override |
+|---|---|---|
+| Ticker | `lib/homepageDefaults.js` | Inline text editing, reorder, add/remove |
+| Headlines (The Wire) | `lib/homepageDefaults.js` | Inline editing of stories |
+| Bulletin Board | `lib/homepageDefaults.js` | Inline editing of posts |
+| Fraud Watch | `lib/homepageDefaults.js` | Inline editing of cases |
+| Match of the Week | `lib/homepageDefaults.js` | Inline editing of matchup details |
+| Rivalry Systems | `lib/homepageDefaults.js` | Inline editing of rivalries |
+| Knows Ball (Fake Analysts) | `lib/homepageDefaults.js` | Inline editing of picks |
+| Washed Reports | `lib/homepageDefaults.js` | Inline editing of sightings |
+| Social Cards | `lib/homepageDefaults.js` | Inline editing of share cards |
+| Discord CTA | `lib/homepageDefaults.js` | Editable invite URL |
+| Washed% | `lib/homepageDefaults.js` | Editable number |
+
+**Computed sections** (data-driven, no admin override):
+| Section | Data source | Behavior |
+|---|---|---|
+| Broadcast Hero (Live/Upcoming) | DB: `Match` (live/scheduled) | Shows live match or next scheduled |
+| Active Draft Sessions | DB: `Draft` (lobby/banning/picking) | Shows when drafts are active |
+| Recent Results | DB: `Match` (completed, last 5) | Shows last 5 completed matches |
+| Power Rankings | DB: `divisionStandings` (computed standings) | Falls back to placeholder when no standings exist |
+| Form Check (Hot/Cold Teams) | DB: `divisionStandings` (computed standings) | Hidden when fewer than 2 teams have standings |
+| This Week's Slate | DB: `Match` (scheduled) | Shows upcoming scheduled matches |
+| Division Standings | DB: computed from approved `Game.winnerTeamId` | Shows top 5 per division |
 
 ---
 

@@ -821,7 +821,7 @@ export default function HomepageClient({
   playerCount,
   godCount: _godCount,
   matchCount,
-  recentResults: _recentResults,
+  recentResults,
   // ── new editorial props ───────────────────────────────────────────────────
   editableContent,
   mode = 'public',
@@ -874,7 +874,7 @@ export default function HomepageClient({
   const rankingsRows = (() => {
     if (divisionStandings?.length > 0) {
       const allRows = divisionStandings.flatMap(({ rows }) => rows);
-      if (allRows.length >= 3) {
+      if (allRows.length >= 1) {
         return allRows.slice(0, 10).map((row, i) => ({
           rank: i + 1,
           team: row.teamName,
@@ -990,6 +990,27 @@ export default function HomepageClient({
           </>
         )}
 
+        {/* ── Recent Results (data-driven) ─────────────────── */}
+        <FrhSectionLabel kind="default" pill="RESULTS" title="RECENT RESULTS" />
+        <FrhPanel title="RECENT RESULTS" accent="purple">
+          {recentResults?.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {recentResults.slice(0, 5).map((m) => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--frh-border)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                  <span style={{ flex: 1, fontWeight: 700 }}>{m.homeTeam?.name ?? 'Home'}</span>
+                  <span style={{ color: 'var(--frh-text-muted)' }}>vs</span>
+                  <span style={{ flex: 1, fontWeight: 700, textAlign: 'right' }}>{m.awayTeam?.name ?? 'Away'}</span>
+                  <span style={{ marginLeft: 12, fontSize: 10, color: 'var(--frh-text-muted)', whiteSpace: 'nowrap' }}>{m.division?.name ?? ''}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6 }}>
+              No completed matches yet.
+            </div>
+          )}
+        </FrhPanel>
+
         {/* ── Section 2: The Wire ─────────────────────────── */}
         <Section field="Headlines">
           <FrhSectionLabel kind="prime" pill="FRH WIRE" title="ROTATING HEADLINES" after="UPDATED 3H AGO" />
@@ -1032,6 +1053,44 @@ export default function HomepageClient({
             </div>
           ))}
         </FrhPanel>
+
+        {/* ── Form Check: Hot/Cold Teams (computed) ──────── */}
+        {(() => {
+          const allTeams = divisionStandings?.flatMap(({ rows }) => rows) ?? [];
+          if (allTeams.length < 2) return null;
+          const sorted = [...allTeams].sort((a, b) => b.wins - a.wins);
+          const hotTeams = sorted.slice(0, 3);
+          const coldTeams = [...allTeams].sort((a, b) => b.losses - a.losses).slice(0, 3);
+          return (
+            <>
+              <FrhSectionLabel kind="default" pill="FORM" title="FORM CHECK" after="HOT & COLD" />
+              <FrhPanel title="FORM CHECK" accent="lime">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, padding: '8px 12px' }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 6 }}>HOT</div>
+                    {hotTeams.map((t, i) => (
+                      <div key={t.teamId ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                        <span style={{ color: '#4ade80', fontWeight: 700, width: 14 }}>{i + 1}</span>
+                        <span style={{ flex: 1 }}>{t.teamName}</span>
+                        <span style={{ color: '#4ade80' }}>{t.wins}W</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#f87171', letterSpacing: '0.1em', marginBottom: 6 }}>COLD</div>
+                    {coldTeams.map((t, i) => (
+                      <div key={t.teamId ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                        <span style={{ color: '#f87171', fontWeight: 700, width: 14 }}>{i + 1}</span>
+                        <span style={{ flex: 1 }}>{t.teamName}</span>
+                        <span style={{ color: '#f87171' }}>{t.losses}L</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </FrhPanel>
+            </>
+          );
+        })()}
 
         {/* ── Section 4: Bulletin Board + Fraud Watch ───── */}
         <Section field="Bulletin">
