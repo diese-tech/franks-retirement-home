@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Bulletin Board system implementation (Phase 4). Add the BulletinPost Prisma model, create the /bulletin-board public route with admin inline editing, create API routes for CRUD operations, and wire up Discord-based admin authorization. The bulletin board is a public-readable, admin-editable community/editorial system with post lifecycle (draft/published/archived), post types (announcement, match_hype, player_spotlight, team_roast, weekly_recap), pinning, templates, and related entity linking.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Add the BulletinPost model to prisma/schema.prisma with these fields: id (String @id @default(cuid())), title (String), slug (String @unique), status (String @default('draft') - values: draft/published/archived), type (String - values: announcement/match_hype/player_spotlight/team_roast/weekly_recap), body (String - full markdown/text content), excerpt (String? - short preview), pinned (Boolean @default(false)), displayOrder (Int @default(0)), relatedPlayerId (String? - FK to Player), relatedTeamId (String? - FK to Team), relatedMatchId (String? - FK to Match), relatedDivisionId (String? - FK to Division), relatedSeasonId (String? - FK to Season), createdBy (String? - Discord username or admin ID), updatedBy (String? - Discord username or admin ID), publishedAt (DateTime?), createdAt (DateTime @default(now())), updatedAt (DateTime @updatedAt). Add relations: relatedPlayer (Player?), relatedTeam (Team?), relatedMatch (Match?), relatedDivision (Division?), relatedSeason (Season?). Add indexes: @@index([status]), @@index([type]), @@index([publishedAt]).",
     "Add corresponding relation fields on the target models in schema.prisma: Player model add 'bulletinPosts BulletinPost[]', Team model add 'bulletinPosts BulletinPost[]', Match model add 'bulletinPosts BulletinPost[]', Division model add 'bulletinPosts BulletinPost[]', Season model add 'bulletinPosts BulletinPost[]'.",
@@ -45,5 +45,5 @@
     "Page files exist at app/bulletin-board/page.js and app/bulletin-board/[slug]/page.js"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All steps completed successfully. BulletinPost model added to schema with reverse relations on Player/Team/Match/Division/Season. Migration SQL created. API routes at /api/bulletin-board (GET+POST), /api/bulletin-board/[id] (GET+PATCH+DELETE), and /api/bulletin-board/templates (GET). Public pages at /bulletin-board and /bulletin-board/[slug] with admin inline editing. Nav updated with Bulletin link between Standings and Players. Auth uses getDiscordSessionUser (synchronous) from lib/discordAuth.js. Server components use a fake request object to check admin session from cookies(). All 328 tests pass, lint clean, build succeeds."
 }
