@@ -16,6 +16,7 @@ export default async function HomePage() {
   let matchCount = 0;
   let recentResults = [];
   let divisionStandings = [];
+  let recentBulletinPosts = [];
 
   try {
     activeSeason = await prisma.season.findFirst({
@@ -88,6 +89,18 @@ export default async function HomePage() {
       : [];
   } catch (err) { console.error('[homepage]', err); }
 
+  try {
+    recentBulletinPosts = await prisma.bulletinPost.findMany({
+      where: { status: 'published' },
+      orderBy: [{ pinned: 'desc' }, { publishedAt: 'desc' }],
+      take: 5,
+      include: {
+        relatedTeam: { select: { id: true, name: true, tag: true } },
+        relatedPlayer: { select: { id: true, name: true } },
+      },
+    });
+  } catch (err) { /* BulletinPost model not yet available */ }
+
   return (
     <HomepageClient
       activeSeason={JSON.parse(JSON.stringify(activeSeason))}
@@ -99,6 +112,7 @@ export default async function HomePage() {
       godCount={godCount}
       matchCount={matchCount}
       recentResults={JSON.parse(JSON.stringify(recentResults))}
+      recentBulletinPosts={JSON.parse(JSON.stringify(recentBulletinPosts))}
     />
   );
 }

@@ -268,6 +268,7 @@ export default function HomepageClient({
   godCount,
   matchCount,
   recentResults,
+  recentBulletinPosts = [],
 }) {
   const hasLive = liveMatches?.length > 0;
   const liveMatch = liveMatches?.[0] ?? null;
@@ -448,6 +449,42 @@ export default function HomepageClient({
             </>
           );
         })()}
+
+        {/* Latest from the Bulletin Board */}
+        {recentBulletinPosts?.length > 0 && (
+          <>
+            <FrhSectionLabel kind="comm" pill="COMMUNITY" title="LATEST FROM THE BULLETIN BOARD" />
+            <FrhPanel title="BULLETIN BOARD" accent="yellow">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {recentBulletinPosts.map((post) => {
+                  const excerpt = post.excerpt || (post.body ? post.body.slice(0, 120) + (post.body.length > 120 ? '...' : '') : '');
+                  const dt = post.publishedAt ? new Date(post.publishedAt) : null;
+                  return (
+                    <div key={post.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderBottom: '1px solid var(--frh-border)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      <span style={{ display: 'inline-block', padding: '2px 6px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: post.type === 'announcement' ? '#ffd400' : post.type === 'trade' ? '#60a5fa' : post.type === 'drama' ? '#f87171' : '#a78bfa', color: '#000', borderRadius: 2, whiteSpace: 'nowrap', flexShrink: 0, marginTop: 2 }}>
+                        {post.type ?? 'post'}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{post.title}</div>
+                        {excerpt && <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>{excerpt}</div>}
+                        <div style={{ display: 'flex', gap: 10, fontSize: 10, color: 'var(--frh-text-muted)' }}>
+                          {dt && <span>{dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                          {post.relatedTeam && <span style={{ color: '#ffd400' }}>[{post.relatedTeam.tag}]</span>}
+                          {post.relatedPlayer && <span>{post.relatedPlayer.name}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ padding: '8px 12px', borderTop: '1px solid var(--frh-border)' }}>
+                <Link href="/bulletin-board" style={{ fontSize: 11, color: '#ffd400', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
+                  View All Posts &rarr;
+                </Link>
+              </div>
+            </FrhPanel>
+          </>
+        )}
 
         {/* Upcoming Schedule + Standings */}
         <FrhSectionLabel kind="default" pill="SCHEDULE" title="THIS WEEK&apos;S SLATE + STANDINGS" />
