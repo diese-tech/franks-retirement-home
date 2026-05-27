@@ -10,6 +10,7 @@ const PUBLIC_LINKS = [
   { href: '/schedule',  label: 'Schedule' },
   { href: '/teams',     label: 'Teams' },
   { href: '/standings', label: 'Standings' },
+  { href: '/bulletin-board', label: 'Bulletin' },
   { href: '/players',   label: 'Players' },
 ];
 

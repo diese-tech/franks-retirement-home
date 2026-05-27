@@ -1,0 +1,49 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Bulletin Board system implementation (Phase 4). Add the BulletinPost Prisma model, create the /bulletin-board public route with admin inline editing, create API routes for CRUD operations, and wire up Discord-based admin authorization. The bulletin board is a public-readable, admin-editable community/editorial system with post lifecycle (draft/published/archived), post types (announcement, match_hype, player_spotlight, team_roast, weekly_recap), pinning, templates, and related entity linking.",
+  "status": "in_progress",
+  "steps": [
+    "Add the BulletinPost model to prisma/schema.prisma with these fields: id (String @id @default(cuid())), title (String), slug (String @unique), status (String @default('draft') - values: draft/published/archived), type (String - values: announcement/match_hype/player_spotlight/team_roast/weekly_recap), body (String - full markdown/text content), excerpt (String? - short preview), pinned (Boolean @default(false)), displayOrder (Int @default(0)), relatedPlayerId (String? - FK to Player), relatedTeamId (String? - FK to Team), relatedMatchId (String? - FK to Match), relatedDivisionId (String? - FK to Division), relatedSeasonId (String? - FK to Season), createdBy (String? - Discord username or admin ID), updatedBy (String? - Discord username or admin ID), publishedAt (DateTime?), createdAt (DateTime @default(now())), updatedAt (DateTime @updatedAt). Add relations: relatedPlayer (Player?), relatedTeam (Team?), relatedMatch (Match?), relatedDivision (Division?), relatedSeason (Season?). Add indexes: @@index([status]), @@index([type]), @@index([publishedAt]).",
+    "Add corresponding relation fields on the target models in schema.prisma: Player model add 'bulletinPosts BulletinPost[]', Team model add 'bulletinPosts BulletinPost[]', Match model add 'bulletinPosts BulletinPost[]', Division model add 'bulletinPosts BulletinPost[]', Season model add 'bulletinPosts BulletinPost[]'.",
+    "Create a migration file at prisma/migrations/20250527100001_add_bulletin_post/migration.sql with the CREATE TABLE statement for BulletinPost and the necessary indexes. Then run npx prisma generate to update the client.",
+    "Create lib/bulletinAuth.js: export a helper function requireBulletinAdmin(request) that checks Discord session cookie via lib/discordAuth.js (getDiscordSession + hasDiscordAdminRole). Returns null if authorized, returns a NextResponse 401/403 if not. Also export isAdmin(request) that returns boolean for use in page components.",
+    "Create app/api/bulletin-board/route.js with GET and POST handlers. GET: public (no auth required), returns published posts by default with optional ?status=draft,published,archived query param (status filter only works for admins). Supports ?type= filter and ?limit= (default 20). POST: requires admin auth via requireBulletinAdmin. Creates a new BulletinPost. Body: { title, type, body, excerpt?, pinned?, relatedPlayerId?, relatedTeamId?, relatedMatchId?, relatedDivisionId?, relatedSeasonId?, status? }. Auto-generates slug from title (lowercase, spaces to dashes, remove special chars, append random 4-char suffix for uniqueness).",
+    "Create app/api/bulletin-board/[id]/route.js with GET, PATCH, DELETE handlers. GET: returns single post (published posts are public, draft/archived require admin). PATCH: requires admin auth. Supports updating any field including status transitions (draft->published sets publishedAt, published->archived, etc.). DELETE: requires admin auth. Actually deletes the post (archived posts can still be deleted).",
+    "Create app/api/bulletin-board/templates/route.js with GET handler that returns available post templates. Each template has: type, title template, body template with placeholders. Templates reference real data patterns - e.g. for player_spotlight: fetch top KDA player from StatLine table, for match_hype: fetch next scheduled match, for weekly_recap: fetch recent completed matches. Returns template suggestions with real data filled in where possible.",
+    "Create app/bulletin-board/page.js (server component): Fetch published bulletin posts from DB. Also determine if the current user is an admin (check Discord session). Pass posts and isAdmin flag to the client component.",
+    "Create app/bulletin-board/BulletinBoardClient.js (client component): Render the bulletin board page. Public view: list of published posts rendered as cards with type badge, title, excerpt, publishedAt date, pinned indicator, related entity tags. Admin view (when isAdmin=true): adds inline controls - 'New Post' button at top, status filter tabs (All/Draft/Published/Archived), edit/publish/archive buttons on each post, inline post creation form. Non-admin behavior: if a non-admin clicks any admin area or tries an admin action, show a toast/message: 'Are you an editor? Hmm, didn\\'t think so...' Style using existing RetroWindow/BrutalButton/FrhPanel patterns for consistency with the rest of the site.",
+    "Create app/bulletin-board/[slug]/page.js (server component): Fetch a single published post by slug. Show full post content. If post is draft/archived, only show to admins. Include admin inline edit controls (edit body, change status, toggle pin).",
+    "Create app/bulletin-board/[slug]/BulletinPostClient.js (client component): Render full post view with admin inline editing. Admin can: edit title/body/excerpt inline, change status via buttons (Publish/Archive/Revert to Draft), toggle pinned, update related entities. Use the inline-edit-on-live-page pattern (admin controls layered onto the public view, not a separate CMS page).",
+    "Add /bulletin-board link to components/Nav.js in the PUBLIC_LINKS array, between 'Standings' and 'Players'.",
+    "Run npx prisma generate, npm run lint, npm run build to confirm everything compiles"
+  ],
+  "acceptance_criteria": [
+    "BulletinPost model exists in prisma/schema.prisma with all specified fields and relations",
+    "Migration SQL file exists for the new table",
+    "npx prisma generate succeeds",
+    "GET /api/bulletin-board returns published posts (public)",
+    "POST /api/bulletin-board requires admin auth and creates posts",
+    "PATCH /api/bulletin-board/[id] requires admin auth and updates posts",
+    "DELETE /api/bulletin-board/[id] requires admin auth and deletes posts",
+    "/bulletin-board page renders published posts publicly",
+    "/bulletin-board page shows admin controls when user has Discord admin role",
+    "/bulletin-board/[slug] renders full post content",
+    "Non-admins see 'Are you an editor? Hmm, didn't think so...' when attempting admin actions",
+    "Post lifecycle works: draft -> published (sets publishedAt) -> archived",
+    "Post types are supported: announcement, match_hype, player_spotlight, team_roast, weekly_recap",
+    "Bulletin Board link appears in the navigation",
+    "npm run lint passes",
+    "npm run build passes"
+  ],
+  "verification": [
+    "npx prisma generate exits with code 0",
+    "npm run lint exits with code 0",
+    "npm run build exits with code 0",
+    "The BulletinPost model has all required fields in schema.prisma",
+    "API route files exist at app/api/bulletin-board/route.js and app/api/bulletin-board/[id]/route.js",
+    "Page files exist at app/bulletin-board/page.js and app/bulletin-board/[slug]/page.js"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -21,6 +21,7 @@ model Season {
   divisions    Division[]
   matches      Match[]
   playerDrafts PlayerDraft[]
+  bulletinPosts BulletinPost[]
 }
 
 model Division {
@@ -34,6 +35,7 @@ model Division {
   teams       Team[]
   matches     Match[]
   playerDraft PlayerDraft?
+  bulletinPosts BulletinPost[]
 
   @@unique([seasonId, name])
 }
@@ -65,6 +67,7 @@ model Team {
   awayMatches      Match[]           @relation("AwayTeam")
   playerDraftPicks PlayerDraftPick[]
   statLines        StatLine[]
+  bulletinPosts    BulletinPost[]
 }
 
 model TeamMember {
@@ -107,6 +110,7 @@ model Match {
   games               Game[]
   submissions         MatchSubmission[]
   rescheduleRequests  RescheduleRequest[]
+  bulletinPosts       BulletinPost[]
 }
 
 model Game {
@@ -244,6 +248,7 @@ model Player {
   statLines          StatLine[]
   extractedStatLines ExtractedStatLine[]
   aliases            PlayerAlias[]
+  bulletinPosts      BulletinPost[]
 }
 
 model God {
@@ -471,5 +476,43 @@ model PlayerAlias {
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([alias]) // one canonical player per alias string
+}
+
+// ─── Bulletin Board ───────────────────────────────────────────────────────────
+//
+// Public-readable, admin-editable community/editorial system.
+// Post lifecycle: draft → published → archived
+// Post types: announcement | match_hype | player_spotlight | team_roast | weekly_recap
+
+model BulletinPost {
+  id               String    @id @default(cuid())
+  title            String
+  slug             String    @unique
+  status           String    @default("draft") // draft | published | archived
+  type             String    // announcement | match_hype | player_spotlight | team_roast | weekly_recap
+  body             String    @default("")
+  excerpt          String?
+  pinned           Boolean   @default(false)
+  displayOrder     Int       @default(0)
+  relatedPlayerId  String?
+  relatedTeamId    String?
+  relatedMatchId   String?
+  relatedDivisionId String?
+  relatedSeasonId  String?
+  createdBy        String?   // Discord username or admin identifier
+  updatedBy        String?
+  publishedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  relatedPlayer   Player?   @relation(fields: [relatedPlayerId], references: [id], onDelete: SetNull)
+  relatedTeam     Team?     @relation(fields: [relatedTeamId], references: [id], onDelete: SetNull)
+  relatedMatch    Match?    @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
+  relatedDivision Division? @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
+  relatedSeason   Season?   @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+  @@index([publishedAt])
 }
 
