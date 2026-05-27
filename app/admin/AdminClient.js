@@ -135,6 +135,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     { key: 'review',       label: 'Review Queue',   count: submissions.length || null },
     { key: 'import',       label: 'Import',         count: null },
     { key: 'gods',         label: 'Gods',           count: gods.length },
+    { key: 'homepage',     label: 'Homepage Editor', count: null },
   ];
 
   return (
@@ -197,6 +198,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'review'      && <ReviewQueuePanel submissions={submissions} onRefresh={refreshSubmissions} />}
         {tab === 'import'      && <ImportPanel      onRefresh={refreshPlayers} />}
         {tab === 'gods'        && <GodsPanel        gods={gods}       onRefresh={refreshGods} />}
+        {tab === 'homepage'    && <HomepageEditorPanel />}
       </RetroWindow>
     </div>
   );
@@ -1905,6 +1907,112 @@ function GodsPanel({ gods, onRefresh }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </RetroWindow>
+  );
+}
+
+
+// ─── Homepage Editor Panel ────────────────────────────────────────────────────
+// Lightweight panel that lives inside the admin dashboard and links out to
+// the full-screen homepage editor at /admin/homepage.
+
+function HomepageEditorPanel() {
+  const [status, setStatus] = useState(null); // null | { hasDraft, hasPublished, publishedAt, savedAt }
+  const [loading, setLoading] = useState(false);
+
+  const loadStatus = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/homepage-content');
+      const data = await res.json();
+      if (res.ok) {
+        setStatus({
+          hasDraft:    !!data.draft,
+          hasPublished: !!data.published,
+          publishedAt: data.published?.publishedAt ?? null,
+          savedAt:     data.draft?.savedAt ?? null,
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPublished = async () => {
+    if (!confirm('Revert the public homepage to hardcoded defaults? This deletes the published row.')) return;
+    await fetch('/api/admin/homepage-content?target=published', { method: 'DELETE' });
+    await loadStatus();
+  };
+
+  const fmtTime = (iso) => {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  };
+
+  return (
+    <RetroWindow title="HOMEPAGE EDITOR">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Homepage Editorial Content</h2>
+          <p className="text-xs text-gray-500 max-w-lg">
+            Edit the public homepage ticker, headlines, bulletin board, fraud watch, match of the week,
+            rivalries, knows ball, washed reports, social cards, and Discord invite link.
+            Changes are saved as a draft and only go live when you publish.
+          </p>
+        </div>
+        <a href="/admin/homepage" target="_blank" rel="noopener noreferrer">
+          <BrutalButton variant="primary">Open Homepage Editor ↗</BrutalButton>
+        </a>
+      </div>
+
+      <div className="border-2 border-brand-700 p-4 mb-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-ui text-xs uppercase tracking-widest text-gray-400">Content Status</h3>
+          <BrutalButton onClick={loadStatus} disabled={loading} variant="secondary" size="sm">
+            {loading ? 'Checking…' : 'Check Status'}
+          </BrutalButton>
+        </div>
+
+        {status ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <PixelBadge label={status.hasDraft ? 'Draft exists' : 'No draft'} color={status.hasDraft ? 'lime' : 'cream'} />
+              {status.hasDraft && (
+                <span className="font-mono text-[10px] text-gray-500">Last saved: {fmtTime(status.savedAt)}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <PixelBadge label={status.hasPublished ? 'Published' : 'Not published (showing defaults)'} color={status.hasPublished ? 'lime' : 'orange'} />
+              {status.hasPublished && (
+                <span className="font-mono text-[10px] text-gray-500">Published: {fmtTime(status.publishedAt)}</span>
+              )}
+            </div>
+            {status.hasPublished && (
+              <BrutalButton onClick={handleResetPublished} variant="danger" size="sm" className="mt-2">
+                Revert Public to Defaults
+              </BrutalButton>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-600">Click &ldquo;Check Status&rdquo; to see current draft/publish state.</p>
+        )}
+      </div>
+
+      <div className="border-2 border-brand-700/40 p-3 bg-brand-900/20">
+        <h3 className="font-ui text-[10px] uppercase tracking-widest text-gray-500 mb-2">Editable Sections</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
+          {[
+            'Ticker (FRH Wire)', 'Headlines & Lead Story', 'Bulletin Board',
+            'Fraud Watch', 'Match of the Week', 'Rivalry Posters',
+            'Knows Ball', 'Washed Reports', 'Social Cards',
+            'Discord CTA URL', 'Washed% stat',
+          ].map(s => (
+            <div key={s} className="flex items-center gap-1.5 text-[11px] text-gray-400">
+              <span style={{ color: '#ffd400' }}>★</span> {s}
+            </div>
+          ))}
+        </div>
       </div>
     </RetroWindow>
   );
