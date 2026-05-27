@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "refactor",
   "description": "Remove old homepage editor system and all fake/mock editorial content. This covers Phase 2 (remove old homepage editor) and the fake content cleanup. The old editor at app/admin/homepage/ allows disconnected fake editorial management via the HomepageContent DB model. The fake defaults in lib/homepageDefaults.js (fake teams, fake players, fake rankings, fake bulletin posts etc.) must be removed. The HomepageContent Prisma model, its API route, and the editor UI must all be deleted. The 'homepage' tab in AdminClient must be removed. The RANKINGS_DATA constant in HomepageClient.js (fake power rankings with fake team names like 'Bedpan Bandits', 'Whiskey Wardens' etc.) must also be removed.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Delete app/admin/homepage/ directory entirely (HomepageEditorClient.js and page.js)",
     "Delete app/api/admin/homepage-content/route.js",
@@ -41,5 +41,5 @@
     "grep -r 'Bedpan Bandits' --include='*.js' app/ lib/ returns no results"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All steps completed successfully. Removed 1838 lines of editorial/editor code and replaced with 136 lines of data-driven rendering. Build, lint, and all 328 tests pass. The verify-db.mjs script also had a HomepageContent reference that was cleaned up. Docs/ARCHITECTURE.md still references the old system but that is non-production documentation."
 }
