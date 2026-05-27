@@ -11,29 +11,46 @@ const ROLE_COLORS = {
 };
 
 export default async function TeamsPage() {
-  const activeSeason = await prisma.season.findFirst({
-    where: { status: 'active' },
-    include: { divisions: { orderBy: { tier: 'asc' } } },
-  }) ?? await prisma.season.findFirst({
-    orderBy: { createdAt: 'desc' },
-    include: { divisions: { orderBy: { tier: 'asc' } } },
-  });
+  let activeSeason = null;
+  let teams = null;
+  try {
+    activeSeason = await prisma.season.findFirst({
+      where: { status: 'active' },
+      include: { divisions: { orderBy: { tier: 'asc' } } },
+    }) ?? await prisma.season.findFirst({
+      orderBy: { createdAt: 'desc' },
+      include: { divisions: { orderBy: { tier: 'asc' } } },
+    });
 
-  const teams = activeSeason
-    ? await prisma.team.findMany({
-        where: { division: { seasonId: activeSeason.id } },
-        orderBy: { name: 'asc' },
-        include: {
-          division: { select: { id: true, name: true } },
-          org: { select: { name: true, tag: true, accentColor: true } },
-          members: {
-            where: { leftAt: null },
-            orderBy: { isCaptain: 'desc' },
-            include: { player: { select: { id: true, name: true, role: true } } },
+    teams = activeSeason
+      ? await prisma.team.findMany({
+          where: { division: { seasonId: activeSeason.id } },
+          orderBy: { name: 'asc' },
+          include: {
+            division: { select: { id: true, name: true } },
+            org: { select: { name: true, tag: true, accentColor: true } },
+            members: {
+              where: { leftAt: null },
+              orderBy: { isCaptain: 'desc' },
+              include: { player: { select: { id: true, name: true, role: true } } },
+            },
           },
-        },
-      })
-    : [];
+        })
+      : [];
+  } catch (_) {}
+
+  if (teams === null) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <RetroWindow title="TEAMS.EXE" titleBarColor="yellow">
+          <div className="text-center py-12">
+            <p className="text-sm text-frh-text-muted mb-4">Team data unavailable. Database may be unreachable.</p>
+            <a href="/" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Home</a>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   const byDivision = teams.reduce((acc, t) => {
     const div = t.division?.name ?? 'Unassigned';

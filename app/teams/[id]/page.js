@@ -15,18 +15,37 @@ const ROLE_COLORS = {
 };
 
 export default async function TeamDetailPage({ params }) {
-  const team = await prisma.team.findUnique({
-    where: { id: params.id },
-    include: {
-      division: { include: { season: { select: { id: true, name: true } } } },
-      org: true,
-      members: {
-        where: { leftAt: null },
-        orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }, { joinedAt: 'asc' }],
-        include: { player: { select: { id: true, name: true, role: true, discordUsername: true } } },
+  let team = null;
+  let dbError = false;
+  try {
+    team = await prisma.team.findUnique({
+      where: { id: params.id },
+      include: {
+        division: { include: { season: { select: { id: true, name: true } } } },
+        org: true,
+        members: {
+          where: { leftAt: null },
+          orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }, { joinedAt: 'asc' }],
+          include: { player: { select: { id: true, name: true, role: true, discordUsername: true } } },
+        },
       },
-    },
-  });
+    });
+  } catch (_) {
+    dbError = true;
+  }
+
+  if (dbError) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <RetroWindow title="TEAM FILE" titleBarColor="yellow">
+          <div className="text-center py-12">
+            <p className="text-sm text-frh-text-muted mb-4">Unable to load team data. Database may be unreachable.</p>
+            <a href="/teams" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Teams</a>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   if (!team) notFound();
 
