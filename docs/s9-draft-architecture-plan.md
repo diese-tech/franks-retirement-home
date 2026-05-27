@@ -8,7 +8,7 @@
 - FRH needs two distinct draft systems: the existing **God Draft** (per-game pick/ban of gods, already running) and a new **Player Draft** (per-season snake draft of players to populate team rosters). These must remain separate data models with no shared tables or flows.
 - The build strategy is additive-only: every new model is added alongside existing ones. `Draft.gameId` is nullable so standalone drafts survive untouched. `PlayerDraft` is a wholly new model chain. No existing production data is mutated until explicitly scheduled.
 - SAL's pure logic functions in `src/lib/god-draft-format.ts` and `src/lib/god-draft-rules.ts` are conceptually portable; FRH should implement equivalent plain-JS modules in `lib/` rather than copying TypeScript files that carry Supabase and SAL-specific dependencies.
-- Supabase Realtime and RLS must not enter FRH. FRH's SSE polling pattern (`Draft.version` optimistic lock on Neon PostgreSQL) is sufficient — Neon is fully compatible with this approach because SSE polling uses ordinary `SELECT` queries, not `LISTEN/NOTIFY`.
+- Supabase Realtime and RLS must not enter FRH. FRH's SSE polling pattern (`Draft.version` optimistic lock on Supabase PostgreSQL via Prisma) is sufficient — SSE polling uses ordinary `SELECT` queries, not `LISTEN/NOTIFY`.
 - FRH's standalone draft flow is preserved as the permanent scrim/testing fallback and must pass all existing tests before and after every new migration.
 - Season 9 introduces two divisions (**Hospice** and **Rehabilitation**). Divisions are first-class entities. Every season will use a snake draft; player import via CSV is the standard intake path.
 
@@ -91,7 +91,7 @@
 - Ban timeout: skip ban, draft advances.
 - Pick timeout: full reset to lobby.
 
-**Realtime.** SAL uses Supabase `postgres_changes`. FRH uses SSE with `Draft.version` polling at 1.5s. Neon is fully compatible.
+**Realtime.** SAL uses Supabase `postgres_changes`. FRH uses SSE with `Draft.version` polling at 1.5s. Supabase PostgreSQL is fully compatible with this approach.
 
 **Auth.** Captain keys auto-provisioned at match scheduling. One key per team covers all games in a BO series.
 
@@ -122,7 +122,7 @@
 **1. Cross-division tier eligibility → FRH same-division rule.**
 FRH Season 9 has two flat divisions: Hospice and Rehabilitation. Pick validation rule: `player.division === playerDraft.division.name` (equality, not tier comparison).
 
-**2. Supabase Realtime.** Do not introduce a Supabase client. FRH's SSE + `Draft.version` is correct and Neon-compatible.
+**2. Supabase Realtime.** Do not introduce a Supabase client or Supabase Realtime. FRH's SSE + `Draft.version` polling is the correct pattern and works with Supabase PostgreSQL via standard SQL queries.
 
 **3. RLS as auth layer.** FRH uses app-level auth in `lib/draftAuth.js` and `lib/adminSession.js`.
 

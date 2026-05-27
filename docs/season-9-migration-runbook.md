@@ -14,7 +14,7 @@ The one destructive step in this runbook (`DraftPick.playerId` nullable) is expl
 
 FRH now uses **Prisma Migrate**. The `prisma/migrations/` folder is committed to the repository and is the authoritative source of schema history.
 
-**Do not use `prisma db push`** — it bypasses migration tracking and breaks `prisma migrate deploy`.
+**Do not use `prisma db push`** — it bypasses migration tracking and breaks `prisma migrate deploy`. See `docs/PRISMA_WORKFLOW.md` for the complete policy including when `db push` is acceptable locally.
 
 The initial migration `20250526000000_init` contains the complete schema for all Season 9 tables. All prior steps in this runbook (Steps 1–8 below) are now captured in that single initial migration, which was applied via:
 
@@ -206,14 +206,47 @@ If any of these conditions is not met, the migration is not safe for mid-season 
 
 ---
 
-## Neon-specific notes
+## Supabase-specific notes
 
-FRH uses Neon PostgreSQL. Neon supports:
+FRH uses Supabase PostgreSQL accessed through Prisma ORM. Two connection strings are required.
 
-- The `directUrl` env var for migration operations (bypasses connection pooling) — set as `DIRECT_URL` in `.env` / Vercel env vars
-- Point-in-time restore via the Neon dashboard
+### Connection string roles
 
-`prisma migrate deploy` and `prisma migrate reset` both use `DIRECT_URL` (the non-pooled connection string). `DATABASE_URL` uses the pooler and is used only at runtime by the Next.js app.
+| Env var | Supabase mode | Port | Used by |
+|---|---|---|---|
+| `DATABASE_URL` | Supavisor **Transaction** mode | 6543 | Next.js app at runtime (all API routes) |
+| `DIRECT_URL` | Supavisor **Session** mode | 5432 | Prisma CLI — `migrate deploy`, `migrate dev`, `migrate reset` |
+
+`prisma migrate deploy` and all other Prisma CLI migration commands use `DIRECT_URL`. The pooled `DATABASE_URL` is used only by the running application. Never point migration commands at the transaction-mode pooler — DDL statements require a persistent session connection.
+
+### Finding your connection strings
+
+In the Supabase dashboard: **Project → Settings → Database → Connection string**
+
+- **Transaction** tab → copy for `DATABASE_URL` (port 6543)
+- **Session** tab → copy for `DIRECT_URL` (port 5432)
+
+Both strings follow the format:
+```
+postgresql://postgres.PROJECT-REF:PASSWORD@aws-0-REGION.pooler.supabase.com:PORT/postgres
+```
+
+### Point-in-time restore
+
+Supabase supports point-in-time recovery (PITR) on Pro and above plans.
+
+To restore: **Supabase Dashboard → Project → Settings → Database → Backups → Point in Time Recovery**
+
+Always take a manual snapshot before applying any migration to production:
+- **Supabase Dashboard → Project → Settings → Database → Backups → Create backup**
+
+### Prisma workflow policy
+
+See `docs/PRISMA_WORKFLOW.md` for the complete workflow. The short version:
+
+- `prisma db push` — **local only**, for schema iteration; never against the shared Supabase DB
+- `prisma migrate dev` — creates the migration SQL file; run locally, commit the file
+- `prisma migrate deploy` — applies pending migrations; run by GitHub Actions on merge to `main`
 
 ---
 

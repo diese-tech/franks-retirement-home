@@ -39,14 +39,17 @@ folder is committed to the repo.
 | `npm run db:seed` | `node prisma/seed.mjs` — seeds gods, players, Season 9, divisions, sample draft |
 
 **Never use `prisma db push` for deployments.** It bypasses migration history
-and breaks `prisma migrate deploy`.
+and breaks `prisma migrate deploy`. See `docs/PRISMA_WORKFLOW.md` for full policy.
 
-### Production database (Neon)
+### Production database (Supabase)
 
-- Provider: Neon PostgreSQL, `us-east-1`
-- Branch: `main` (default)
-- `DATABASE_URL`: pooled connection (pgBouncer) — used at runtime
-- `DIRECT_URL`: non-pooled — used by Prisma migrations
+- Provider: Supabase PostgreSQL
+- `DATABASE_URL`: Supavisor **Transaction** mode pooler (port 6543) — used at runtime by all API routes
+- `DIRECT_URL`: Supavisor **Session** mode (port 5432) — used by Prisma CLI for all migration operations
+
+Connection strings are found in: **Supabase Dashboard → Project → Settings → Database → Connection string**
+
+See `.env.example` for the exact URL format and `docs/PRISMA_WORKFLOW.md` for the migration workflow policy.
 
 ### Current seed state (post-reset)
 
@@ -66,7 +69,7 @@ and breaks `prisma migrate deploy`.
 - **`build` job**: runs on every PR and push to main. Uses fake DB URL. Runs
   `npm ci → prisma generate → lint → build`.
 - **`migrate` job**: runs on push to `main` only, after `build` passes. Runs
-  `npx prisma migrate deploy` against the real Neon DB using
+  `npx prisma migrate deploy` against the real Supabase DB using
   `DATABASE_URL` / `DIRECT_URL` secrets set in GitHub → Settings → Secrets.
 
 ---

@@ -45,8 +45,8 @@ The 32 backlog items were created on GitHub as issues **#34 through #65** (in or
 
 These decisions hold across every issue below. Any deviation requires an explicit re-plan, not a one-off.
 
-- **FRH is the source of truth for League Ops.** Seasons, teams, matches, games, drafts, submissions, standings, and approved stats all live in FRH's Neon/Postgres database.
-- **FRH stays on Prisma + Neon.** Do not migrate to Supabase. SAL's stack choice is irrelevant.
+- **FRH is the source of truth for League Ops.** Seasons, teams, matches, games, drafts, submissions, standings, and approved stats all live in FRH's Supabase PostgreSQL database.
+- **FRH uses Prisma + Supabase PostgreSQL.** *(Updated 2026-05-27: infrastructure migrated from Neon to Supabase. The previous "do not migrate to Supabase" directive is superseded. SAL's Supabase Realtime and RLS patterns are still not used — FRH's SSE + Prisma pattern is unchanged. See `docs/SETUP.md` and `docs/PRISMA_WORKFLOW.md`.)*
 - **FRH calls Gemini directly for OCR.** The original ForgeLens external worker plan was replaced before S9 launched. `lib/gemini.js` calls the Gemini Vision API; `GEMINI_API_KEY` is an FRH environment variable. The staging table schema (`OcrExtraction`, `ExtractedStatLine`) is unchanged.
 - **CSV/Excel is first-class.** Approved-only public exports vs admin-only pending/raw exports must be visually and structurally distinguished.
 - **Human-in-the-loop review is mandatory** for every stat-affecting record. OCR, CSV imports, manual entries, and screenshot-derived data all traverse the review queue before becoming canonical.
@@ -1391,7 +1391,7 @@ See `docs/review-queue-policy.md` and `docs/forgelens-worker-architecture.md` fo
 
 1. Do not rewrite from scratch.
 2. Do not import SAL's visual language.
-3. Do not migrate to Supabase.
+3. ~~Do not migrate to Supabase.~~ *(Superseded 2026-05-27 — FRH now runs on Supabase. Supabase Realtime and RLS are still not used.)*
 4. Do not auto-approve OCR results — ever.
 5. Do not call Gemini directly from FRH.
 6. Do not block match submission on ForgeLens availability.
