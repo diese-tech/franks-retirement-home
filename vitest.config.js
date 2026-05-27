@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({ include: /\.[jt]sx?$/ })],
+  oxc: {
+    jsx: { runtime: 'automatic' },
+    lang: 'jsx',
+  },
   test: {
     environment: 'jsdom',
     globals: true,

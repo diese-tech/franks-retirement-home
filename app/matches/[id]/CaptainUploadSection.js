@@ -29,12 +29,13 @@ function GameUploadZone({ game, captainKey }) {
     setUploading(true);
     setResult(null);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (captainKey) {
+        headers['X-Captain-Key'] = captainKey;
+      }
       const res = await fetch('/api/ocr/extract', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Captain-Key': captainKey,
-        },
+        headers,
         body: JSON.stringify({ gameId: game.id, imageBase64: screenshot.base64, mimeType: screenshot.mimeType }),
       });
       const data = await res.json();

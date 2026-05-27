@@ -1,0 +1,7 @@
+{
+  "task_id": "task-captain-mode-ux",
+  "task_description": "Complete Captain Mode UX audit and implementation: create a dedicated captain dashboard, make match/draft pages Discord-aware, improve navigation to hide admin concepts from captains, add captain login CTAs, and add comprehensive tests for the new captain workflows.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

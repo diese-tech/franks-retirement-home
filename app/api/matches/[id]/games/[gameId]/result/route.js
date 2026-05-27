@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/adminSession';
 import { checkSeriesComplete } from '@/lib/seriesResult';
 import { invalidateAllStandings } from '@/lib/standings';
 import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
+import { captainLog } from '@/lib/captainLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,7 @@ export async function POST(req, { params }) {
   const captainSide = auth.side;
 
   if (!isAdmin && !captainSide) {
+    captainLog('captain_auth_failed', { matchId, reason: 'no_auth_resolved' });
     return NextResponse.json({ error: 'Valid captain key or admin session required' }, { status: 401 });
   }
 
@@ -138,6 +140,7 @@ export async function POST(req, { params }) {
     }
 
     const updated = await prisma.game.findUnique({ where: { id: gameId } });
+    captainLog('captain_result_reported', { matchId, gameId, captainSide, winnerTeamId, source: auth.source });
     return NextResponse.json(updated, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to report result' }, { status: 500 });
@@ -223,10 +226,12 @@ export async function PATCH(req, { params }) {
           confirmedByTeamId: confirmingTeamId,
         },
       });
+      captainLog('captain_result_disputed', { matchId, gameId, captainSide, source: auth.source });
       return NextResponse.json(updated);
     }
 
     // action === 'confirm'
+    captainLog('captain_result_confirmed', { matchId, gameId, captainSide, source: auth.source });
     return await confirmResult(match, game, game.reportedWinnerTeamId, confirmingTeamId);
   } catch {
     return NextResponse.json({ error: 'Failed to update result' }, { status: 500 });

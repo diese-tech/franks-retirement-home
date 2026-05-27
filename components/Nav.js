@@ -5,19 +5,19 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ThemeToggle from '@/app/components/ThemeToggle';
 
-const NAV_LINKS = [
+const PUBLIC_LINKS = [
   { href: '/',          label: 'Home' },
   { href: '/schedule',  label: 'Schedule' },
   { href: '/teams',     label: 'Teams' },
   { href: '/standings', label: 'Standings' },
   { href: '/players',   label: 'Players' },
-  { href: '/admin',     label: 'Admin' },
 ];
 
 export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [time, setTime] = useState('');
+  const [authState, setAuthState] = useState(null); // null=loading, object=loaded
 
   useEffect(() => {
     const tick = () =>
@@ -27,8 +27,33 @@ export default function Nav() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    fetch('/api/auth/discord/me')
+      .then((res) => {
+        if (res.status === 401) return { anonymous: true };
+        if (!res.ok) return { anonymous: true };
+        return res.json();
+      })
+      .then(setAuthState)
+      .catch(() => setAuthState({ anonymous: true }));
+  }, []);
+
   const isActive = (href) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/discord/logout', { method: 'POST' });
+    window.location.reload();
+  };
+
+  // Build nav links based on auth state
+  const navLinks = [...PUBLIC_LINKS];
+  if (authState && authState.teamId) {
+    navLinks.push({ href: '/captain', label: 'Captain' });
+  }
+  if (authState && authState.isAdmin) {
+    navLinks.push({ href: '/admin', label: 'Admin' });
+  }
 
   return (
     <nav className="frh-menubar">
@@ -38,7 +63,7 @@ export default function Nav() {
       </Link>
 
       <div className="frh-menubar__items">
-        {NAV_LINKS.map(({ href, label }) => (
+        {navLinks.map(({ href, label }) => (
           <Link
             key={href}
             href={href}
@@ -53,6 +78,29 @@ export default function Nav() {
         <span className="frh-menubar__live-dot" />
         {time ? `ON AIR · ${time}` : 'FRH LIVE'}
         <ThemeToggle />
+        {authState && !authState.anonymous && (
+          <>
+            <span className="frh-menubar__user" style={{ fontSize: 11, fontFamily: 'var(--font-mono)', marginLeft: 8 }}>
+              {authState.username}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="frh-menubar__item"
+              style={{ fontSize: 10, marginLeft: 4, cursor: 'pointer', border: 'none', background: 'none', color: 'inherit', fontFamily: 'inherit' }}
+            >
+              Logout
+            </button>
+          </>
+        )}
+        {authState && authState.anonymous && (
+          <Link
+            href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+            className="frh-menubar__item"
+            style={{ fontSize: 10, marginLeft: 8 }}
+          >
+            Login
+          </Link>
+        )}
         <button
           className="frh-menubar__ham"
           onClick={() => setOpen((v) => !v)}
@@ -66,7 +114,7 @@ export default function Nav() {
 
       {open && (
         <div className="frh-menubar__drawer">
-          {NAV_LINKS.map(({ href, label }) => (
+          {navLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
@@ -76,6 +124,24 @@ export default function Nav() {
               {label}
             </Link>
           ))}
+          {authState && authState.anonymous && (
+            <Link
+              href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+              onClick={() => setOpen(false)}
+              className="frh-menubar__drawer-link"
+            >
+              Login
+            </Link>
+          )}
+          {authState && !authState.anonymous && (
+            <button
+              onClick={() => { setOpen(false); handleLogout(); }}
+              className="frh-menubar__drawer-link"
+              style={{ border: 'none', background: 'none', color: 'inherit', fontFamily: 'inherit', textAlign: 'left', width: '100%', cursor: 'pointer' }}
+            >
+              Logout ({authState.username})
+            </button>
+          )}
         </div>
       )}
     </nav>
