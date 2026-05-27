@@ -330,12 +330,17 @@ DISCORD_GUILD_ID="YOUR_DISCORD_GUILD_ID"
 # Admin role — full dashboard access
 DISCORD_ADMIN_ROLE_ID="YOUR_ADMIN_ROLE_ID"
 
-# Generic "captain" role — any registered team captain (cross-division)
-DISCORD_CAPTAIN_ROLE_ID="YOUR_CAPTAIN_ROLE_ID"
+# Captain roles (per-division) — one captain role per division
+# Having either role means "is a captain" AND "belongs to this division"
+DISCORD_HOSPICE_CAPTAIN_ROLE_ID="YOUR_HOSPICE_CAPTAIN_ROLE_ID"
+DISCORD_REHABILITATION_CAPTAIN_ROLE_ID="YOUR_REHABILITATION_CAPTAIN_ROLE_ID"
 
-# Division-level roles
-DISCORD_HOSPICE_ROLE_ID="YOUR_HOSPICE_ROLE_ID"
-DISCORD_REHABILITATION_ROLE_ID="YOUR_REHABILITATION_ROLE_ID"
+# Player roles (per-division, comma-separated)
+# These indicate active season players. Two skill-level roles per division.
+# Hospice = Scooter + Wheelchair roles
+# Rehabilitation = Walker + Canes roles
+DISCORD_HOSPICE_PLAYER_ROLE_IDS="SCOOTER_ROLE_ID,WHEELCHAIR_ROLE_ID"
+DISCORD_REHABILITATION_PLAYER_ROLE_IDS="WALKER_ROLE_ID,CANES_ROLE_ID"
 
 # ─── Team → Discord Role Map ──────────────────────────────────────────────────
 # JSON: { "<frh_team_id>": "<discord_role_id>", ... }
