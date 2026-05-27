@@ -30,7 +30,8 @@ export default async function TeamDetailPage({ params }) {
         },
       },
     });
-  } catch (_) {
+  } catch (err) {
+    console.error('[team-detail]', err);
     dbError = true;
   }
 

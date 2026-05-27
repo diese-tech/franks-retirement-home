@@ -76,7 +76,7 @@ export default async function AdminPage() {
     });
 
     data = { players, gods, drafts, seasons, teams, matches, playerDrafts, pendingSubmissions, activeSeason, liveMatchCount, pendingSubCount, teamCount };
-  } catch (_) {}
+  } catch (err) { console.error('[admin]', err); }
 
   if (data === null) {
     return (

@@ -111,7 +111,7 @@ export default async function StandingsPage() {
         rows: await computeStandings(div.id),
       }))
     );
-  } catch (_) {}
+  } catch (err) { console.error('[standings]', err); }
 
   if (divisionStandings === null) {
     return (

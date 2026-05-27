@@ -80,7 +80,7 @@ export default async function SchedulePage({ searchParams }) {
         games: { select: { id: true, gameNumber: true, winnerTeamId: true } },
       },
     });
-  } catch (_) {}
+  } catch (err) { console.error('[schedule]', err); }
 
   if (matches === null) {
     return (

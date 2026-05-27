@@ -11,12 +11,12 @@ export default async function AdminHomepagePage() {
   let draftRow = null;
   try {
     draftRow = await prisma.homepageContent.findUnique({ where: { status: 'draft' } });
-  } catch (_) {}
+  } catch (err) { console.error('[admin-homepage]', err); }
 
   let publishedRow = null;
   try {
     publishedRow = await prisma.homepageContent.findUnique({ where: { status: 'published' } });
-  } catch (_) {}
+  } catch (err) { console.error('[admin-homepage]', err); }
 
   const initialContent = mergeWithDefaults(draftRow);
 
@@ -38,7 +38,7 @@ export default async function AdminHomepagePage() {
       orderBy: { createdAt: 'desc' },
       include: { divisions: { orderBy: { tier: 'desc' } } },
     });
-  } catch (_) {}
+  } catch (err) { console.error('[admin-homepage]', err); }
 
   try {
     [liveMatches, upcomingMatches, recentDrafts, playerCount, matchCount, recentResults] = await Promise.all([
@@ -74,10 +74,11 @@ export default async function AdminHomepagePage() {
           homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
           awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
           division: { select: { name: true } },
+          games: { select: { winnerTeamId: true } },
         },
       }),
     ]);
-  } catch (_) {}
+  } catch (err) { console.error('[admin-homepage]', err); }
 
   try {
     divisionStandings = activeSeason
@@ -88,7 +89,7 @@ export default async function AdminHomepagePage() {
           }))
         )
       : [];
-  } catch (_) {}
+  } catch (err) { console.error('[admin-homepage]', err); }
 
   return (
     <HomepageEditorClient

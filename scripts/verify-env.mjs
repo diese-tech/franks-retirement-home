@@ -22,7 +22,7 @@ function extractProjectRef(url) {
 }
 
 function extractPort(url) {
-  const match = url.match(/:(\d+)\/postgres/);
+  const match = url.match(/:(\d+)\//);
   return match ? parseInt(match[1], 10) : null;
 }
 

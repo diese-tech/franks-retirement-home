@@ -991,25 +991,27 @@ export default function HomepageClient({
         )}
 
         {/* ── Recent Results (data-driven) ─────────────────── */}
-        <FrhSectionLabel kind="default" pill="RESULTS" title="RECENT RESULTS" />
-        <FrhPanel title="RECENT RESULTS" accent="purple">
-          {recentResults?.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {recentResults.slice(0, 5).map((m) => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--frh-border)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  <span style={{ flex: 1, fontWeight: 700 }}>{m.homeTeam?.name ?? 'Home'}</span>
-                  <span style={{ color: 'var(--frh-text-muted)' }}>vs</span>
-                  <span style={{ flex: 1, fontWeight: 700, textAlign: 'right' }}>{m.awayTeam?.name ?? 'Away'}</span>
-                  <span style={{ marginLeft: 12, fontSize: 10, color: 'var(--frh-text-muted)', whiteSpace: 'nowrap' }}>{m.division?.name ?? ''}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6 }}>
-              No completed matches yet.
-            </div>
-          )}
-        </FrhPanel>
+        {recentResults?.length > 0 && (
+          <>
+            <FrhSectionLabel kind="default" pill="RESULTS" title="RECENT RESULTS" />
+            <FrhPanel title="RECENT RESULTS" accent="purple">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {recentResults.slice(0, 5).map((m) => {
+                  const homeWins = m.games?.filter(g => g.winnerTeamId === m.homeTeamId).length ?? 0;
+                  const awayWins = m.games?.filter(g => g.winnerTeamId === m.awayTeamId).length ?? 0;
+                  return (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid var(--frh-border)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      <span style={{ flex: 1, fontWeight: 700 }}>{m.homeTeam?.name ?? 'Home'}</span>
+                      <span style={{ fontWeight: 700, color: '#ffd400', minWidth: 36, textAlign: 'center' }}>{homeWins} - {awayWins}</span>
+                      <span style={{ flex: 1, fontWeight: 700, textAlign: 'right' }}>{m.awayTeam?.name ?? 'Away'}</span>
+                      <span style={{ marginLeft: 12, fontSize: 10, color: 'var(--frh-text-muted)', whiteSpace: 'nowrap' }}>{m.division?.name ?? ''}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </FrhPanel>
+          </>
+        )}
 
         {/* ── Section 2: The Wire ─────────────────────────── */}
         <Section field="Headlines">
@@ -1060,7 +1062,11 @@ export default function HomepageClient({
           if (allTeams.length < 2) return null;
           const sorted = [...allTeams].sort((a, b) => b.wins - a.wins);
           const hotTeams = sorted.slice(0, 3);
-          const coldTeams = [...allTeams].sort((a, b) => b.losses - a.losses).slice(0, 3);
+          const hotTeamIds = new Set(hotTeams.map(t => t.teamId));
+          const coldTeams = [...allTeams]
+            .filter(t => !hotTeamIds.has(t.teamId))
+            .sort((a, b) => b.losses - a.losses)
+            .slice(0, 3);
           return (
             <>
               <FrhSectionLabel kind="default" pill="FORM" title="FORM CHECK" after="HOT & COLD" />
