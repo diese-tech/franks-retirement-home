@@ -1,0 +1,7 @@
+{
+  "task_id": "task-bulletin-board-data-homepage",
+  "task_description": "FRH autonomous stabilization + Bulletin Board implementation. Remove old homepage editor and fake content, rebuild homepage as data-driven dashboard, implement Bulletin Board system with public/admin views and inline editing, update documentation.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}
