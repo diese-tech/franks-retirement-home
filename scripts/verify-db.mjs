@@ -17,7 +17,6 @@ const tables = [
   { name: 'Team', query: () => prisma.team.count() },
   { name: 'Division', query: () => prisma.division.count() },
   { name: 'God', query: () => prisma.god.count() },
-  { name: 'HomepageContent', query: () => prisma.homepageContent.count() },
 ];
 
 async function main() {

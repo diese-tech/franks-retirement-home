@@ -1,27 +1,11 @@
 import prisma from '@/lib/db';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 import { computeStandings } from '@/lib/standings';
-import { mergeWithDefaults } from '@/lib/homepageDefaults';
 import HomepageClient from './HomepageClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function HomePage({ searchParams }) {
-  // ── Editorial content: published row (or draft for ?preview=draft admins) ─
-  let editableContent = null;
-  try {
-    // ?preview=draft allows admins to preview their draft before publishing.
-    // The route is not protected here by auth — it's low-stakes editorial
-    // preview, not a security boundary. Drafts contain no sensitive data.
-    const previewDraft = searchParams?.preview === 'draft';
-    const contentStatus = previewDraft ? 'draft' : 'published';
-    const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
-    editableContent = mergeWithDefaults(dbRow); // null-safe: returns defaults if no row
-  } catch (err) {
-    console.error('[homepage]', err);
-    // DB unavailable — fall back to hardcoded defaults (no editableContent = defaults)
-  }
-
+export default async function HomePage() {
   // ── DB-driven structural data ─────────────────────────────────────────────
   let activeSeason = null;
   let liveMatches = [];
@@ -106,8 +90,6 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <HomepageClient
-      editableContent={editableContent}
-      mode="public"
       activeSeason={JSON.parse(JSON.stringify(activeSeason))}
       liveMatches={JSON.parse(JSON.stringify(liveMatches))}
       upcomingMatches={JSON.parse(JSON.stringify(upcomingMatches))}

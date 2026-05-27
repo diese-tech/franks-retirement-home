@@ -1,0 +1,45 @@
+{
+  "id": "FEAT-002",
+  "type": "refactor",
+  "description": "Remove old homepage editor system and all fake/mock editorial content. This covers Phase 2 (remove old homepage editor) and the fake content cleanup. The old editor at app/admin/homepage/ allows disconnected fake editorial management via the HomepageContent DB model. The fake defaults in lib/homepageDefaults.js (fake teams, fake players, fake rankings, fake bulletin posts etc.) must be removed. The HomepageContent Prisma model, its API route, and the editor UI must all be deleted. The 'homepage' tab in AdminClient must be removed. The RANKINGS_DATA constant in HomepageClient.js (fake power rankings with fake team names like 'Bedpan Bandits', 'Whiskey Wardens' etc.) must also be removed.",
+  "status": "in_progress",
+  "steps": [
+    "Delete app/admin/homepage/ directory entirely (HomepageEditorClient.js and page.js)",
+    "Delete app/api/admin/homepage-content/route.js",
+    "Delete lib/homepageDefaults.js entirely",
+    "Delete components/EditableField.js (only used by the editor system)",
+    "In app/HomepageClient.js: remove all imports from lib/homepageDefaults.js, remove the re-exported legacy names (TICKER_DATA, HEADLINES_DATA, etc.), remove the RANKINGS_DATA constant (lines ~37-48 with fake teams), remove all editor-mode components and logic (FrhTicker editor mode, FrhBulletinForum, FrhFraudWanted, FrhMotwMega, FrhRivalryPosters, FrhSocialStrip, FrhKnowsBallPanel, FrhWashedPanel, FrhLeadStory, FrhSidebarStories, FrhDiscordCta editor functionality), remove EditableField import and usage, remove ItemControls component, remove addBtn helper, remove moveUp/moveDown/removeAt/updateAt helpers, remove Section visibility wrapper editor logic, remove all onContentChange/isEditor/mode props and their handling. Keep only the public-mode rendering of data-driven sections.",
+    "In app/HomepageClient.js: remove all editorial sections that render fake content - the ticker (FrhTicker), headlines wire (FrhLeadStory + FrhSidebarStories), bulletin board forum (FrhBulletinForum), fraud watch (FrhFraudWanted), match of the week (FrhMotwMega), rivalry posters (FrhRivalryPosters), knows ball panel (FrhKnowsBallPanel), washed reports (FrhWashedPanel), social strip (FrhSocialStrip). Keep the data-driven sections: FrhMasthead, FrhMegaScoreboard, FrhCrtPanel, FrhPanel (generic), recent results, active drafts, upcoming schedule, standings, discord CTA (simplified without editor), captain CTA. Keep FrhSectionLabel and FrhPanel as they are used by data sections.",
+    "In app/page.js: remove the entire editableContent/HomepageContent query block (the try/catch that queries prisma.homepageContent), remove the mergeWithDefaults import, remove editableContent and mode props from the HomepageClient render call. Keep all DB-driven data fetches (activeSeason, liveMatches, upcomingMatches, recentDrafts, divisionStandings, playerCount, godCount, matchCount, recentResults).",
+    "In app/admin/AdminClient.js: remove the 'homepage' tab entry from the tabs array (line with key:'homepage', label:'Homepage Editor'), remove the HomepageEditorPanel component reference and its tab === 'homepage' render conditional.",
+    "In prisma/schema.prisma: remove the HomepageContent model entirely (approximately lines 271-311). This model stores the editorial content that is being replaced by the Bulletin Board.",
+    "Create a new Prisma migration for the HomepageContent removal by adding a migration file at prisma/migrations/20250527100000_remove_homepage_content/migration.sql with: DROP TABLE IF EXISTS \"HomepageContent\";",
+    "Run npm run lint to confirm no broken imports",
+    "Run npm run build to confirm compilation succeeds after removal"
+  ],
+  "acceptance_criteria": [
+    "app/admin/homepage/ directory no longer exists",
+    "app/api/admin/homepage-content/route.js no longer exists",
+    "lib/homepageDefaults.js no longer exists",
+    "components/EditableField.js no longer exists",
+    "No references to RANKINGS_DATA with fake team names remain in the codebase",
+    "No references to 'Bedpan Bandits', 'Whiskey Wardens', 'Mall Walkers', 'Late Stage Tyrants' or other fake team names remain in production code (test fixtures are acceptable)",
+    "No references to DEFAULT_TICKER, DEFAULT_HEADLINES, DEFAULT_BULLETIN, DEFAULT_FRAUD_WATCH, DEFAULT_MOTW, DEFAULT_RIVALRIES, DEFAULT_KNOWS_BALL, DEFAULT_WASHED_REPORTS, DEFAULT_SOCIAL_CARDS remain",
+    "HomepageContent model is removed from prisma/schema.prisma",
+    "The admin dashboard no longer has a 'Homepage Editor' tab",
+    "npm run lint passes",
+    "npm run build passes",
+    "app/HomepageClient.js renders only data-driven content (standings, matches, schedule, drafts, stats)"
+  ],
+  "verification": [
+    "npm run lint exits with code 0",
+    "npm run build exits with code 0",
+    "grep -r 'homepageDefaults' --include='*.js' app/ lib/ components/ returns no results",
+    "grep -r 'HomepageContent' --include='*.js' app/ lib/ returns no results",
+    "grep -r 'EditableField' --include='*.js' app/ components/ returns no results (except if EditableField.js still exists)",
+    "grep -r 'RANKINGS_DATA' --include='*.js' app/ returns no results",
+    "grep -r 'Bedpan Bandits' --include='*.js' app/ lib/ returns no results"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
