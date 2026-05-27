@@ -77,10 +77,11 @@ See:
 
 | Document | Purpose |
 |---|---|
-| `docs/SETUP.md` | Fresh environment setup guide — start here |
+| `docs/SETUP.md` | Fresh environment setup guide -- start here |
 | `docs/PRISMA_WORKFLOW.md` | Prisma migration policy and workflow reference |
-| `docs/ARCHITECTURE.md` | System architecture — shared components, admin mirror pattern |
+| `docs/ARCHITECTURE.md` | System architecture -- shared components, admin mirror pattern |
 | `docs/DEPLOYMENT_NOTES.md` | Production deployment workflow and operational steps |
+| `docs/RECOVERY.md` | Production recovery procedures -- P2021, failed migrations, re-seed |
 | `docs/review-queue-policy.md` | Human approval rules + staging boundaries |
 | `docs/forgelens-worker-architecture.md` | Native Gemini OCR architecture |
 | `docs/season-9-migration-runbook.md` | Migration sequencing + operational safeguards |
@@ -108,6 +109,64 @@ npm run dev
 ```
 
 See `docs/SETUP.md` for a full environment setup guide including Supabase project creation, connection string configuration, and Discord OAuth setup.
+
+---
+
+## Production Operations
+
+### Quick diagnosis: P2021 "table does not exist"
+
+If production throws a `P2021` error, the database is missing one or more expected tables. Common causes:
+
+1. Migrations were not deployed after a code push.
+2. Environment variables point to the wrong Supabase project.
+3. The database was wiped or recreated without re-running migrations.
+
+**Immediate steps:**
+
+```bash
+# 1. Check migration status
+npx prisma migrate status
+
+# 2. Verify environment configuration
+npm run verify:env
+
+# 3. Verify database connectivity and table existence
+node scripts/verify-db.mjs
+
+# 4. If migrations are pending, deploy them
+npx prisma migrate deploy
+```
+
+### Verify DB connectivity
+
+Run `node scripts/verify-db.mjs` to connect to the database and count rows in critical tables. If all tables return errors, the connection string is wrong. If specific tables are missing, migrations are incomplete.
+
+### Verify environment configuration
+
+```bash
+npm run verify:env
+```
+
+This runs `scripts/verify-env.mjs` and checks that `DATABASE_URL`, `DIRECT_URL`, and other critical variables are set correctly, use the right ports, and reference the same Supabase project.
+
+### Run migrations against production
+
+```bash
+# Requires DIRECT_URL set to Supabase Session-mode connection string (port 5432)
+npx prisma migrate deploy
+```
+
+### Confirm Vercel env vars
+
+In Vercel > Project > Settings > Environment Variables, verify:
+- `DATABASE_URL` uses port 6543 (pooled/Transaction mode)
+- `DIRECT_URL` uses port 5432 (session/direct mode)
+- Both URLs reference the same Supabase project-ref and password
+
+### Detailed recovery procedures
+
+See `docs/RECOVERY.md` for full recovery documentation including failed migration recovery, re-seeding, and Vercel environment checklists.
 
 ---
 

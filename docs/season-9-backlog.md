@@ -46,7 +46,7 @@ The 32 backlog items were created on GitHub as issues **#34 through #65** (in or
 These decisions hold across every issue below. Any deviation requires an explicit re-plan, not a one-off.
 
 - **FRH is the source of truth for League Ops.** Seasons, teams, matches, games, drafts, submissions, standings, and approved stats all live in FRH's Supabase PostgreSQL database.
-- **FRH uses Prisma + Supabase PostgreSQL.** *(Updated 2026-05-27: infrastructure migrated from Neon to Supabase. The previous "do not migrate to Supabase" directive is superseded. SAL's Supabase Realtime and RLS patterns are still not used — FRH's SSE + Prisma pattern is unchanged. See `docs/SETUP.md` and `docs/PRISMA_WORKFLOW.md`.)*
+- **FRH uses Prisma + Supabase PostgreSQL.** *(SSE + Prisma pattern is unchanged. Supabase Realtime and RLS patterns are not used. See `docs/SETUP.md` and `docs/PRISMA_WORKFLOW.md`.)*
 - **FRH calls Gemini directly for OCR.** The original ForgeLens external worker plan was replaced before S9 launched. `lib/gemini.js` calls the Gemini Vision API; `GEMINI_API_KEY` is an FRH environment variable. The staging table schema (`OcrExtraction`, `ExtractedStatLine`) is unchanged.
 - **CSV/Excel is first-class.** Approved-only public exports vs admin-only pending/raw exports must be visually and structurally distinguished.
 - **Human-in-the-loop review is mandatory** for every stat-affecting record. OCR, CSV imports, manual entries, and screenshot-derived data all traverse the review queue before becoming canonical.
@@ -251,13 +251,13 @@ None.
 **Labels:** `docs`, `forgelens`, `p1`
 
 **Objective**
-Define ForgeLens as the OCR/stat extraction worker. Establish FRH as the source of truth, Neon as the canonical database, ForgeLens as the Gemini caller, and CSV/Excel as the export/fallback layer. Lock down the data contract in writing before any integration work.
+Define ForgeLens as the OCR/stat extraction worker. Establish FRH as the source of truth, Supabase PostgreSQL as the canonical database, ForgeLens as the Gemini caller, and CSV/Excel as the export/fallback layer. Lock down the data contract in writing before any integration work.
 
 **Scope**
 - New file: `docs/forgelens-worker-architecture.md`.
 - Required sections (see audit for full outline):
   - Purpose
-  - System Responsibilities (FRH, ForgeLens, Gemini, Neon, CSV/Excel, Discord)
+  - System Responsibilities (FRH, ForgeLens, Gemini, Supabase, CSV/Excel, Discord)
   - Data Flow (10-step submission → review → approval lifecycle)
   - Job Lifecycle (queued → processing → completed → failed → needs_review → approved → rejected → superseded)
   - Review Queue
