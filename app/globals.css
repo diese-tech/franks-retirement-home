@@ -244,7 +244,7 @@ html:not(.dark) body {
   display: flex;
   gap: 36px;
   padding: 0 24px;
-  animation: frh-ticker-scroll linear infinite;
+  animation: frh-ticker-scroll 35s linear infinite;
   white-space: nowrap;
   align-items: center;
 }
