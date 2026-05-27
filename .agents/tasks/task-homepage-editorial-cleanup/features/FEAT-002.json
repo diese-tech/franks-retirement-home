@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Ensure the admin homepage editor still functions correctly with empty defaults, and that the editor renders usable empty-state UX rather than broken/blank sections. When sections are empty AND hidden, the editor should still show them (dimmed) so admins can add real content and toggle visibility on.",
+  "status": "completed",
+  "steps": [
+    "1. In app/admin/homepage/HomepageEditorClient.js: No structural changes needed - it already renders HomepageClient with mode='editor' and passes through DB-driven props. Verify it still works by confirming the imports from lib/homepageDefaults.js are not broken by the empty defaults change.",
+    "2. In app/HomepageClient.js: For each editorial section (ticker, headlines, bulletin, fraudWatch, motw, rivalries, knowsBall, washedReports, socialCards), add empty-state rendering when the array is empty in editor mode. Show a message like 'No items yet. Use + button below to add content.' This ensures the admin can still see and interact with empty sections.",
+    "3. In app/HomepageClient.js: For the Headlines section (FrhLeadStory + FrhSidebarStories), guard against empty headlines array. If headlines is empty, show an empty state with the add button. Currently the code does `content.headlines[0]` which would be undefined if the array is empty.",
+    "4. In app/HomepageClient.js: For the MOTW section (FrhMotwMega), ensure it renders gracefully when motw has empty strings for title/when/storyline. The current code passes the object through to EditableField which handles empty strings fine, but verify the visual is acceptable.",
+    "5. In app/HomepageClient.js: Verify the Section component's visibility toggle still works: in editor mode, hidden sections (show*=false) render dimmed with a toggle button. The change to DEFAULT_VISIBILITY (all false) means fresh installs show sections as hidden in the editor, which is correct - admins toggle them on after adding content.",
+    "6. In app/HomepageClient.js: The FrhBulletinForum has a hardcoded sticky post about 'league rules, draft etiquette, and which gods we ban on sight' with 312 replies. This is flavor text for the UI chrome, not fake league data, but review whether it should stay. Decision: Keep it - it's UI decoration for the bulletin board component structure, not pretending to be real player data.",
+    "7. In the FrhPanel components for Knows Ball and Washed Reports, verify the empty arrays render without errors (map over [] produces nothing, which is fine)."
+  ],
+  "acceptance_criteria": [
+    "The admin homepage editor at /admin/homepage renders without JavaScript errors when all editorial content arrays are empty",
+    "Each empty editorial section shows a helpful empty-state message in editor mode",
+    "The Headlines section does not crash when headlines array is empty (no undefined access on content.headlines[0])",
+    "Admin can still add items using the + buttons in each empty section",
+    "Visibility toggles still work correctly in editor mode",
+    "npm run build passes",
+    "npm run lint passes"
+  ],
+  "verification": [
+    "Run: DATABASE_URL='postgresql://fake:fake@localhost:5432/fake' DIRECT_URL='postgresql://fake:fake@localhost:5432/fake' npx prisma generate && npm run build",
+    "Run: npm run lint"
+  ],
+  "blocked_reason": null,
+  "findings": "All changes implemented cleanly. Build and lint pass. Headlines section now guards against empty array access. All editorial sections show empty-state messages in editor mode when items array is empty. FrhBulletinForum already handles empty gracefully with its sticky post. FrhMotwMega works fine with empty strings via EditableField placeholders. Section visibility toggles work correctly (hidden sections render dimmed in editor mode)."
+}
