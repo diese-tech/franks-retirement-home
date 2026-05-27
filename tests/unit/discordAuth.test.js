@@ -15,6 +15,8 @@ const {
   validateDiscordEnv,
   hasDiscordAdminRole,
   hasDiscordCaptainRole,
+  hasDiscordPlayerRole,
+  resolvePlayerDivisionFromRoles,
   resolveTeamFromRoles,
   resolveDivisionFromRoles,
   buildDiscordSessionCookie,
@@ -53,10 +55,11 @@ const ENV_KEYS = [
   'DISCORD_GUILD_ID',
   'DISCORD_SESSION_SECRET',
   'DISCORD_ADMIN_ROLE_ID',
-  'DISCORD_CAPTAIN_ROLE_ID',
+  'DISCORD_HOSPICE_CAPTAIN_ROLE_ID',
+  'DISCORD_REHABILITATION_CAPTAIN_ROLE_ID',
+  'DISCORD_HOSPICE_PLAYER_ROLE_IDS',
+  'DISCORD_REHABILITATION_PLAYER_ROLE_IDS',
   'DISCORD_TEAM_ROLE_MAP_JSON',
-  'DISCORD_HOSPICE_ROLE_ID',
-  'DISCORD_REHABILITATION_ROLE_ID',
 ];
 
 let savedEnv;
@@ -140,18 +143,85 @@ describe('hasDiscordAdminRole', () => {
 // ─── hasDiscordCaptainRole ───────────────────────────────────────────────────
 
 describe('hasDiscordCaptainRole', () => {
-  it('returns true when roles includes DISCORD_CAPTAIN_ROLE_ID', () => {
-    process.env.DISCORD_CAPTAIN_ROLE_ID = 'captain-role-456';
-    expect(hasDiscordCaptainRole(['captain-role-456', 'other'])).toBe(true);
+  it('returns true when roles includes DISCORD_HOSPICE_CAPTAIN_ROLE_ID', () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-456';
+    expect(hasDiscordCaptainRole(['hospice-captain-456', 'other'])).toBe(true);
   });
 
-  it('returns false when roles does not include it', () => {
-    process.env.DISCORD_CAPTAIN_ROLE_ID = 'captain-role-456';
-    expect(hasDiscordCaptainRole(['other-role'])).toBe(false);
+  it('returns true when roles includes DISCORD_REHABILITATION_CAPTAIN_ROLE_ID', () => {
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-789';
+    expect(hasDiscordCaptainRole(['rehab-captain-789', 'other'])).toBe(true);
   });
 
-  it('returns false when DISCORD_CAPTAIN_ROLE_ID env is not set', () => {
-    expect(hasDiscordCaptainRole(['captain-role-456'])).toBe(false);
+  it('returns false for player-only roles (no captain role)', () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-456';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-789';
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    expect(hasDiscordCaptainRole(['scooter-role', 'wheelchair-role'])).toBe(false);
+  });
+
+  it('returns false when neither captain role env var is set', () => {
+    expect(hasDiscordCaptainRole(['hospice-captain-456'])).toBe(false);
+  });
+});
+
+// ─── hasDiscordPlayerRole ────────────────────────────────────────────────────
+
+describe('hasDiscordPlayerRole', () => {
+  it('returns true when user has a hospice player role', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    expect(hasDiscordPlayerRole(['scooter-role', 'other'])).toBe(true);
+  });
+
+  it('returns true when user has a rehabilitation player role', () => {
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role,canes-role';
+    expect(hasDiscordPlayerRole(['canes-role'])).toBe(true);
+  });
+
+  it('works with comma-separated IDs (matches second ID)', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    expect(hasDiscordPlayerRole(['wheelchair-role'])).toBe(true);
+  });
+
+  it('returns false when user has no player roles', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role,canes-role';
+    expect(hasDiscordPlayerRole(['unrelated-role'])).toBe(false);
+  });
+
+  it('returns false when player role env vars are not set', () => {
+    expect(hasDiscordPlayerRole(['scooter-role'])).toBe(false);
+  });
+
+  it('handles whitespace in comma-separated values', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = ' scooter-role , wheelchair-role ';
+    expect(hasDiscordPlayerRole(['scooter-role'])).toBe(true);
+  });
+});
+
+// ─── resolvePlayerDivisionFromRoles ──────────────────────────────────────────
+
+describe('resolvePlayerDivisionFromRoles', () => {
+  it("returns 'div-s9-hospice' when user has a hospice player role", () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    expect(resolvePlayerDivisionFromRoles(['scooter-role'])).toBe('div-s9-hospice');
+  });
+
+  it("returns 'div-s9-rehabilitation' when user has a rehab player role", () => {
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role,canes-role';
+    expect(resolvePlayerDivisionFromRoles(['walker-role'])).toBe('div-s9-rehabilitation');
+  });
+
+  it('returns null when no player roles match', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role,canes-role';
+    expect(resolvePlayerDivisionFromRoles(['unrelated'])).toBeNull();
+  });
+
+  it('prefers hospice when both are present', () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role';
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role';
+    expect(resolvePlayerDivisionFromRoles(['scooter-role', 'walker-role'])).toBe('div-s9-hospice');
   });
 });
 
@@ -186,26 +256,57 @@ describe('resolveTeamFromRoles', () => {
 // ─── resolveDivisionFromRoles ────────────────────────────────────────────────
 
 describe('resolveDivisionFromRoles', () => {
-  it("returns 'div-s9-hospice' when roles includes DISCORD_HOSPICE_ROLE_ID", () => {
-    process.env.DISCORD_HOSPICE_ROLE_ID = 'hospice-role-id';
-    expect(resolveDivisionFromRoles(['hospice-role-id', 'other'])).toBe('div-s9-hospice');
+  it("returns 'div-s9-hospice' when roles includes hospice captain role", () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    expect(resolveDivisionFromRoles(['hospice-captain-role', 'other'])).toBe('div-s9-hospice');
   });
 
-  it("returns 'div-s9-rehabilitation' when roles includes DISCORD_REHABILITATION_ROLE_ID", () => {
-    process.env.DISCORD_REHABILITATION_ROLE_ID = 'rehab-role-id';
-    expect(resolveDivisionFromRoles(['rehab-role-id'])).toBe('div-s9-rehabilitation');
+  it("returns 'div-s9-rehabilitation' when roles includes rehab captain role", () => {
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
+    expect(resolveDivisionFromRoles(['rehab-captain-role'])).toBe('div-s9-rehabilitation');
   });
 
-  it('returns null when neither matches', () => {
-    process.env.DISCORD_HOSPICE_ROLE_ID = 'hospice-role-id';
-    process.env.DISCORD_REHABILITATION_ROLE_ID = 'rehab-role-id';
+  it("returns 'div-s9-hospice' from player roles as fallback", () => {
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    expect(resolveDivisionFromRoles(['scooter-role'])).toBe('div-s9-hospice');
+  });
+
+  it("returns 'div-s9-rehabilitation' from player roles as fallback", () => {
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role,canes-role';
+    expect(resolveDivisionFromRoles(['walker-role'])).toBe('div-s9-rehabilitation');
+  });
+
+  it('returns null when neither captain nor player roles match', () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role';
+    process.env.DISCORD_REHABILITATION_PLAYER_ROLE_IDS = 'walker-role';
     expect(resolveDivisionFromRoles(['unrelated'])).toBeNull();
   });
 
-  it('prefers hospice when both roles are present', () => {
-    process.env.DISCORD_HOSPICE_ROLE_ID = 'hospice-role-id';
-    process.env.DISCORD_REHABILITATION_ROLE_ID = 'rehab-role-id';
-    expect(resolveDivisionFromRoles(['hospice-role-id', 'rehab-role-id'])).toBe('div-s9-hospice');
+  it('prefers hospice captain role when both captain roles are present', () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
+    expect(resolveDivisionFromRoles(['hospice-captain-role', 'rehab-captain-role'])).toBe('div-s9-hospice');
+  });
+
+  it('captain role takes priority over player roles', () => {
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role';
+    expect(resolveDivisionFromRoles(['rehab-captain-role', 'scooter-role'])).toBe('div-s9-rehabilitation');
+  });
+});
+
+// ─── Player role without captain role does not grant captain access ───────────
+
+describe('Player role without captain role does not grant captain access', () => {
+  it('hasDiscordCaptainRole returns false for player-only user', () => {
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
+    process.env.DISCORD_HOSPICE_PLAYER_ROLE_IDS = 'scooter-role,wheelchair-role';
+    const roles = ['scooter-role', 'wheelchair-role'];
+    expect(hasDiscordCaptainRole(roles)).toBe(false);
+    expect(hasDiscordPlayerRole(roles)).toBe(true);
   });
 });
 
@@ -237,10 +338,7 @@ describe('buildDiscordSessionCookie + getDiscordSessionUser round-trip', () => {
       username: 'TestUser',
       roles: ['role-a'],
     };
-    const cookie = buildDiscordSessionCookie(sessionData);
 
-    // Manually create an expired cookie by tampering with exp
-    // Instead, we use time manipulation via vi.useFakeTimers
     vi.useFakeTimers();
     const now = Date.now();
     vi.setSystemTime(now);
@@ -261,9 +359,7 @@ describe('buildDiscordSessionCookie + getDiscordSessionUser round-trip', () => {
       roles: ['role-a'],
     };
     const cookie = buildDiscordSessionCookie(sessionData);
-    // Tamper with the payload portion (before the dot)
     const parts = cookie.split('.');
-    // Modify the encoded payload slightly
     const tamperedPayload = parts[0] + 'XX';
     const tamperedCookie = `${tamperedPayload}.${parts[1]}`;
     const req = makeReqWithCookie(DISCORD_SESSION_COOKIE, tamperedCookie);
@@ -272,7 +368,6 @@ describe('buildDiscordSessionCookie + getDiscordSessionUser round-trip', () => {
   });
 
   it('a cookie with missing fields returns null', () => {
-    // Manually create a cookie with missing discordId field
     const secret = 'test-secret-at-least-16-chars';
     const payload = JSON.stringify({ username: 'Test', roles: [], exp: Date.now() + 60000 });
     const encoded = Buffer.from(payload, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -308,13 +403,12 @@ describe('resolveCaptainSideFromDiscord', () => {
   const MATCH_ID = 'match-test-1';
 
   beforeEach(() => {
-    process.env.DISCORD_CAPTAIN_ROLE_ID = 'captain-role';
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
     process.env.DISCORD_TEAM_ROLE_MAP_JSON = JSON.stringify({
       'team-home': 'team-home-role',
       'team-away': 'team-away-role',
     });
-    process.env.DISCORD_HOSPICE_ROLE_ID = 'hospice-role';
-    process.env.DISCORD_REHABILITATION_ROLE_ID = 'rehab-role';
   });
 
   it("captain role + correct team + correct division -> 'home'", async () => {
@@ -324,7 +418,7 @@ describe('resolveCaptainSideFromDiscord', () => {
       homeTeam: { divisionId: 'div-s9-hospice' },
       awayTeam: { divisionId: 'div-s9-rehabilitation' },
     });
-    const roles = ['captain-role', 'team-home-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-home-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBe('home');
   });
@@ -336,7 +430,7 @@ describe('resolveCaptainSideFromDiscord', () => {
       homeTeam: { divisionId: 'div-s9-hospice' },
       awayTeam: { divisionId: 'div-s9-rehabilitation' },
     });
-    const roles = ['captain-role', 'team-away-role', 'rehab-role'];
+    const roles = ['rehab-captain-role', 'team-away-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBe('away');
   });
@@ -348,13 +442,12 @@ describe('resolveCaptainSideFromDiscord', () => {
       homeTeam: { divisionId: 'div-s9-hospice' },
       awayTeam: { divisionId: 'div-s9-rehabilitation' },
     });
-    // Has captain role but the team role does not match home or away
     process.env.DISCORD_TEAM_ROLE_MAP_JSON = JSON.stringify({
       'team-home': 'team-home-role',
       'team-away': 'team-away-role',
       'team-other': 'team-other-role',
     });
-    const roles = ['captain-role', 'team-other-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-other-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBeNull();
   });
@@ -366,22 +459,21 @@ describe('resolveCaptainSideFromDiscord', () => {
       homeTeam: { divisionId: 'div-s9-hospice' },
       awayTeam: { divisionId: 'div-s9-rehabilitation' },
     });
-    // Has home team role but rehab division (home team is hospice)
-    const roles = ['captain-role', 'team-home-role', 'rehab-role'];
+    // Has home team role but rehab captain role (home team is hospice)
+    const roles = ['rehab-captain-role', 'team-home-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBeNull();
   });
 
   it('no captain role -> null', async () => {
-    const roles = ['team-home-role', 'hospice-role'];
+    const roles = ['team-home-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBeNull();
-    // Should not even query DB
     expect(prisma.match.findUnique).not.toHaveBeenCalled();
   });
 
   it('no team role match -> null', async () => {
-    const roles = ['captain-role', 'hospice-role']; // no team role
+    const roles = ['hospice-captain-role']; // no team role
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBeNull();
     expect(prisma.match.findUnique).not.toHaveBeenCalled();
@@ -389,7 +481,7 @@ describe('resolveCaptainSideFromDiscord', () => {
 
   it('match not found -> null', async () => {
     prisma.match.findUnique.mockResolvedValue(null);
-    const roles = ['captain-role', 'team-home-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-home-role'];
     const result = await resolveCaptainSideFromDiscord(MATCH_ID, roles);
     expect(result).toBeNull();
   });
@@ -402,13 +494,12 @@ describe('resolveDraftRoleFromDiscord', () => {
 
   beforeEach(() => {
     process.env.DISCORD_ADMIN_ROLE_ID = 'admin-role';
-    process.env.DISCORD_CAPTAIN_ROLE_ID = 'captain-role';
+    process.env.DISCORD_HOSPICE_CAPTAIN_ROLE_ID = 'hospice-captain-role';
+    process.env.DISCORD_REHABILITATION_CAPTAIN_ROLE_ID = 'rehab-captain-role';
     process.env.DISCORD_TEAM_ROLE_MAP_JSON = JSON.stringify({
       'team-home': 'team-home-role',
       'team-away': 'team-away-role',
     });
-    process.env.DISCORD_HOSPICE_ROLE_ID = 'hospice-role';
-    process.env.DISCORD_REHABILITATION_ROLE_ID = 'rehab-role';
   });
 
   it("admin role -> 'admin' (does not need DB lookup)", async () => {
@@ -431,7 +522,7 @@ describe('resolveDraftRoleFromDiscord', () => {
         },
       },
     });
-    const roles = ['captain-role', 'team-home-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-home-role'];
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('captainA');
   });
@@ -449,7 +540,7 @@ describe('resolveDraftRoleFromDiscord', () => {
         },
       },
     });
-    const roles = ['captain-role', 'team-away-role', 'rehab-role'];
+    const roles = ['rehab-captain-role', 'team-away-role'];
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('captainB');
   });
@@ -459,7 +550,7 @@ describe('resolveDraftRoleFromDiscord', () => {
       gameId: null,
       game: null,
     });
-    const roles = ['captain-role', 'team-home-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-home-role'];
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('spectator');
   });
@@ -482,14 +573,14 @@ describe('resolveDraftRoleFromDiscord', () => {
       'team-away': 'team-away-role',
       'team-other': 'team-other-role',
     });
-    const roles = ['captain-role', 'team-other-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-other-role'];
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('spectator');
   });
 
   it("draft not found -> 'spectator'", async () => {
     prisma.draft.findUnique.mockResolvedValue(null);
-    const roles = ['captain-role', 'team-home-role', 'hospice-role'];
+    const roles = ['hospice-captain-role', 'team-home-role'];
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('spectator');
   });
@@ -507,7 +598,7 @@ describe('resolveDraftRoleFromDiscord', () => {
         },
       },
     });
-    const roles = ['team-home-role', 'hospice-role']; // no captain or admin role
+    const roles = ['team-home-role']; // no captain or admin role
     const result = await resolveDraftRoleFromDiscord(DRAFT_ID, roles);
     expect(result).toBe('spectator');
   });
