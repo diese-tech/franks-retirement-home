@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Homepage architecture simplification: Convert the homepage to be primarily data-driven with lightweight admin overrides. The existing architecture already partially does this (standings, live matches, schedule are DB-driven). This feature extends that pattern to make more sections data-aware while keeping the admin editorial override system intact. Add new data-driven sections for Recent Results, Player Spotlight, and Hot/Cold Teams. Keep existing admin-editable sections (ticker, headlines, bulletin, fraud watch, MOTW, rivalries, knows ball, washed reports, social cards) as editorial overrides.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Add a 'Recent Results' section to HomepageClient.js that renders the recentResults prop (already passed from page.js but currently unused in the component). Show last 5 completed matches with scores. Pattern: data-driven, no admin override needed. Place it after the broadcast hero section.",
     "Step 2: Add a 'Hot/Cold Teams' section to HomepageClient.js that computes team form from divisionStandings data (already available). Show teams with best win records as 'hot' and worst as 'cold'. This is purely computed - no admin override needed. Place near the Power Rankings section.",
@@ -28,5 +28,5 @@
     "Run: npm run test"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All steps implemented successfully. Power Rankings threshold changed from >= 3 to >= 1 entries. Recent Results section placed after the broadcast hero and draft interrupt. Form Check (Hot/Cold Teams) placed after Power Rankings. Admin editor now passes recentResults through to HomepageClient for consistent preview. ARCHITECTURE.md updated with editorial vs computed section breakdown."
 }
