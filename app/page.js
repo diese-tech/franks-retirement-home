@@ -6,6 +6,41 @@ import HomepageClient from './HomepageClient';
 
 export const dynamic = 'force-dynamic';
 
+/** Build ticker items from real DB data when no admin-authored ticker exists. */
+function buildAutoTicker({ recentResults, upcomingMatches, divisionStandings, activeSeason }) {
+  const items = [];
+
+  // Recent results
+  for (const m of (recentResults ?? []).slice(0, 3)) {
+    const homeWins = m.games?.filter(g => g.winnerTeamId === m.homeTeamId).length ?? 0;
+    const awayWins = m.games?.filter(g => g.winnerTeamId === m.awayTeamId).length ?? 0;
+    const home = m.homeTeam?.name ?? 'Home';
+    const away = m.awayTeam?.name ?? 'Away';
+    items.push({ tag: 'FINAL', text: `${home} ${homeWins}–${awayWins} ${away}`, tone: 'score' });
+  }
+
+  // Upcoming matches
+  for (const m of (upcomingMatches ?? []).slice(0, 2)) {
+    const home = m.homeTeam?.name ?? 'TBD';
+    const away = m.awayTeam?.name ?? 'TBD';
+    const div = m.division?.name ? ` · ${m.division.name}` : '';
+    items.push({ tag: 'NEXT UP', text: `${home} vs ${away}${div}`, tone: 'info' });
+  }
+
+  // League leader note
+  const topTeam = divisionStandings?.[0]?.rows?.[0];
+  if (topTeam) {
+    items.push({ tag: 'STANDINGS', text: `${topTeam.teamName} leads ${divisionStandings[0].division.name} at ${topTeam.wins}–${topTeam.losses}`, tone: 'info' });
+  }
+
+  // Season note
+  if (activeSeason?.name) {
+    items.push({ tag: 'FRH', text: `${activeSeason.name} is live — results, standings and drafts updated in real time`, tone: 'info' });
+  }
+
+  return items;
+}
+
 export default async function HomePage({ searchParams }) {
   // ── Editorial content: published row (or draft for ?preview=draft admins) ─
   let editableContent = null;
@@ -103,6 +138,16 @@ export default async function HomePage({ searchParams }) {
         )
       : [];
   } catch (err) { console.error('[homepage]', err); }
+
+  // ── Auto-generate ticker items from real data if no admin-authored ticker ─
+  // This ensures the ticker is never empty when real match/standings data exists.
+  // Admin-authored ticker always takes precedence.
+  if (editableContent && editableContent.ticker.length === 0) {
+    const autoTicker = buildAutoTicker({ recentResults, upcomingMatches, divisionStandings, activeSeason });
+    if (autoTicker.length > 0) {
+      editableContent = { ...editableContent, ticker: autoTicker };
+    }
+  }
 
   return (
     <HomepageClient

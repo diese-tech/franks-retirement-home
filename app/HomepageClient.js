@@ -100,6 +100,26 @@ export function FrhTicker({ items, isEditor, onItemChange, onMoveUp, onMoveDown,
           ))}
           {addBtn('Add ticker item', onAdd)}
         </div>
+      ) : items.length === 0 ? (
+        // No admin-authored ticker items — show a branded setup message that
+        // scrolls just like real content so the visual chrome is preserved.
+        <div className="frh-ticker__track">
+          <div className="frh-ticker__rail">
+            {[
+              { tag: 'FRH', text: 'Season is live — match results and standings update in real time', tone: 'info' },
+              { tag: 'WIRE', text: 'Ticker content coming soon — check back for scores, alerts and league news', tone: 'info' },
+              { tag: 'FRH', text: 'Follow the league on Discord for real-time updates', tone: 'info' },
+            ].flatMap((it, _, arr) => [...arr, ...arr]).map((it, i) => (
+              <span key={i} className="frh-ticker__item">
+                <span className={`frh-ticker__tag frh-ticker__tag--${it.tone}`}>{it.tag}</span>
+                <span>{it.text}</span>
+                {i % 3 === 2
+                  ? <span style={{ color: '#ffd400' }}>&#9733;</span>
+                  : <span style={{ opacity: 0.4 }}>&bull;</span>}
+              </span>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="frh-ticker__track">
           <div className="frh-ticker__rail">
@@ -500,6 +520,11 @@ export function FrhFraudWanted({ items, isEditor, onItemChange, onMoveUp, onMove
             No fraud cases yet. Use + button below to add content.
           </div>
         )}
+        {items.length === 0 && !isEditor && (
+          <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6, width: '100%', letterSpacing: '0.05em' }}>
+            &#9733; NO ACTIVE CASES &#9733; The league is temporarily fraud-free. Suspicious.
+          </div>
+        )}
         {items.map((c, i) => (
           <div key={i} className="frh-wanted-card">
             <span className="frh-wanted-card__stamp">
@@ -542,6 +567,23 @@ export function FrhFraudWanted({ items, isEditor, onItemChange, onMoveUp, onMove
 }
 
 export function FrhMotwMega({ motw, isEditor, onChange }) {
+  // In public mode with no matchup set, show a branded holding card
+  if (!isEditor && !motw.title) {
+    return (
+      <div className="frh-motw-mega">
+        <div className="frh-motw-mega__poster" style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <span className="frh-motw-mega__kicker">FRI NIGHT &middot; PRIMETIME</span>
+          <div>
+            <h2 className="frh-motw-mega__matchup" style={{ opacity: 0.4 }}>TBD vs TBD</h2>
+            <div className="frh-motw-mega__when" style={{ opacity: 0.5 }}>Matchup announced later this week</div>
+            <p className="frh-motw-mega__story" style={{ opacity: 0.6 }}>
+              The Match of the Week has not been selected yet. Check back Friday.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="frh-motw-mega">
       <div className="frh-motw-mega__poster">
@@ -609,6 +651,13 @@ export function FrhRivalryPosters({ items, isEditor, onItemChange, onMoveUp, onM
           No rivalries yet. Use + button below to add content.
         </div>
       )}
+      {items.length === 0 && !isEditor && (
+        <div style={{ padding: '32px 24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6, width: '100%', letterSpacing: '0.05em', border: '1px dashed rgba(255,212,0,0.2)' }}>
+          <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>⚔</div>
+          No active rivalries on record.<br />
+          <span style={{ fontSize: 10, opacity: 0.5 }}>Feuds are forming. Season drama pending.</span>
+        </div>
+      )}
       {items.map((r, i) => (
         <div key={i} className="frh-poster">
           <div className="frh-poster__matchup">
@@ -669,6 +718,11 @@ export function FrhSocialStrip({ items, isEditor, onItemChange, onMoveUp, onMove
         {items.length === 0 && isEditor && (
           <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6, width: '100%' }}>
             No social cards yet. Use + button below to add content.
+          </div>
+        )}
+        {items.length === 0 && !isEditor && (
+          <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6, width: '100%', letterSpacing: '0.05em' }}>
+            &#9733; FRH &mdash; Auto-generated media cards will appear here as season stats accumulate.
           </div>
         )}
         {items.map((c, i) => (
@@ -747,6 +801,11 @@ export function FrhKnowsBallPanel({ items, isEditor, onItemChange, onMoveUp, onM
           No analyst picks yet. Use + button below to add content.
         </div>
       )}
+      {items.length === 0 && !isEditor && (
+        <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6 }}>
+          Analyst picks not yet filed for this week&apos;s slate. Check back closer to game day.
+        </div>
+      )}
       {items.map((k, i) => (
         <div key={i} className="frh-analyst-row">
           <div className="who">
@@ -782,6 +841,11 @@ export function FrhWashedPanel({ items, isEditor, onItemChange, onMoveUp, onMove
         {items.length === 0 && isEditor && (
           <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
             No washed reports yet. Use + button below to add content.
+          </div>
+        )}
+        {items.length === 0 && !isEditor && (
+          <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6 }}>
+            No washed incidents on record. The league is momentarily competent.
           </div>
         )}
         {items.map((w, i) => (
@@ -848,15 +912,15 @@ export default function HomepageClient({
     socialCards:      DEFAULT_SOCIAL_CARDS,
     discordInviteUrl: DEFAULT_DISCORD_INVITE_URL,
     washedPct:        DEFAULT_WASHED_PCT,
-    showTicker:        false,
-    showHeadlines:     false,
-    showBulletin:      false,
-    showFraudWatch:    false,
-    showMotw:          false,
-    showRivalries:     false,
-    showKnowsBall:     false,
-    showWashedReports: false,
-    showSocialCards:   false,
+    showTicker:        true,
+    showHeadlines:     true,
+    showBulletin:      true,
+    showFraudWatch:    true,
+    showMotw:          true,
+    showRivalries:     true,
+    showKnowsBall:     true,
+    showWashedReports: true,
+    showSocialCards:   true,
   };
 
   // Shorthand: call onContentChange with a specific top-level field
@@ -925,14 +989,12 @@ export default function HomepageClient({
 
   return (
     <>
-      {content.showTicker || isEditor ? (
-        <Section field="Ticker">
-          <FrhTicker
-            items={content.ticker}
-            {...listHandlers('ticker', { tag: 'NEWS', text: 'New ticker item', tone: 'info' })}
-          />
-        </Section>
-      ) : null}
+      <Section field="Ticker">
+        <FrhTicker
+          items={content.ticker}
+          {...listHandlers('ticker', { tag: 'NEWS', text: 'New ticker item', tone: 'info' })}
+        />
+      </Section>
 
       <FrhMasthead
         activeSeason={activeSeason}
