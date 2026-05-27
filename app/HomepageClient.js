@@ -17,33 +17,9 @@ import {
   DEFAULT_WASHED_PCT,
 } from '@/lib/homepageDefaults';
 
-// Re-export defaults under legacy names so anything that previously imported
-// from this file (e.g. tests) continues to work.
-export {
-  DEFAULT_TICKER   as TICKER_DATA,
-  DEFAULT_HEADLINES as HEADLINES_DATA,
-  DEFAULT_BULLETIN  as BULLETIN_DATA,
-  DEFAULT_FRAUD_WATCH as FRAUD_DATA,
-  DEFAULT_MOTW     as MOTW_DATA,
-  DEFAULT_RIVALRIES as RIVALRY_DATA,
-  DEFAULT_KNOWS_BALL as KNOWS_BALL_DATA,
-  DEFAULT_WASHED_REPORTS as WASHED_DATA,
-  DEFAULT_SOCIAL_CARDS   as SOCIAL_CARD_DATA,
-};
 
-// ─── Rankings placeholder (still used as DB fallback inside this file) ───────
-const RANKINGS_DATA = [
-  { rank:  1, team: 'Bedpan Bandits',        tag: 'BEDP', trend: +2, blurb: 'Undefeated. Annoying. Unwell.',              record: '5–0', color: '#CC3300' },
-  { rank:  2, team: 'Whiskey Wardens',       tag: 'WHIS', trend:  0, blurb: "Drafts like they're at a wedding.",          record: '5–2', color: '#8a4a13' },
-  { rank:  3, team: 'Late Stage Tyrants',    tag: 'TYRN', trend: +1, blurb: 'Mid-game pressure, late-game vibes.',        record: '4–2', color: '#3a2a6a' },
-  { rank:  4, team: 'Centennial Centurions', tag: 'CENT', trend: -2, blurb: 'Old money. Older instincts.',                record: '4–3', color: '#5C6B2E' },
-  { rank:  5, team: 'Sundown Saboteurs',     tag: 'SUND', trend:  0, blurb: 'Peak at 10pm EST. Falls off at 11.',         record: '4–3', color: '#2B5BA8' },
-  { rank:  6, team: 'Last Will & Tower',     tag: 'WILL', trend: +3, blurb: 'Surprise contender. Surprised themselves.',  record: '3–3', color: '#5b3a13' },
-  { rank:  7, team: 'Pillbox Phoenixes',     tag: 'PILL', trend: -1, blurb: 'Reborn weekly. Burned out by Sunday.',       record: '3–4', color: '#ff8c00' },
-  { rank:  8, team: 'Geriatric Jormungandr', tag: 'JORM', trend: -3, blurb: 'Coiled. Confused.',                         record: '2–4', color: '#163b00' },
-  { rank:  9, team: 'Mall Walkers',          tag: 'MALL', trend:  0, blurb: 'Lapped, literally and figuratively.',        record: '2–5', color: '#6f35ff' },
-  { rank: 10, team: 'Sleep Apnea Sentinels', tag: 'SLEP', trend: -1, blurb: 'AFK by minute 14. Every game.',              record: '1–6', color: '#6B5A3E' },
-];
+
+
 
 
 // ─── Editor helpers ───────────────────────────────────────────────────────────
@@ -333,7 +309,7 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
         <div style={{ fontSize: 56, marginBottom: 16, fontFamily: 'inherit' }}>:(</div>
         <p style={{ margin: '0 0 10px' }}><b>FRH_BROADCAST</b> has encountered a <b>washed event</b> and needs to close.</p>
         <p style={{ margin: '0 0 6px', opacity: 0.7 }}>No live matches. Everyone is probably arguing in Discord.</p>
-        <p style={{ margin: '0', opacity: 0.5, fontSize: 11 }}>*** STOP: 0xWASHED_OUT_DEEP (BEDPAN_BANDITS, 0x00000005, 0xFEEDC0DE)</p>
+        <p style={{ margin: '0', opacity: 0.5, fontSize: 11 }}>*** STOP: 0xWASHED_OUT_DEEP (FRH_LEAGUE, 0x00000005, 0xFEEDC0DE)</p>
       </div>
       <div className="frh-mega__lowerthird">
         <span><b>STATUS:</b> Off-season / no matches scheduled</span>
@@ -366,7 +342,7 @@ export function FrhCrtPanel({ isLive, liveMatch }) {
               <span className="code">marriage</span>, and your{' '}
               <span className="code">browser</span>.</p>
             <p>Technical information:</p>
-            <p>*** STOP: 0xWASHED_OUT_DEEP (BEDPAN_BANDITS, 0x00000005, 0xFEEDC0DE)</p>
+            <p>*** STOP: 0xWASHED_OUT_DEEP (FRH_LEAGUE, 0x00000005, 0xFEEDC0DE)</p>
             <p className="frh-bsod__blink">Press any key to continue beefing</p>
           </div>
         )}
@@ -607,7 +583,7 @@ export function FrhMotwMega({ motw, isEditor, onChange }) {
         <div>
           <div className="frh-motw-mega__sectionhead">KNOWS BALL LINE</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.6 }}>
-            BEDP -3.5 &middot; OVER/UNDER 28 min &middot; &ldquo;Bandits cover, Tyrants force G3&rdquo;
+            Lines available once matchup is set
           </div>
         </div>
       </div>
@@ -842,15 +818,15 @@ export default function HomepageClient({
     socialCards:      DEFAULT_SOCIAL_CARDS,
     discordInviteUrl: DEFAULT_DISCORD_INVITE_URL,
     washedPct:        DEFAULT_WASHED_PCT,
-    showTicker:        true,
-    showHeadlines:     true,
-    showBulletin:      true,
-    showFraudWatch:    true,
-    showMotw:          true,
-    showRivalries:     true,
-    showKnowsBall:     true,
-    showWashedReports: true,
-    showSocialCards:   true,
+    showTicker:        false,
+    showHeadlines:     false,
+    showBulletin:      false,
+    showFraudWatch:    false,
+    showMotw:          false,
+    showRivalries:     false,
+    showKnowsBall:     false,
+    showWashedReports: false,
+    showSocialCards:   false,
   };
 
   // Shorthand: call onContentChange with a specific top-level field
@@ -886,7 +862,7 @@ export default function HomepageClient({
         }));
       }
     }
-    return RANKINGS_DATA;
+    return [];
   })();
 
   // ── Section visibility wrapper ────────────────────────────────────────────
@@ -1040,7 +1016,7 @@ export default function HomepageClient({
         <FrhSectionLabel kind="alert" pill="RANKINGS" title="NURSING HOME POWER RANKINGS" after="WEEK 4" />
         <FrhPanel title="NURSING HOME POWER RANKINGS" accent="orange" kicker="WEEK 4"
           status={['Composite of FrankBot + community + vibes', 'Δ vs last week']}>
-          {rankingsRows.map((r) => (
+          {rankingsRows.length > 0 ? rankingsRows.map((r) => (
             <div key={r.rank} className="frh-rank">
               <div className="frh-rank__num">{r.rank}</div>
               <div className="frh-rank__crest" style={{ background: r.color }}>{r.tag}</div>
@@ -1053,7 +1029,11 @@ export default function HomepageClient({
                 {r.trend > 0 ? `▲${r.trend}` : r.trend < 0 ? `▼${Math.abs(r.trend)}` : '—'}
               </div>
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6 }}>
+              Power rankings will appear once match results are recorded.
+            </div>
+          )}
         </FrhPanel>
 
         {/* ── Form Check: Hot/Cold Teams (computed) ──────── */}

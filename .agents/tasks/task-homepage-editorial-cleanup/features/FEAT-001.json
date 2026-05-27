@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Remove all fake editorial content from homepage defaults and replace RANKINGS_DATA fallback with empty state. Replace fake team names in lib/homepageDefaults.js with empty arrays (so sections are hidden by default). Remove RANKINGS_DATA constant from HomepageClient.js and show an empty-state message when no real standings data exists. Clean up BEDPAN_BANDITS references in BSOD humor text.",
+  "status": "in_progress",
+  "steps": [
+    "1. In lib/homepageDefaults.js: Replace ALL DEFAULT_* arrays/objects with empty arrays/objects. Set DEFAULT_TICKER to [], DEFAULT_HEADLINES to [], DEFAULT_BULLETIN to [], DEFAULT_FRAUD_WATCH to [], DEFAULT_MOTW to { title: '', when: '', storyline: '', h2h: [], stakes: '' }, DEFAULT_RIVALRIES to [], DEFAULT_KNOWS_BALL to [], DEFAULT_WASHED_REPORTS to [], DEFAULT_SOCIAL_CARDS to []. Keep DEFAULT_DISCORD_INVITE_URL and DEFAULT_WASHED_PCT as they are (they're real config values, not fake data).",
+    "2. In lib/homepageDefaults.js: Update DEFAULT_VISIBILITY to set all show* fields to false by default, so sections without real published content are hidden rather than showing empty containers.",
+    "3. In lib/homepageDefaults.js: Update the mergeWithDefaults function - when arrays are empty (length === 0), use the empty default (not the old fake fallback). The condition `&& dbRow.ticker.length` should remain, but now the fallback DEFAULT_TICKER is just [].",
+    "4. In app/HomepageClient.js: Remove the entire RANKINGS_DATA constant (lines 34-46 containing Bedpan Bandits, Whiskey Wardens, etc.).",
+    "5. In app/HomepageClient.js: Update the rankingsRows computation (around line 880-890) to NOT fall back to RANKINGS_DATA. Instead, if divisionStandings has no data, set rankingsRows to an empty array [].",
+    "6. In app/HomepageClient.js: Update the Power Rankings section rendering (around line 895-915) to show an empty state when rankingsRows is empty: display a message 'Power rankings will appear once match results are recorded.' inside the FrhPanel instead of mapping over an empty array.",
+    "7. In app/HomepageClient.js: Replace the two BEDPAN_BANDITS references in the BSOD/no-signal humor sections (lines 336 and 369). Change '*** STOP: 0xWASHED_OUT_DEEP (BEDPAN_BANDITS, 0x00000005, 0xFEEDC0DE)' to '*** STOP: 0xWASHED_OUT_DEEP (FRH_LEAGUE, 0x00000005, 0xFEEDC0DE)'. This keeps the joke flavor without referencing a specific fake team.",
+    "8. In app/HomepageClient.js: In the FrhMotwMega component, remove the hardcoded betting line at the bottom that reads 'BEDP -3.5 ... Bandits cover, Tyrants force G3' (around line 530). Replace with a generic placeholder that says 'Lines available once matchup is set'.",
+    "9. In app/HomepageClient.js: Remove the legacy re-exports near the top (TICKER_DATA, HEADLINES_DATA, BULLETIN_DATA, etc. on lines 22-32) since the defaults are now empty and these exports are no longer meaningful.",
+    "10. Verify the component still renders safely: the fallback content in the main HomepageClient function (around line 828-845) should use the same empty defaults from the import, which is already the case since it imports from lib/homepageDefaults.js."
+  ],
+  "acceptance_criteria": [
+    "Searching the codebase for 'Bedpan Bandits', 'Whiskey Wardens', 'Late Stage Tyrants', 'Mall Walkers', 'Sleep Apnea', 'Centennial Centurions', 'Sundown Saboteurs', 'Pillbox Phoenixes', 'Geriatric Jormungandr', 'Last Will & Tower' returns zero results in production-rendered files",
+    "RANKINGS_DATA constant no longer exists in HomepageClient.js",
+    "Power rankings section shows empty state message when no real standings data exists",
+    "All DEFAULT_* arrays in lib/homepageDefaults.js are empty",
+    "DEFAULT_VISIBILITY has all show* fields set to false",
+    "npm run build passes successfully",
+    "npm run lint passes successfully",
+    "The BSOD text uses FRH_LEAGUE instead of BEDPAN_BANDITS"
+  ],
+  "verification": [
+    "Run: DATABASE_URL='postgresql://fake:fake@localhost:5432/fake' DIRECT_URL='postgresql://fake:fake@localhost:5432/fake' npx prisma generate && npm run build",
+    "Run: npm run lint",
+    "Run: grep -rn 'Bedpan Bandits\\|Whiskey Wardens\\|Late Stage Tyrants\\|Mall Walkers\\|Sleep Apnea\\|RANKINGS_DATA' app/ lib/ --include='*.js' (should return zero results)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
