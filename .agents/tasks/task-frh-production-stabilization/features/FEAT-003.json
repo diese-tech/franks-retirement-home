@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Homepage architecture simplification: Convert the homepage to be primarily data-driven with lightweight admin overrides. The existing architecture already partially does this (standings, live matches, schedule are DB-driven). This feature extends that pattern to make more sections data-aware while keeping the admin editorial override system intact. Add new data-driven sections for Recent Results, Player Spotlight, and Hot/Cold Teams. Keep existing admin-editable sections (ticker, headlines, bulletin, fraud watch, MOTW, rivalries, knows ball, washed reports, social cards) as editorial overrides.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Add a 'Recent Results' section to HomepageClient.js that renders the recentResults prop (already passed from page.js but currently unused in the component). Show last 5 completed matches with scores. Pattern: data-driven, no admin override needed. Place it after the broadcast hero section.",
+    "Step 2: Add a 'Hot/Cold Teams' section to HomepageClient.js that computes team form from divisionStandings data (already available). Show teams with best win records as 'hot' and worst as 'cold'. This is purely computed - no admin override needed. Place near the Power Rankings section.",
+    "Step 3: Refactor the Power Rankings section in HomepageClient.js. Currently it falls back to hardcoded RANKINGS_DATA when divisionStandings has fewer than 3 entries. Instead: always prefer DB-driven standings when any exist (even 1-2 entries), only fall back to placeholder data when divisionStandings is truly empty/null. This makes the section genuinely data-driven.",
+    "Step 4: Update app/page.js to pass recentResults to HomepageClient (already done - verify it's passed correctly through JSON serialization).",
+    "Step 5: Add null guards for the new sections. If recentResults is empty/null, show a placeholder. If standings data insufficient for hot/cold, hide that section.",
+    "Step 6: Ensure the admin homepage editor (app/admin/homepage/page.js) also passes recentResults through to HomepageEditorClient and then to HomepageClient, so the editor preview shows the same data-driven sections as the public page.",
+    "Step 7: Update docs/ARCHITECTURE.md 'Page architecture summary' table to document the new data-driven homepage sections and clarify which sections are editorial (admin-editable) vs computed (data-driven)."
+  ],
+  "acceptance_criteria": [
+    "HomepageClient renders a Recent Results section when recentResults prop has data",
+    "HomepageClient renders a Hot/Cold Teams section computed from divisionStandings",
+    "Power Rankings prefers DB-driven data over hardcoded placeholder when any standings exist",
+    "All new sections handle null/empty data gracefully without crashing",
+    "Admin editor preview shows the same data-driven sections",
+    "npm run build succeeds",
+    "npm run lint passes",
+    "Existing tests continue to pass"
+  ],
+  "verification": [
+    "Run: npm run lint",
+    "Run: npm run build (with fake DB URLs)",
+    "Run: npm run test"
+  ],
+  "blocked_reason": null,
+  "findings": "All steps implemented successfully. Power Rankings threshold changed from >= 3 to >= 1 entries. Recent Results section placed after the broadcast hero and draft interrupt. Form Check (Hot/Cold Teams) placed after Power Rankings. Admin editor now passes recentResults through to HomepageClient for consistent preview. ARCHITECTURE.md updated with editorial vs computed section breakdown."
+}

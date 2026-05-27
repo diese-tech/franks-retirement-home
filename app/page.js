@@ -17,7 +17,8 @@ export default async function HomePage({ searchParams }) {
     const contentStatus = previewDraft ? 'draft' : 'published';
     const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
     editableContent = mergeWithDefaults(dbRow); // null-safe: returns defaults if no row
-  } catch (_) {
+  } catch (err) {
+    console.error('[homepage]', err);
     // DB unavailable — fall back to hardcoded defaults (no editableContent = defaults)
   }
 
@@ -40,7 +41,7 @@ export default async function HomePage({ searchParams }) {
       orderBy: { createdAt: 'desc' },
       include: { divisions: { orderBy: { tier: 'desc' } } },
     });
-  } catch (_) {}
+  } catch (err) { console.error('[homepage]', err); }
 
   try {
     [liveMatches, upcomingMatches, recentDrafts, playerCount, godCount, matchCount, recentResults] =
@@ -86,10 +87,11 @@ export default async function HomePage({ searchParams }) {
             homeTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
             awayTeam: { select: { id: true, name: true, tag: true, accentColor: true } },
             division: { select: { name: true } },
+            games: { select: { winnerTeamId: true } },
           },
         }),
       ]);
-  } catch (_) {}
+  } catch (err) { console.error('[homepage]', err); }
 
   try {
     divisionStandings = activeSeason
@@ -100,7 +102,7 @@ export default async function HomePage({ searchParams }) {
           }))
         )
       : [];
-  } catch (_) {}
+  } catch (err) { console.error('[homepage]', err); }
 
   return (
     <HomepageClient

@@ -109,44 +109,64 @@ export default async function MatchDetailPage({ params, searchParams }) {
   const { id } = await params;
   const awaitedSearch = await searchParams;
 
-  const match = await prisma.match.findUnique({
-    where: { id },
-    include: {
-      season: { select: { id: true, name: true } },
-      division: { select: { id: true, name: true } },
-      homeTeam: {
-        include: {
-          members: {
-            where: { leftAt: null },
-            orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }],
-            include: { player: { select: { id: true, name: true, role: true } } },
+  let match = null;
+  let dbError = false;
+  try {
+    match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        season: { select: { id: true, name: true } },
+        division: { select: { id: true, name: true } },
+        homeTeam: {
+          include: {
+            members: {
+              where: { leftAt: null },
+              orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }],
+              include: { player: { select: { id: true, name: true, role: true } } },
+            },
           },
         },
-      },
-      awayTeam: {
-        include: {
-          members: {
-            where: { leftAt: null },
-            orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }],
-            include: { player: { select: { id: true, name: true, role: true } } },
+        awayTeam: {
+          include: {
+            members: {
+              where: { leftAt: null },
+              orderBy: [{ isCaptain: 'desc' }, { isSub: 'asc' }],
+              include: { player: { select: { id: true, name: true, role: true } } },
+            },
           },
         },
-      },
-      games: {
-        orderBy: { gameNumber: 'asc' },
-        include: {
-          draft: {
-            select: {
-              id: true,
-              status: true,
-              captainAKey: true,
-              captainBKey: true,
+        games: {
+          orderBy: { gameNumber: 'asc' },
+          include: {
+            draft: {
+              select: {
+                id: true,
+                status: true,
+                captainAKey: true,
+                captainBKey: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error('[match-detail]', err);
+    dbError = true;
+  }
+
+  if (dbError) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <RetroWindow title="MATCH FILE" titleBarColor="yellow">
+          <div className="text-center py-12">
+            <p className="text-sm text-frh-text-muted mb-4">Unable to load match data. Database may be unreachable.</p>
+            <a href="/schedule" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Schedule</a>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   if (!match) notFound();
 

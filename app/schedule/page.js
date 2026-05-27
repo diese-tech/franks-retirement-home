@@ -58,25 +58,42 @@ export default async function SchedulePage({ searchParams }) {
   const weekFilter = searchParams?.week ? parseInt(searchParams.week, 10) : null;
   const statusFilter = searchParams?.status ?? null;
 
-  const activeSeason = await prisma.season.findFirst({
-    where: { status: 'active' },
-  }) ?? await prisma.season.findFirst({ orderBy: { createdAt: 'desc' } });
+  let activeSeason = null;
+  let matches = null;
+  try {
+    activeSeason = await prisma.season.findFirst({
+      where: { status: 'active' },
+    }) ?? await prisma.season.findFirst({ orderBy: { createdAt: 'desc' } });
 
-  const where = {};
-  if (activeSeason) where.seasonId = activeSeason.id;
-  if (weekFilter) where.week = weekFilter;
-  if (statusFilter) where.status = statusFilter;
+    const where = {};
+    if (activeSeason) where.seasonId = activeSeason.id;
+    if (weekFilter) where.week = weekFilter;
+    if (statusFilter) where.status = statusFilter;
 
-  const matches = await prisma.match.findMany({
-    where,
-    orderBy: [{ week: 'asc' }, { scheduledAt: 'asc' }],
-    include: {
-      division: { select: { id: true, name: true } },
-      homeTeam: { select: { id: true, name: true, tag: true } },
-      awayTeam: { select: { id: true, name: true, tag: true } },
-      games: { select: { id: true, gameNumber: true, winnerTeamId: true } },
-    },
-  });
+    matches = await prisma.match.findMany({
+      where,
+      orderBy: [{ week: 'asc' }, { scheduledAt: 'asc' }],
+      include: {
+        division: { select: { id: true, name: true } },
+        homeTeam: { select: { id: true, name: true, tag: true } },
+        awayTeam: { select: { id: true, name: true, tag: true } },
+        games: { select: { id: true, gameNumber: true, winnerTeamId: true } },
+      },
+    });
+  } catch (err) { console.error('[schedule]', err); }
+
+  if (matches === null) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <RetroWindow title="SCHEDULE.EXE" titleBarColor="yellow">
+          <div className="text-center py-12">
+            <p className="text-sm text-frh-text-muted mb-4">Schedule data unavailable. Database may be unreachable.</p>
+            <a href="/" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Home</a>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   const liveMatches = matches.filter((m) => m.status === 'live');
   const upcomingMatches = matches.filter((m) => m.status === 'scheduled');

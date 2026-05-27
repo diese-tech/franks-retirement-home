@@ -4,7 +4,148 @@ Operational steps required when shipping recent changes. Append new sections at 
 
 ---
 
-## Migration workflow (current — replaces db push)
+---
+
+## Vercel Environment Sync Checklist
+
+Use this checklist after any of the following events:
+- Creating a new Supabase project
+- Rotating database credentials
+- Migrating between Supabase projects
+- Debugging P2021 or connection errors
+
+### Step-by-step verification
+
+1. **Identify the target Supabase project.**
+   - Open [Supabase Dashboard](https://supabase.com/dashboard)
+   - Note the project-ref from the URL: `https://supabase.com/dashboard/project/[PROJECT-REF]`
+
+2. **Get the current connection strings.**
+   - Go to Settings > Database in your Supabase project
+   - Copy the Transaction mode URI (port 6543) for `DATABASE_URL`
+   - Copy the Session mode URI (port 5432) for `DIRECT_URL`
+
+3. **Compare against Vercel.**
+   - Open Vercel > Project > Settings > Environment Variables
+   - Verify `DATABASE_URL` matches the Transaction mode URI
+   - Verify `DIRECT_URL` matches the Session mode URI
+   - Confirm both use the same project-ref and password
+
+4. **Validate locally.**
+   ```bash
+   # Set the production values temporarily and run:
+   npm run verify:env
+   node scripts/verify-db.mjs
+   ```
+
+5. **Confirm GitHub Actions secrets (if CI runs migrations).**
+   - Go to GitHub > Settings > Secrets and Variables > Actions
+   - Verify `DATABASE_URL` and `DIRECT_URL` match the same Supabase project
+
+6. **Trigger a Vercel redeploy** after any env var changes.
+
+### After rotating credentials
+
+When the Supabase database password is rotated:
+
+- [ ] Update `DATABASE_URL` in Vercel (all environments: Production, Preview, Development)
+- [ ] Update `DIRECT_URL` in Vercel (all environments)
+- [ ] Update `DATABASE_URL` in GitHub Actions secrets
+- [ ] Update `DIRECT_URL` in GitHub Actions secrets
+- [ ] Update `.env.local` for local development
+- [ ] Trigger Vercel redeploy
+- [ ] Run `npm run verify:env` to confirm
+- [ ] Run `node scripts/verify-db.mjs` to confirm connectivity
+
+### After creating a new Supabase project
+
+When migrating to a new Supabase project (new project-ref):
+
+- [ ] Update `DATABASE_URL` in Vercel with new project-ref and password
+- [ ] Update `DIRECT_URL` in Vercel with new project-ref and password
+- [ ] Update GitHub Actions secrets
+- [ ] Run `npx prisma migrate deploy` against the new database
+- [ ] Run `node prisma/seed.mjs` if seed data is needed (see `docs/RECOVERY.md` for warnings)
+- [ ] Run `node scripts/verify-db.mjs` to confirm tables exist
+- [ ] Trigger Vercel redeploy
+- [ ] Verify the live application loads without P2021 errors
+
+---
+
+## Production Database Verification
+
+Use the verification scripts to confirm that your production environment is correctly configured.
+
+### Environment variable check (no DB connection)
+
+```bash
+# Validates URL formats, ports, project-ref consistency, and required vars
+npm run verify:env
+```
+
+This runs `scripts/verify-env.mjs` which checks:
+- `DATABASE_URL` is set and uses port 6543 (pooled/Transaction mode)
+- `DIRECT_URL` is set and uses port 5432 (session/direct mode)
+- Both URLs reference the same Supabase project-ref
+- `ADMIN_SESSION_SECRET` is set and at least 16 characters
+- Other critical variables (`ADMIN_PASSWORD`, `NEXTAUTH_URL`) are present
+
+### Database connectivity check (read-only)
+
+```bash
+# Connects to the database and counts rows in critical tables
+node scripts/verify-db.mjs
+```
+
+Expected output after a fresh seed:
+
+| Table | Count |
+|---|---|
+| Season | 1 |
+| Player | 20 |
+| Team | 10 |
+| Division | 2 |
+| God | 83 |
+| HomepageContent | 0 (created on first admin edit) |
+
+### Diagnosing P2021 "table does not exist" errors
+
+If the application throws `P2021` (The table `public.TableName` does not exist in the current database), follow these steps:
+
+1. **Confirm migrations are deployed.** Run `npx prisma migrate status` against the production database. If there are pending migrations, run `npx prisma migrate deploy`.
+
+2. **Confirm the correct Supabase project.** Extract the project-ref from your `DATABASE_URL` and verify it matches the project in your Supabase dashboard. A common cause is env vars pointing to the wrong project after a migration.
+
+3. **Run the DB verification script.** Use `node scripts/verify-db.mjs` to confirm which tables are accessible. If all return errors, the connection string itself is wrong. If specific tables are missing, migrations are incomplete.
+
+4. **Check Vercel env vars match your Supabase project.** In Vercel > Project > Settings > Environment Variables, verify:
+   - `DATABASE_URL` uses port 6543 and the correct project-ref
+   - `DIRECT_URL` uses port 5432 and the same project-ref
+   - Both use the same password (the one from your Supabase project settings)
+
+5. **Re-run migrations if needed:**
+   ```bash
+   # With production DIRECT_URL set:
+   npx prisma migrate deploy
+   ```
+
+### Vercel environment variable verification checklist
+
+Before each production deploy, confirm in Vercel > Project > Settings > Environment Variables:
+
+- [ ] `DATABASE_URL` - Supabase Transaction URL, port 6543
+- [ ] `DIRECT_URL` - Supabase Session URL, port 5432
+- [ ] Both URLs have same project-ref and password
+- [ ] `ADMIN_SESSION_SECRET` - at least 16 characters
+- [ ] `ADMIN_PASSWORD` - set for admin dashboard access
+- [ ] `ADMIN_AUTH_REQUIRED` - set to `true` for production
+- [ ] `NEXTAUTH_URL` - set to production domain
+- [ ] `GEMINI_API_KEY` - set if screenshot OCR is needed
+- [ ] Discord env vars - set if Discord OAuth is required
+
+---
+
+## Migration workflow (current -- replaces db push)
 
 FRH now uses **Prisma Migrate** as the source of truth. The `prisma/migrations/` folder is committed to the repo. Schema changes must be made via `prisma migrate dev` locally, and the resulting migration files committed and pushed.
 
