@@ -236,6 +236,7 @@ npm run dev              # Next.js dev server
 npm run build            # Production build
 npm run lint             # ESLint
 npm run test             # All unit + API tests
+npm run verify:env       # Validate env var format (no DB connection)
 npm run verify:draft     # lint + test + build — run before every deploy
 
 npm run db:generate      # prisma generate (after schema changes)
@@ -269,6 +270,34 @@ Expected output from the count query after a fresh seed:
 ---
 
 ## Troubleshooting
+
+### P2021: "The table does not exist in the current database"
+
+This error means Prisma is trying to query a table that does not exist. Common causes:
+
+1. **Migrations have not been deployed.** Run `npx prisma migrate status` to check. If pending, run:
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+2. **DATABASE_URL points to the wrong Supabase project.** Extract the project-ref from your URL (the part after `postgres.` in the username) and confirm it matches the project in your Supabase dashboard.
+
+3. **The database was created with `db push` and later switched to migrations.** This causes drift. See `docs/PRISMA_WORKFLOW.md` for recovery steps.
+
+4. **Verify with the DB check script:**
+   ```bash
+   node scripts/verify-db.mjs
+   ```
+   This will show which tables are accessible and which are missing.
+
+5. **Quick diagnosis:**
+   ```bash
+   # Check migration state
+   npx prisma migrate status
+
+   # Verify env vars point to correct project (no DB connection needed)
+   npm run verify:env
+   ```
 
 ### `prisma migrate deploy` fails with "drift detected"
 
