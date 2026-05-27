@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Production route stabilization: Add try/catch error boundaries and null guards to all public and admin route pages that currently query Prisma without protection. The homepage (app/page.js) already has this pattern - other routes do not, causing P2021 crashes when tables are missing or DB is unreachable.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Wrap app/players/page.js Prisma queries in try/catch. If the DB query fails or returns empty, render a graceful fallback UI using the existing RetroWindow component pattern (show 'No player data available' message). The current code calls prisma.player.findMany() directly with no error handling.",
     "Step 2: Wrap app/schedule/page.js Prisma queries in try/catch. The page has two unprotected calls: prisma.season.findFirst() and prisma.match.findMany(). If either fails, render a fallback schedule page showing 'Schedule data unavailable' using RetroWindow.",
@@ -30,5 +30,5 @@
     "Run: npm run test"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 8 route pages now have try/catch protection. HomepageClient.js already uses optional chaining for all DB-driven props (liveMatches?.length, upcomingMatches?.length, divisionStandings?.length) and the rankingsRows computation is guarded by divisionStandings?.length > 0 before calling flatMap. No additional changes needed in HomepageClient.js. Build, lint, and all 328 tests pass."
 }
