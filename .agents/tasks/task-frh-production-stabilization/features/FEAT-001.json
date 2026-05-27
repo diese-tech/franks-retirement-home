@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Production route stabilization: Add try/catch error boundaries and null guards to all public and admin route pages that currently query Prisma without protection. The homepage (app/page.js) already has this pattern - other routes do not, causing P2021 crashes when tables are missing or DB is unreachable.",
+  "status": "in_progress",
+  "steps": [
+    "Step 1: Wrap app/players/page.js Prisma queries in try/catch. If the DB query fails or returns empty, render a graceful fallback UI using the existing RetroWindow component pattern (show 'No player data available' message). The current code calls prisma.player.findMany() directly with no error handling.",
+    "Step 2: Wrap app/schedule/page.js Prisma queries in try/catch. The page has two unprotected calls: prisma.season.findFirst() and prisma.match.findMany(). If either fails, render a fallback schedule page showing 'Schedule data unavailable' using RetroWindow.",
+    "Step 3: Wrap app/teams/page.js Prisma queries in try/catch. Two unprotected calls: prisma.season.findFirst() and prisma.team.findMany(). Render fallback with 'Team data unavailable' on failure.",
+    "Step 4: Wrap app/teams/[id]/page.js Prisma query in try/catch. Currently calls prisma.team.findUnique() without protection. On error (not just null), show a user-friendly error page instead of crashing. Keep the existing notFound() for null results.",
+    "Step 5: Wrap app/standings/page.js Prisma queries in try/catch. Currently calls prisma.season.findFirst() and computeStandings() without protection. Render fallback on failure.",
+    "Step 6: Wrap app/admin/page.js Prisma queries in try/catch. This page makes ~10 unprotected Prisma calls. Wrap them all in a single try/catch block. On failure, render a minimal admin page with an error message explaining the DB is unreachable, preserving the page structure.",
+    "Step 7: Wrap app/matches/[id]/page.js Prisma query in try/catch. Currently calls prisma.match.findUnique() without protection. On DB error (vs null result), show a user-friendly error instead of crash.",
+    "Step 8: Wrap app/draft/[id]/page.js Prisma queries in try/catch. Currently calls prisma.draft.findUnique() and buildDraftState() without protection beyond the null check. On DB error, show a user-friendly error page.",
+    "Step 9: Add null/undefined guards in app/HomepageClient.js for all DB-driven props (liveMatches, upcomingMatches, recentDrafts, divisionStandings, activeSeason). Use optional chaining and fallback to empty arrays where the component iterates over these. Most of this is already done but verify completeness - especially rankingsRows computation which accesses divisionStandings.flatMap().",
+    "Step 10: Verify all error fallback UIs render correctly by running npm run build to confirm no JSX/syntax errors in modified files."
+  ],
+  "acceptance_criteria": [
+    "npm run build succeeds with all modified route files",
+    "npm run lint passes on all modified files",
+    "Every public route page (players, schedule, teams, teams/[id], standings, matches/[id], draft/[id]) has try/catch around all Prisma calls",
+    "Every route renders a user-friendly fallback (not a crash/500) when the DB is unreachable",
+    "The admin page renders a meaningful error state when DB queries fail",
+    "No data is lost or destroyed by these changes",
+    "Existing tests continue to pass (npm run test)"
+  ],
+  "verification": [
+    "Run: npm run lint",
+    "Run: npm run build (requires DATABASE_URL and DIRECT_URL env vars - use fake postgres://fake:fake@localhost:5432/fake for build check)",
+    "Run: npm run test"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

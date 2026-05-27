@@ -81,33 +81,50 @@ function StandingsTable({ rows, divisionName }) {
 }
 
 export default async function StandingsPage() {
-  const activeSeason = await prisma.season.findFirst({
-    where: { status: 'active' },
-    include: { divisions: { orderBy: { tier: 'desc' } } },
-  }) ?? await prisma.season.findFirst({
-    orderBy: { createdAt: 'desc' },
-    include: { divisions: { orderBy: { tier: 'desc' } } },
-  });
+  let activeSeason = null;
+  let divisionStandings = null;
+  try {
+    activeSeason = await prisma.season.findFirst({
+      where: { status: 'active' },
+      include: { divisions: { orderBy: { tier: 'desc' } } },
+    }) ?? await prisma.season.findFirst({
+      orderBy: { createdAt: 'desc' },
+      include: { divisions: { orderBy: { tier: 'desc' } } },
+    });
 
-  if (!activeSeason) {
+    if (!activeSeason) {
+      return (
+        <div className="max-w-3xl mx-auto px-4 py-8">
+          <RetroWindow title="STANDINGS.EXE" titleBarColor="yellow">
+            <div className="text-center py-12">
+              <PixelBadge label="No Season" color="orange" />
+              <p className="mt-4 text-xs text-frh-text-muted">No season data yet.</p>
+            </div>
+          </RetroWindow>
+        </div>
+      );
+    }
+
+    divisionStandings = await Promise.all(
+      activeSeason.divisions.map(async (div) => ({
+        division: div,
+        rows: await computeStandings(div.id),
+      }))
+    );
+  } catch (_) {}
+
+  if (divisionStandings === null) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
         <RetroWindow title="STANDINGS.EXE" titleBarColor="yellow">
           <div className="text-center py-12">
-            <PixelBadge label="No Season" color="orange" />
-            <p className="mt-4 text-xs text-frh-text-muted">No season data yet.</p>
+            <p className="text-sm text-frh-text-muted mb-4">Standings data unavailable. Database may be unreachable.</p>
+            <a href="/" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Home</a>
           </div>
         </RetroWindow>
       </div>
     );
   }
-
-  const divisionStandings = await Promise.all(
-    activeSeason.divisions.map(async (div) => ({
-      division: div,
-      rows: await computeStandings(div.id),
-    }))
-  );
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">

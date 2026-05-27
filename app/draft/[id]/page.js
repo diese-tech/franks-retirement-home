@@ -12,7 +12,23 @@ export default async function DraftPage({ params, searchParams }) {
   const awaitedSearch = await searchParams;
   const key = awaitedSearch?.key ?? null;
 
-  const draft = await prisma.draft.findUnique({ where: { id } });
+  let draft = null;
+  let dbError = false;
+  try {
+    draft = await prisma.draft.findUnique({ where: { id } });
+  } catch (_) {
+    dbError = true;
+  }
+
+  if (dbError) {
+    return (
+      <div className="max-w-md mx-auto mt-20 text-center card">
+        <p className="text-red-400 mb-4">Unable to load draft. Database may be unreachable.</p>
+        <a href="/" className="btn-secondary text-xs">&larr; Back Home</a>
+      </div>
+    );
+  }
+
   if (!draft) {
     return (
       <div className="max-w-md mx-auto mt-20 text-center card">
@@ -43,7 +59,17 @@ export default async function DraftPage({ params, searchParams }) {
     role = resolveRole(key, draft);
   }
 
-  const state = await buildDraftState(id);
+  let state = null;
+  try {
+    state = await buildDraftState(id);
+  } catch (_) {
+    return (
+      <div className="max-w-md mx-auto mt-20 text-center card">
+        <p className="text-red-400 mb-4">Unable to load draft state. Database may be unreachable.</p>
+        <a href="/" className="btn-secondary text-xs">&larr; Back Home</a>
+      </div>
+    );
+  }
 
   return (
     <DraftClient

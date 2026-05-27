@@ -16,20 +16,38 @@ export default async function PlayersPage({ searchParams }) {
   if (roleFilter) where.role = roleFilter;
   if (divisionFilter) where.division = divisionFilter;
 
-  const [players, roles, divisions] = await Promise.all([
-    prisma.player.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      include: {
-        teamMemberships: {
-          where: { leftAt: null },
-          include: { team: { select: { id: true, name: true, tag: true } } },
+  let players = null;
+  let roles = [];
+  let divisions = [];
+  try {
+    [players, roles, divisions] = await Promise.all([
+      prisma.player.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        include: {
+          teamMemberships: {
+            where: { leftAt: null },
+            include: { team: { select: { id: true, name: true, tag: true } } },
+          },
         },
-      },
-    }),
-    prisma.player.findMany({ distinct: ['role'], select: { role: true }, orderBy: { role: 'asc' } }),
-    prisma.player.findMany({ distinct: ['division'], where: { division: { not: null } }, select: { division: true }, orderBy: { division: 'asc' } }),
-  ]);
+      }),
+      prisma.player.findMany({ distinct: ['role'], select: { role: true }, orderBy: { role: 'asc' } }),
+      prisma.player.findMany({ distinct: ['division'], where: { division: { not: null } }, select: { division: true }, orderBy: { division: 'asc' } }),
+    ]);
+  } catch (_) {}
+
+  if (players === null) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <RetroWindow title="PLAYERS.EXE" titleBarColor="yellow">
+          <div className="text-center py-12">
+            <p className="text-sm text-frh-text-muted mb-4">No player data available. Database may be unreachable.</p>
+            <a href="/" className="text-xs font-ui text-frh-yellow hover:underline uppercase tracking-widest">&larr; Back to Home</a>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
