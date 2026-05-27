@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Remove all fake editorial content from homepage defaults and replace RANKINGS_DATA fallback with empty state. Replace fake team names in lib/homepageDefaults.js with empty arrays (so sections are hidden by default). Remove RANKINGS_DATA constant from HomepageClient.js and show an empty-state message when no real standings data exists. Clean up BEDPAN_BANDITS references in BSOD humor text.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. In lib/homepageDefaults.js: Replace ALL DEFAULT_* arrays/objects with empty arrays/objects. Set DEFAULT_TICKER to [], DEFAULT_HEADLINES to [], DEFAULT_BULLETIN to [], DEFAULT_FRAUD_WATCH to [], DEFAULT_MOTW to { title: '', when: '', storyline: '', h2h: [], stakes: '' }, DEFAULT_RIVALRIES to [], DEFAULT_KNOWS_BALL to [], DEFAULT_WASHED_REPORTS to [], DEFAULT_SOCIAL_CARDS to []. Keep DEFAULT_DISCORD_INVITE_URL and DEFAULT_WASHED_PCT as they are (they're real config values, not fake data).",
     "2. In lib/homepageDefaults.js: Update DEFAULT_VISIBILITY to set all show* fields to false by default, so sections without real published content are hidden rather than showing empty containers.",
@@ -31,5 +31,5 @@
     "Run: grep -rn 'Bedpan Bandits\\|Whiskey Wardens\\|Late Stage Tyrants\\|Mall Walkers\\|Sleep Apnea\\|RANKINGS_DATA' app/ lib/ --include='*.js' (should return zero results)"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All changes implemented cleanly. Build and lint pass. No fake team names remain in app/ or lib/. BSOD text now uses FRH_LEAGUE. Power rankings show empty state message. All DEFAULT_* arrays are empty, visibility defaults are false. Legacy re-exports removed (no consumers found)."
 }
