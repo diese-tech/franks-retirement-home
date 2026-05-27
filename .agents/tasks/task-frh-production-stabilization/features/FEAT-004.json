@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-004",
+  "type": "docs",
+  "description": "Documentation and operational workflow update: Remove outdated Neon references, update all docs for Supabase, document the complete Prisma workflow, Vercel environment syncing, local startup flow, migration workflow, seed workflow, and recovery procedures.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Search the entire codebase for any remaining references to 'Neon' (database provider). Remove or replace them with Supabase references. Check README.md, docs/, .env.example, and any code comments.",
+    "Step 2: Update README.md to add a clear 'Production Operations' section covering: how to diagnose P2021 errors, how to verify DB connectivity, how to run migrations against production, how to verify Vercel env vars are correct, and link to the new verify scripts.",
+    "Step 3: Create docs/RECOVERY.md documenting: (a) how to recover from failed migrations (referencing PRISMA_WORKFLOW.md drift section), (b) how to verify production DB has correct tables/data, (c) how to re-seed if needed (with warnings about data loss), (d) how to handle P2021 errors specifically, (e) Vercel environment variable verification checklist.",
+    "Step 4: Update docs/PRISMA_WORKFLOW.md to add a section specifically about Supabase connection string management: how to find them in the Supabase dashboard, how to verify they are correct, the difference between Transaction mode (6543) and Session mode (5432), and common pitfalls.",
+    "Step 5: Update docs/DEPLOYMENT_NOTES.md to add a 'Vercel Environment Sync Checklist' with step-by-step instructions for verifying all Vercel env vars match the intended Supabase project after a migration.",
+    "Step 6: Verify all documentation links in README.md point to files that actually exist."
+  ],
+  "acceptance_criteria": [
+    "No references to 'Neon' remain in the codebase",
+    "README.md includes Production Operations section",
+    "docs/RECOVERY.md exists with P2021 diagnosis and recovery procedures",
+    "docs/PRISMA_WORKFLOW.md includes Supabase connection management section",
+    "docs/DEPLOYMENT_NOTES.md includes Vercel env sync checklist",
+    "All documentation links in README.md resolve to existing files",
+    "npm run lint passes (no broken imports)",
+    "npm run build succeeds"
+  ],
+  "verification": [
+    "Run: grep -ri 'neon' --include='*.md' --include='*.js' --include='*.json' /projects/sandbox/franks-retirement-home/ (should return zero results)",
+    "Run: npm run lint",
+    "Run: npm run build (with fake DB URLs)"
+  ],
+  "blocked_reason": null,
+  "findings": "The 'Neon' reference in design.md ('Neon but not unreadable') refers to visual neon aesthetic, not the database provider, so it was left untouched. All DB-related Neon references were removed from lib/rateLimit.js and docs/season-9-backlog.md. All doc links in README.md verified to exist."
+}
