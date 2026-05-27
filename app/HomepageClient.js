@@ -81,6 +81,11 @@ export function FrhTicker({ items, isEditor, onItemChange, onMoveUp, onMoveDown,
       </div>
       {isEditor ? (
         <div style={{ flex: 1, padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {items.length === 0 && (
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', opacity: 0.6, padding: '4px 0' }}>
+              No ticker items yet. Use + button below to add content.
+            </div>
+          )}
           {items.map((it, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
               <select value={it.tone} onChange={e => onItemChange(i, { tone: e.target.value })}
@@ -490,6 +495,11 @@ export function FrhFraudWanted({ items, isEditor, onItemChange, onMoveUp, onMove
         <small>JURISDICTION: ADMIN GREMLIN &middot; APPEALS CLOSED</small>
       </div>
       <div className="frh-fraud-wanted__row">
+        {items.length === 0 && isEditor && (
+          <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6, width: '100%' }}>
+            No fraud cases yet. Use + button below to add content.
+          </div>
+        )}
         {items.map((c, i) => (
           <div key={i} className="frh-wanted-card">
             <span className="frh-wanted-card__stamp">
@@ -594,6 +604,11 @@ export function FrhMotwMega({ motw, isEditor, onChange }) {
 export function FrhRivalryPosters({ items, isEditor, onItemChange, onMoveUp, onMoveDown, onRemove, onAdd }) {
   return (
     <div className="frh-rivalry-row">
+      {items.length === 0 && isEditor && (
+        <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6, width: '100%' }}>
+          No rivalries yet. Use + button below to add content.
+        </div>
+      )}
       {items.map((r, i) => (
         <div key={i} className="frh-poster">
           <div className="frh-poster__matchup">
@@ -651,6 +666,11 @@ export function FrhSocialStrip({ items, isEditor, onItemChange, onMoveUp, onMove
         <small>FRH Wire &middot; Season 9 &middot; Week 4</small>
       </div>
       <div className="frh-social-strip__grid">
+        {items.length === 0 && isEditor && (
+          <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6, width: '100%' }}>
+            No social cards yet. Use + button below to add content.
+          </div>
+        )}
         {items.map((c, i) => (
           <div key={i} className={`frh-share-card frh-share-card--${c.kind.toLowerCase()}`}>
             <span className="frh-share-card__brand">&#9733; FRH</span>
@@ -722,6 +742,11 @@ export function FrhKnowsBallPanel({ items, isEditor, onItemChange, onMoveUp, onM
       kicker="WEEK 4 SLATE"
       status={["Last week: 1–3 ATS · don't bet money you wouldn't lose anyway"]}
     >
+      {items.length === 0 && isEditor && (
+        <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
+          No analyst picks yet. Use + button below to add content.
+        </div>
+      )}
       {items.map((k, i) => (
         <div key={i} className="frh-analyst-row">
           <div className="who">
@@ -754,6 +779,11 @@ export function FrhWashedPanel({ items, isEditor, onItemChange, onMoveUp, onMove
       status={['Auto-collected · human reviewed', 'Submit a sighting →']}
     >
       <div className="frh-washed-list">
+        {items.length === 0 && isEditor && (
+          <div style={{ padding: '16px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 }}>
+            No washed reports yet. Use + button below to add content.
+          </div>
+        )}
         {items.map((w, i) => (
           <div key={i} className="frh-washed-list__row">
             <span className="who">
@@ -992,24 +1022,37 @@ export default function HomepageClient({
         {/* ── Section 2: The Wire ─────────────────────────── */}
         <Section field="Headlines">
           <FrhSectionLabel kind="prime" pill="FRH WIRE" title="ROTATING HEADLINES" after="UPDATED 3H AGO" />
-          <div className="frh-wire-grid">
-            <FrhLeadStory
-              h={content.headlines[0] ?? DEFAULT_HEADLINES[0]}
-              isEditor={isEditor}
-              onChange={isEditor ? patch => change('headlines', updateAt(content.headlines, 0, patch)) : undefined}
-            />
-            <FrhSidebarStories
-              items={content.headlines.slice(1)}
-              {...(isEditor ? {
-                isEditor,
-                onItemChange: (i, patch) => change('headlines', updateAt(content.headlines, i + 1, patch)),
-                onMoveUp:     (i)        => change('headlines', moveUp(content.headlines, i + 1)),
-                onMoveDown:   (i)        => change('headlines', moveDown(content.headlines, i + 1)),
-                onRemove:     (i)        => change('headlines', removeAt(content.headlines, i + 1)),
-                onAdd:        ()         => change('headlines', [...content.headlines, { kicker: 'NEWS', title: 'New story', blurb: '', byline: 'Staff', time: 'just now' }]),
-              } : { isEditor: false })}
-            />
-          </div>
+          {content.headlines.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.6, border: '1px dashed rgba(255,212,0,0.3)', background: 'rgba(0,0,0,0.2)' }}>
+              {isEditor ? (
+                <>
+                  <p style={{ margin: '0 0 8px' }}>No headlines yet. Use the button below to add content.</p>
+                  {addBtn('Add headline', () => change('headlines', [{ kicker: 'NEWS', title: 'New story', blurb: '', byline: 'Staff', time: 'just now' }]))}
+                </>
+              ) : (
+                <p style={{ margin: 0 }}>No headlines published.</p>
+              )}
+            </div>
+          ) : (
+            <div className="frh-wire-grid">
+              <FrhLeadStory
+                h={content.headlines[0]}
+                isEditor={isEditor}
+                onChange={isEditor ? patch => change('headlines', updateAt(content.headlines, 0, patch)) : undefined}
+              />
+              <FrhSidebarStories
+                items={content.headlines.slice(1)}
+                {...(isEditor ? {
+                  isEditor,
+                  onItemChange: (i, patch) => change('headlines', updateAt(content.headlines, i + 1, patch)),
+                  onMoveUp:     (i)        => change('headlines', moveUp(content.headlines, i + 1)),
+                  onMoveDown:   (i)        => change('headlines', moveDown(content.headlines, i + 1)),
+                  onRemove:     (i)        => change('headlines', removeAt(content.headlines, i + 1)),
+                  onAdd:        ()         => change('headlines', [...content.headlines, { kicker: 'NEWS', title: 'New story', blurb: '', byline: 'Staff', time: 'just now' }]),
+                } : { isEditor: false })}
+              />
+            </div>
+          )}
         </Section>
 
         {/* ── Section 3: Power Rankings ──────────────────── */}
