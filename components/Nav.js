@@ -6,11 +6,15 @@ import { useState, useEffect } from 'react';
 import ThemeToggle from '@/app/components/ThemeToggle';
 
 const PUBLIC_LINKS = [
-  { href: '/',          label: 'Home' },
-  { href: '/schedule',  label: 'Schedule' },
-  { href: '/teams',     label: 'Teams' },
-  { href: '/standings', label: 'Standings' },
-  { href: '/players',   label: 'Players' },
+  { href: '/',               label: 'Home' },
+  { href: '/schedule',       label: 'Schedule' },
+  { href: '/teams',          label: 'Teams' },
+  { href: '/standings',      label: 'Standings' },
+  { href: '/players',        label: 'Players' },
+  { href: '/bulletin-board', label: 'Board' },
+  { href: '/fraud-watch',    label: 'Fraud Watch' },
+  { href: '/knows-ball',     label: 'Knows Ball' },
+  { href: '/roster',         label: 'Roster' },
 ];
 
 export default function Nav() {
