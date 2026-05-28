@@ -1,0 +1,69 @@
+'use client';
+
+import { useEffect } from 'react';
+
+/**
+ * Overlay modal in the FRH retro broadcast style. Renders a centered window
+ * with a title bar over a dimmed backdrop. Closes on Escape or backdrop click.
+ *
+ * Props:
+ *   - title: string
+ *   - accent: 'yellow' | 'blue' | 'red' | 'lime' | 'purple' | 'orange'
+ *   - onClose: () => void
+ *   - children
+ */
+export default function FrhModal({ title, accent = 'blue', onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(20,20,20,0.55)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '40px 16px',
+        zIndex: 1000,
+        overflowY: 'auto',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="frh-panel"
+        style={{ width: '100%', maxWidth: 520, margin: 'auto 0' }}
+      >
+        <header className={`frh-panel__titlebar frh-panel__titlebar--${accent}`}>
+          <div className="frh-panel__ttl">
+            <span className="frh-panel__accent" />
+            {title}
+          </div>
+          <div className="frh-panel__chips">
+            <button
+              type="button"
+              onClick={onClose}
+              className="frh-panel__chip"
+              style={{ cursor: 'pointer', border: 'none', background: 'none', color: 'inherit', font: 'inherit' }}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
+        </header>
+        <div className="frh-panel__body" style={{ padding: 16 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
