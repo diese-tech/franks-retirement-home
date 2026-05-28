@@ -1183,6 +1183,28 @@ const ROLE_ALIASES = {
   carry: 'Carry', adc: 'Carry', fill: 'Fill',
 };
 
+// Maps the "Placed" tier value from the sign-up sheet to the top-level division name
+const PLACED_TO_DIVISION = {
+  'canes': 'Rehabilitation',
+  'walker': 'Rehabilitation',
+  'walker 2': 'Hospice',
+  'wheelchair': 'Hospice',
+  'scooter': 'Hospice',
+};
+
+function parseLine(line) {
+  const cols = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  cols.push(cur);
+  return cols;
+}
+
 function parseCSV(text) {
   const lines = text.trim().split('\n');
   // Stop at the Captains section header or trailing blank rows
@@ -1190,37 +1212,30 @@ function parseCSV(text) {
   const playerLines = stopIdx >= 0 ? lines.slice(0, stopIdx) : lines;
 
   return playerLines
-    .filter(l => l.split(',')[0].trim()) // skip blank rows
+    .filter(l => {
+      const first = l.split(',')[0].trim();
+      return first && !/^ign$/i.test(first); // skip blank rows and header row
+    })
     .map((line) => {
-      const cols = [];
-      let cur = '', inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-        else { cur += ch; }
-      }
-      cols.push(cur);
-
+      const cols = parseLine(line);
+      // CSV format: IGN, Tracker, Discord, Region, Timezone, Main, Secondary, Placed, ...
       const name = (cols[0] || '').trim();
       const discordUsername = (cols[2] || '').trim() || null;
-      const timezone = (cols[7] || '').trim() || null;
-      const rawRole = (cols[8] || '').trim().toLowerCase();
+      const timezone = (cols[4] || '').trim() || null;
+      const rawRole = (cols[5] || '').trim().toLowerCase();
       const role = ROLE_ALIASES[rawRole] || null;
-      const secondaryRoles = (cols[9] || '').split(',')
+      const secondaryRoles = (cols[6] || '').split(',')
         .map(r => ROLE_ALIASES[r.trim().toLowerCase()])
         .filter(Boolean);
-      // Normalize division: first word before space/comma/parenthesis
-      const rawDiv = (cols[12] || '').trim();
-      const division = rawDiv.split(/[\s,(]/)[0] || null;
+      const placed = (cols[7] || '').trim() || null;
+      const division = PLACED_TO_DIVISION[placed?.toLowerCase()] || null;
 
-      return { name, discordUsername, timezone, role, secondaryRoles, division, _rawRole: cols[8]?.trim() };
+      return { name, discordUsername, timezone, role, secondaryRoles, placed, division, _rawRole: cols[5]?.trim() };
     })
     .filter(r => r.name);
 }
 
 function ImportPanel({ onRefresh }) {
-  const [division, setDivision] = useState('');
   const [csvText, setCsvText] = useState('');
   const [rows, setRows] = useState(null);
   const [result, setResult] = useState(null);
@@ -1242,7 +1257,7 @@ function ImportPanel({ onRefresh }) {
       name: r.name,
       role: r.role,
       discordUsername: r.discordUsername || null,
-      division: r.division || division.trim() || null,
+      division: r.division || null,
       timezone: r.timezone || null,
       secondaryRoles: r.secondaryRoles || [],
     }));
@@ -1252,25 +1267,20 @@ function ImportPanel({ onRefresh }) {
     setBusy(false);
   };
 
-  const reset = () => { setCsvText(''); setRows(null); setResult(null); setDivision(''); };
+  const reset = () => { setCsvText(''); setRows(null); setResult(null); };
 
   return (
     <div className="space-y-4">
       <RetroWindow title="BULK IMPORT - PASTE CSV DATA">
         <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">CSV Import</h2>
         <p className="text-xs text-gray-500 mb-4">
-          Paste a sign-up sheet CSV below. Each import batch can be tagged with a division. Run multiple imports for multiple divisions.
+          Paste the sign-up sheet CSV (including header row). Division is read from the <span className="text-frh-yellow font-mono">Placed</span> column automatically —
+          Canes/Walker → Rehabilitation, Walker 2/Scooter → Hospice.
         </p>
 
         <div className="space-y-3">
-          <input
-            placeholder="Division label (e.g. Hospice, Rehabilitation)"
-            value={division}
-            onChange={(e) => setDivision(e.target.value)}
-            className="input-field"
-          />
           <textarea
-            placeholder="Paste CSV text here…"
+            placeholder="Paste CSV text here (with header row)…"
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
             rows={6}
@@ -1315,7 +1325,7 @@ function ImportPanel({ onRefresh }) {
                   <th className="text-left py-2 px-2">IGN</th>
                   <th className="text-left py-2 px-2">Discord</th>
                   <th className="text-left py-2 px-2">Roles</th>
-                  <th className="text-left py-2 px-2">Division</th>
+                  <th className="text-left py-2 px-2">Tier → Division</th>
                   <th className="text-left py-2 px-2">TZ</th>
                   <th className="text-left py-2 px-2">Status</th>
                 </tr>
@@ -1339,7 +1349,15 @@ function ImportPanel({ onRefresh }) {
                         {(r.secondaryRoles ?? []).map(sr => <RoleBadge key={sr} role={sr} secondary />)}
                       </div>
                     </td>
-                    <td className="py-1.5 px-2 text-gray-500">{r.division || division || <span className="text-gray-700">—</span>}</td>
+                    <td className="py-1.5 px-2">
+                      {r.placed
+                        ? <span className="font-mono text-[9px]">
+                            <span className="text-frh-yellow">{r.placed}</span>
+                            {r.division && <span className="text-gray-600"> → {r.division}</span>}
+                          </span>
+                        : <span className="text-gray-700 text-[9px]">—</span>
+                      }
+                    </td>
                     <td className="py-1.5 px-2 font-mono text-[9px] text-gray-600 max-w-[80px] truncate">{r.timezone ? r.timezone.replace('Standard Time', '').replace('Daylight Time', '').trim() : '—'}</td>
                     <td className="py-1.5 px-2">
                       {r.role
