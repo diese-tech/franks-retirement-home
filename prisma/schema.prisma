@@ -641,10 +641,69 @@ model BulletinPost {
   relatedMatch    Match?    @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
   relatedDivision Division? @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
   relatedSeason   Season?   @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
+  reactions       BulletinReaction[]
+  comments        BulletinComment[]
 
   @@index([status])
   @@index([type])
   @@index([publishedAt])
+}
+
+// ─── Bulletin Community: Reactions & Comments ─────────────────────────────────
+//
+// Discord-authenticated community engagement on published bulletin posts.
+// Identity is the Discord ID (opaque string) — no User row is required, matching
+// the stateless cookie session model. authorName is a display snapshot.
+
+model BulletinReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  discordId String   // reacting user's Discord ID
+  emoji     String   // beer | fire | skull | goat | clown
+  createdAt DateTime @default(now())
+
+  post BulletinPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, discordId, emoji]) // one of each emoji per user per post
+  @@index([postId])
+}
+
+model BulletinComment {
+  id         String   @id @default(cuid())
+  postId     String
+  discordId  String   // commenter's Discord ID (for ownership checks)
+  authorName String   // display snapshot of username at comment time
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  post BulletinPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+// ─── Weekly Superlatives ──────────────────────────────────────────────────────
+//
+// Beer-league community awards (e.g. "Beer League MVP", "Most Washed").
+// Admins create and edit `active` superlatives directly on the page; players
+// can suggest new ones, which land as `suggested` for admin review. Purely
+// editorial/cosmetic — never touches real standings, so competitive integrity
+// is preserved.
+
+model Superlative {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  nominee      String?  // free-text nominee (admin-set)
+  status       String   @default("active") // active | suggested | archived
+  weekLabel    String?
+  displayOrder Int?
+  createdById  String?  // admin username who created/approved
+  suggestedBy  String?  // player username who suggested (when status=suggested)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
 }
 
 // ─── Homepage Section Config ──────────────────────────────────────────────────

@@ -1,7 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import useAuth from '@/app/components/useAuth';
+import CaseEditorModal from './CaseEditorModal';
 
 function formatDate(d) {
   if (!d) return '—';
@@ -134,6 +138,11 @@ function WantedPoster({ c }) {
 }
 
 export default function FraudWatchClient({ fraudCases, washedCases, totalCount, activeCount }) {
+  const router = useRouter();
+  const { authState } = useAuth();
+  const isAdmin = Boolean(authState && authState.isAdmin);
+  const [editorCase, setEditorCase] = useState(undefined); // undefined=closed, null=new, obj=edit
+
   const dbError = fraudCases === null;
   const allFraud = fraudCases ?? [];
   const allWashed = washedCases ?? [];
@@ -141,6 +150,9 @@ export default function FraudWatchClient({ fraudCases, washedCases, totalCount, 
   const featuredCase = allFraud[0] ?? null;
   const wantedCases = allFraud.slice(1);
   const archivedCases = allFraud.filter(c => c.status === 'archived');
+
+  const closeEditor = () => setEditorCase(undefined);
+  const onSaved = () => { closeEditor(); router.refresh(); };
 
   return (
     <div>
@@ -178,6 +190,13 @@ export default function FraudWatchClient({ fraudCases, washedCases, totalCount, 
           </div>
         )}
 
+        {!dbError && isAdmin && (
+          <div className="action-row">
+            <span className="admin-chip">Editor</span>
+            <button className="frh-btn frh-btn--danger" onClick={() => setEditorCase(null)}>+ File a Case</button>
+          </div>
+        )}
+
         {!dbError && (
           <>
             {/* Featured case + sidebar */}
@@ -190,7 +209,14 @@ export default function FraudWatchClient({ fraudCases, washedCases, totalCount, 
 
             {featuredCase ? (
               <div className="case-grid" style={{ marginBottom: 24 }}>
-                <CaseFile c={featuredCase} featured />
+                <div>
+                  {isAdmin && (
+                    <div style={{ marginBottom: 6, textAlign: 'right' }}>
+                      <button type="button" className="frh-btn" onClick={() => setEditorCase(featuredCase)}>Edit Case</button>
+                    </div>
+                  )}
+                  <CaseFile c={featuredCase} featured />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {/* Tip box */}
                   <div className="tip-box">
@@ -317,6 +343,10 @@ export default function FraudWatchClient({ fraudCases, washedCases, totalCount, 
           </>
         )}
       </div>
+
+      {editorCase !== undefined && (
+        <CaseEditorModal c={editorCase} onClose={closeEditor} onSaved={onSaved} />
+      )}
     </div>
   );
 }

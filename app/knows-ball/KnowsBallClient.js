@@ -1,6 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import useAuth from '@/app/components/useAuth';
+import LineEditorModal from './LineEditorModal';
+import BetSlipModal from './BetSlipModal';
 
 function formatOdds(n) {
   if (!n && n !== 0) return 'EVEN';
@@ -12,7 +17,7 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function SlateRow({ line, featured }) {
+function SlateRow({ line, featured, canBet, onBet }) {
   const teamA = line.teamA;
   const teamB = line.teamB;
   const when = line.match?.scheduledAt ? formatDate(line.match.scheduledAt) : 'TBD';
@@ -30,12 +35,35 @@ function SlateRow({ line, featured }) {
       <div className="slate-row__line">
         {formatOdds(line.teamAOdds)} / {formatOdds(line.teamBOdds)}
       </div>
-      <div className="slate-row__ou">{line.match?.division?.name ?? ''}</div>
+      <div className="slate-row__ou" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        {canBet ? (
+          <button type="button" className="frh-btn frh-btn--primary" style={{ padding: '1px 8px' }} onClick={() => onBet(line)}>Bet</button>
+        ) : (
+          <span>{line.match?.division?.name ?? ''}</span>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function KnowsBallClient({ lines, lineCount, editorial }) {
+  const router = useRouter();
+  const { authState } = useAuth();
+  const isAdmin = Boolean(authState && authState.isAdmin);
+  const loggedIn = Boolean(authState && !authState.anonymous);
+
+  const [showLineEditor, setShowLineEditor] = useState(false);
+  const [betLine, setBetLine] = useState(null);
+  const [wallet, setWallet] = useState(null);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    fetch('/api/wallet/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setWallet(data); })
+      .catch(() => {});
+  }, [loggedIn]);
+
   const dbError = lines === null;
   const openLines = lines ?? [];
   const lockItem = Array.isArray(editorial) && editorial.length > 0 ? editorial[0] : null;
@@ -74,6 +102,23 @@ export default function KnowsBallClient({ lines, lineCount, editorial }) {
 
         {!dbError && (
           <>
+            {/* Action row: admin open-line + wallet balance */}
+            {(isAdmin || loggedIn) && (
+              <div className="action-row">
+                {isAdmin && (
+                  <>
+                    <span className="admin-chip">Editor</span>
+                    <button className="frh-btn frh-btn--primary" onClick={() => setShowLineEditor(true)}>+ Open Line</button>
+                  </>
+                )}
+                {loggedIn && wallet && (
+                  <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', marginLeft: 'auto' }}>
+                    💰 {wallet.status === 'unopened' ? '1,500 starter pts on first bet' : `${wallet.balance} pts`}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Weekly Slate label */}
             <div style={{ marginBottom: 8 }}>
               <div className="frh-section-label">
@@ -110,7 +155,7 @@ export default function KnowsBallClient({ lines, lineCount, editorial }) {
                   </div>
                   {openLines.length > 0 ? (
                     openLines.map((line, i) => (
-                      <SlateRow key={line.id} line={line} featured={i === 0} />
+                      <SlateRow key={line.id} line={line} featured={i === 0} canBet={loggedIn} onBet={setBetLine} />
                     ))
                   ) : (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
@@ -231,6 +276,18 @@ export default function KnowsBallClient({ lines, lineCount, editorial }) {
           </>
         )}
       </div>
+
+      {showLineEditor && (
+        <LineEditorModal onClose={() => setShowLineEditor(false)} onSaved={() => { setShowLineEditor(false); router.refresh(); }} />
+      )}
+      {betLine && (
+        <BetSlipModal
+          line={betLine}
+          balance={wallet?.balance}
+          onClose={() => setBetLine(null)}
+          onPlaced={(newBalance) => setWallet((w) => ({ ...(w || {}), status: 'active', balance: newBalance }))}
+        />
+      )}
     </div>
   );
 }
