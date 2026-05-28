@@ -37,6 +37,7 @@ async function main() {
     { name: 'Thor',         role: 'Assassin', godClass: 'Physical' },
     { name: 'Tsukuyomi',    role: 'Assassin', godClass: 'Physical' },
     // Mages
+    { name: 'Ah Puch',      role: 'Mage',     godClass: 'Magical' },
     { name: 'Agni',         role: 'Mage',     godClass: 'Magical' },
     { name: 'Anubis',       role: 'Mage',     godClass: 'Magical' },
     { name: 'Aphrodite',    role: 'Mage',     godClass: 'Magical' },
@@ -72,6 +73,7 @@ async function main() {
     { name: 'Khepri',       role: 'Guardian', godClass: 'Magical' },
     { name: 'Sobek',        role: 'Guardian', godClass: 'Magical' },
     { name: 'Sylvanus',     role: 'Guardian', godClass: 'Magical' },
+    { name: 'Atlas',        role: 'Guardian', godClass: 'Magical' },
     { name: 'Yemoja',       role: 'Guardian', godClass: 'Magical' },
     { name: 'Ymir',         role: 'Guardian', godClass: 'Magical' },
     // Hunters

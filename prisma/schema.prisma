@@ -18,9 +18,12 @@ model Season {
   currentWeek Int       @default(1)
   createdAt   DateTime  @default(now())
 
-  divisions    Division[]
-  matches      Match[]
-  playerDrafts PlayerDraft[]
+  divisions      Division[]
+  matches        Match[]
+  playerDrafts   PlayerDraft[]
+  rosterImports  RosterImport[]
+  bulletinPosts  BulletinPost[]
+  editorialCases EditorialCase[]
 }
 
 model Division {
@@ -30,10 +33,12 @@ model Division {
   tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
   createdAt DateTime @default(now())
 
-  season      Season       @relation(fields: [seasonId], references: [id])
-  teams       Team[]
-  matches     Match[]
-  playerDraft PlayerDraft?
+  season         Season          @relation(fields: [seasonId], references: [id])
+  teams          Team[]
+  matches        Match[]
+  playerDraft    PlayerDraft?
+  bulletinPosts  BulletinPost[]
+  editorialCases EditorialCase[]
 
   @@unique([seasonId, name])
 }
@@ -65,6 +70,11 @@ model Team {
   awayMatches      Match[]           @relation("AwayTeam")
   playerDraftPicks PlayerDraftPick[]
   statLines        StatLine[]
+  bulletinPosts    BulletinPost[]
+  editorialCases   EditorialCase[]
+  bettingLinesA    BettingLine[]     @relation("BettingLineTeamA")
+  bettingLinesB    BettingLine[]     @relation("BettingLineTeamB")
+  selectedBets     Bet[]             @relation("BetSelectedTeam")
 }
 
 model TeamMember {
@@ -107,6 +117,9 @@ model Match {
   games               Game[]
   submissions         MatchSubmission[]
   rescheduleRequests  RescheduleRequest[]
+  bulletinPosts       BulletinPost[]
+  editorialCases      EditorialCase[]
+  bettingLines        BettingLine[]
 }
 
 model Game {
@@ -233,9 +246,12 @@ model Player {
   name            String
   role            String   // Solo, Jungle, Mid, Support, Carry, Fill
   discordUsername String?
+  discordId       String?
+  avatarUrl       String?
+  claimedByUserId String?
   division        String?  // e.g. Hospice, Rehabilitation
-  timezone       String?
-  secondaryRoles String[] @default([])
+  timezone        String?
+  secondaryRoles  String[] @default([])
   createdAt       DateTime @default(now())
 
   draftPicks         DraftPick[]
@@ -244,6 +260,11 @@ model Player {
   statLines          StatLine[]
   extractedStatLines ExtractedStatLine[]
   aliases            PlayerAlias[]
+  claimedByUser      User?              @relation("ClaimedByUser", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  playerClaims       PlayerClaim[]
+  bulletinPosts      BulletinPost[]
+  editorialCases     EditorialCase[]
+  wallet             Wallet?
 }
 
 model God {
@@ -521,4 +542,229 @@ model HomepageContent {
 
   @@unique([status]) // only one draft and one published row at a time
   @@index([status])
+}
+
+// ─── Identity & Profile Claims ────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  username  String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playerProfiles Player[]      @relation("ClaimedByUser")
+  claimedPlayers PlayerClaim[] @relation("ClaimRequester")
+  reviewedClaims PlayerClaim[] @relation("ClaimReviewer")
+  rosterImports  RosterImport[]
+  wallet         Wallet?
+}
+
+model PlayerClaim {
+  id           String    @id @default(cuid())
+  userId       String
+  playerId     String
+  status       String    @default("pending") // pending | approved | denied
+  requestedAt  DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+  note         String?
+
+  user       User    @relation("ClaimRequester", fields: [userId], references: [id])
+  player     Player  @relation(fields: [playerId], references: [id])
+  reviewedBy User?   @relation("ClaimReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@index([playerId])
+  @@index([status])
+}
+
+// ─── CSV Import Staging ───────────────────────────────────────────────────────
+
+model RosterImport {
+  id            String    @id @default(cuid())
+  seasonId      String?
+  status        String    @default("staged") // staged | imported | failed
+  rawFilename   String?
+  columnMapping Json      @default("{}")
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  importedAt    DateTime?
+
+  season    Season?          @relation(fields: [seasonId], references: [id])
+  createdBy User?            @relation(fields: [createdById], references: [id])
+  rows      RosterImportRow[]
+}
+
+model RosterImportRow {
+  id             String   @id @default(cuid())
+  importId       String
+  rowIndex       Int
+  rawData        Json
+  normalizedData Json?
+  status         String   @default("pending") // pending | valid | invalid | imported | skipped
+  errors         Json?
+  createdAt      DateTime @default(now())
+
+  import RosterImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+  @@index([status])
+}
+
+// ─── Bulletin Board ───────────────────────────────────────────────────────────
+
+model BulletinPost {
+  id                String    @id @default(cuid())
+  title             String
+  slug              String    @unique
+  type              String    // announcement | match_hype | player_spotlight | team_roast | weekly_recap
+  status            String    @default("draft") // draft | published | archived
+  body              String
+  excerpt           String?
+  pinned            Boolean   @default(false)
+  displayOrder      Int?
+  relatedPlayerId   String?
+  relatedTeamId     String?
+  relatedMatchId    String?
+  relatedDivisionId String?
+  relatedSeasonId   String?
+  createdById       String?
+  updatedById       String?
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  relatedPlayer   Player?   @relation(fields: [relatedPlayerId], references: [id], onDelete: SetNull)
+  relatedTeam     Team?     @relation(fields: [relatedTeamId], references: [id], onDelete: SetNull)
+  relatedMatch    Match?    @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
+  relatedDivision Division? @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
+  relatedSeason   Season?   @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+  @@index([publishedAt])
+}
+
+// ─── Homepage Section Config ──────────────────────────────────────────────────
+
+model HomepageSectionConfig {
+  id           String   @id @default(cuid())
+  sectionKey   String   @unique
+  title        String?
+  subtitle     String?
+  statusText   String?
+  visible      Boolean  @default(true)
+  displayOrder Int?
+  metadata     Json?
+  updatedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Fraud Watch / Washed Reports Editorial Cases ─────────────────────────────
+
+model EditorialCase {
+  id                String    @id @default(cuid())
+  type              String    // fraud_watch | washed_report
+  status            String    @default("draft") // draft | published | archived
+  severity          Int?
+  title             String
+  charge            String?
+  body              String?
+  relatedPlayerId   String?
+  relatedTeamId     String?
+  relatedMatchId    String?
+  relatedDivisionId String?
+  relatedSeasonId   String?
+  signalSource      Json?
+  createdById       String?
+  updatedById       String?
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  relatedPlayer   Player?   @relation(fields: [relatedPlayerId], references: [id], onDelete: SetNull)
+  relatedTeam     Team?     @relation(fields: [relatedTeamId], references: [id], onDelete: SetNull)
+  relatedMatch    Match?    @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
+  relatedDivision Division? @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
+  relatedSeason   Season?   @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([status])
+}
+
+// ─── Fantasy Points / Team Odds Economy ──────────────────────────────────────
+
+model Wallet {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  playerId  String?   @unique
+  balance   Int       @default(0)
+  status    String    @default("unopened") // unopened | active | suspended
+  openedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  player       Player?             @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  transactions WalletTransaction[]
+  bets         Bet[]
+}
+
+model WalletTransaction {
+  id           String   @id @default(cuid())
+  walletId     String
+  type         String   // starter_grant | bet_stake | bet_payout | admin_adjustment | fine | bonus | void_refund
+  amount       Int
+  balanceAfter Int
+  reason       String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+}
+
+model BettingLine {
+  id          String    @id @default(cuid())
+  matchId     String
+  status      String    @default("open") // open | locked | settled | void
+  teamAId     String
+  teamAOdds   Int
+  teamBId     String
+  teamBOdds   Int
+  closesAt    DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  settledAt   DateTime?
+
+  match  Match  @relation(fields: [matchId], references: [id])
+  teamA  Team   @relation("BettingLineTeamA", fields: [teamAId], references: [id])
+  teamB  Team   @relation("BettingLineTeamB", fields: [teamBId], references: [id])
+  bets   Bet[]
+
+  @@index([matchId])
+}
+
+model Bet {
+  id              String    @id @default(cuid())
+  walletId        String
+  lineId          String
+  selectedTeamId  String
+  stake           Int
+  potentialPayout Int
+  status          String    @default("pending") // pending | won | lost | void
+  createdAt       DateTime  @default(now())
+  settledAt       DateTime?
+
+  wallet       Wallet      @relation(fields: [walletId], references: [id])
+  line         BettingLine @relation(fields: [lineId], references: [id])
+  selectedTeam Team        @relation("BetSelectedTeam", fields: [selectedTeamId], references: [id])
+
+  @@index([walletId])
+  @@index([lineId])
 }
