@@ -4,6 +4,8 @@ import { TEAMS } from '@/lib/constants';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 
+export const dynamic = 'force-dynamic';
+
 // Active-ish statuses where picks are locked into a live draft
 // eslint-disable-next-line no-unused-vars
 const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
@@ -17,7 +19,17 @@ export async function GET(request) {
   try {
     const picks = await prisma.draftPick.findMany({
       where: { draftId },
-      include: { player: true, god: true },
+      select: {
+        id: true,
+        draftId: true,
+        playerId: true,
+        team: true,
+        pickOrder: true,
+        godId: true,
+        createdAt: true,
+        player: { select: { id: true, name: true, role: true, discordUsername: true } },
+        god: { select: { id: true, name: true } },
+      },
       orderBy: { pickOrder: 'asc' },
     });
     return NextResponse.json(picks);
@@ -70,7 +82,11 @@ export async function POST(request) {
       const pick = await prisma.draftPick.update({
         where: { id: body.id },
         data,
-        include: { player: true, god: true },
+        select: {
+          id: true, draftId: true, playerId: true, team: true, pickOrder: true, godId: true, createdAt: true,
+          player: { select: { id: true, name: true, role: true, discordUsername: true } },
+          god: { select: { id: true, name: true } },
+        },
       });
 
       // Bump draft version so SSE sees the change
@@ -94,7 +110,11 @@ export async function POST(request) {
 
     const pick = await prisma.draftPick.create({
       data: { draftId, playerId, team, pickOrder: Number.isInteger(pickOrder) ? pickOrder : 0 },
-      include: { player: true, god: true },
+      select: {
+        id: true, draftId: true, playerId: true, team: true, pickOrder: true, godId: true, createdAt: true,
+        player: { select: { id: true, name: true, role: true, discordUsername: true } },
+        god: { select: { id: true, name: true } },
+      },
     });
 
     await prisma.draft.update({

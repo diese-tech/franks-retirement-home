@@ -4,6 +4,8 @@ import { PLAYER_ROLES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/players/import
 // Body: { players: [{ name, role, discordUsername?, division? }] }
 // Upserts by discordUsername when present, falls back to name (case-insensitive).

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { checkMatchWindow } from '@/lib/matchWindow';
-import { requireAdmin } from '@/lib/adminSession';
 import { checkSeriesComplete } from '@/lib/seriesResult';
 import { invalidateAllStandings } from '@/lib/standings';
 import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
@@ -78,7 +77,7 @@ export async function POST(req, { params }) {
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
   if (!game)  return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
-  const adminErr = await requireAdmin(req);
+  const adminErr = await resolveAdminAuth(req);
   const auth = await resolveMatchCaptainAuth(req, match);
   const isAdmin = adminErr === null || auth.isAdmin;
   const captainSide = auth.side;

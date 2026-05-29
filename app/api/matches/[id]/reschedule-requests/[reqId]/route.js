@@ -108,13 +108,24 @@ async function handleCaptainResponse(req, rescheduleRequest, action, note) {
 
   const newStatus = action === 'acknowledge' ? 'acknowledged' : 'disputed';
 
-  const updated = await prisma.rescheduleRequest.update({
-    where: { id: rescheduleRequest.id },
+  // updateMany with a status guard prevents a race where two concurrent PATCH
+  // requests both pass the pending check and double-update.
+  const { count } = await prisma.rescheduleRequest.updateMany({
+    where: { id: rescheduleRequest.id, status: 'pending' },
     data: {
       status: newStatus,
       opposingCaptainNote: note?.trim() || null,
     },
   });
+
+  if (count === 0) {
+    return NextResponse.json(
+      { error: `Request is no longer pending and cannot be updated.` },
+      { status: 409 },
+    );
+  }
+
+  const updated = await prisma.rescheduleRequest.findUnique({ where: { id: rescheduleRequest.id } });
 
   logAudit('RescheduleRequest', rescheduleRequest.id, action, {
     payload: { matchId: rescheduleRequest.matchId, captainSide, newStatus },

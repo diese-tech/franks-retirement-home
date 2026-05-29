@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDiscordSessionUser, hasDiscordPlayerRole, hasDiscordAdminRole } from '@/lib/discordAuth';
 import {
+
+export const dynamic = 'force-dynamic';
   PLAYER_SUBMITTABLE_TYPES,
   createBulletinPostWithUniqueSlug,
 } from '@/lib/bulletinHelpers';

@@ -4,6 +4,8 @@ import { PLAYER_ROLES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
 
+export const dynamic = 'force-dynamic';
+
 const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 export async function GET(request) {

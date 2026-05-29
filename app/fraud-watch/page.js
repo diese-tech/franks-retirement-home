@@ -1,7 +1,7 @@
 import prisma from '@/lib/db';
 import FraudWatchClient from './FraudWatchClient';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export default async function FraudWatchPage() {
   let fraudCases = null;

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(_req, { params }) {
   try {
     const team = await prisma.team.findUnique({
@@ -26,8 +28,13 @@ export async function PATCH(req, { params }) {
   const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
+  let body;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { name, tag, orgId, captainPlayerId } = body;
+
   try {
-    const { name, tag, orgId, captainPlayerId } = await req.json();
     const team = await prisma.team.update({
       where: { id: params.id },
       data: { name, tag, orgId, captainPlayerId },

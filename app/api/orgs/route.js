@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const orgs = await prisma.org.findMany({
@@ -18,8 +20,13 @@ export async function POST(req) {
   const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
+  let body;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { name, tag, logoInitials, accentColor } = body;
+
   try {
-    const { name, tag, logoInitials, accentColor } = await req.json();
     if (!name || !tag) {
       return NextResponse.json({ error: 'name and tag are required' }, { status: 400 });
     }

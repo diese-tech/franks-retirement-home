@@ -4,6 +4,8 @@ import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidateGods } from '@/lib/referenceData';
 
+export const dynamic = 'force-dynamic';
+
 const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
 export async function GET(request) {

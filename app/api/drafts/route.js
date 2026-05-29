@@ -5,6 +5,8 @@ import { DRAFT_STATUSES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 
+export const dynamic = 'force-dynamic';
+
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 

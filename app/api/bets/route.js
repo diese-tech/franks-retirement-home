@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 
+export const dynamic = 'force-dynamic';
+
 const STARTER_GRANT = 1500;
 const MIN_STAKE = 10;
 
