@@ -198,7 +198,6 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     { key: 'superlatives',  label: 'Superlatives',     count: null },
     { key: 'import',        label: 'Import',           count: null },
     { key: 'gods',          label: 'Gods',             count: gods.length },
-    { key: 'homepage',      label: 'Homepage Editor',  count: null },
   ];
 
   return (
@@ -233,21 +232,34 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
           ))}
         </div>
 
-        <div className="mb-6 overflow-x-auto border-2 border-brand-700 bg-brand-950/50">
-          <div className="flex min-w-max bg-brand-900">
-            {tabs.map((t) => (
+        <div className="mb-6 overflow-x-auto border-2 border-brand-700 bg-brand-950/50 p-2 shadow-[4px_4px_0_#141414]">
+          <div className="flex min-w-max gap-2">
+            {tabs.map((t, idx) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={[
-                  'px-4 py-3 font-ui text-xs uppercase transition-colors border-r border-brand-700 last:border-r-0',
+                  'group min-h-[44px] px-3 py-2 font-ui text-[11px] uppercase tracking-widest transition-colors border-2 shadow-[2px_2px_0_#141414] flex items-center gap-2',
                   tab === t.key
-                    ? 'bg-brand-800 text-frh-yellow border-b-[3px] border-b-frh-yellow'
-                    : 'bg-brand-700 text-gray-400 border-b-[3px] border-b-transparent hover:text-frh-cream',
+                    ? 'bg-frh-yellow text-frh-ink border-frh-yellow'
+                    : 'bg-brand-800 text-gray-400 border-brand-700 hover:border-frh-yellow hover:text-frh-cream',
                 ].join(' ')}
               >
-                {t.label}
-                {t.count !== null && <span className="ml-2 font-mono text-[10px] opacity-60">{t.count}</span>}
+                <span className={[
+                  'font-mono text-[10px] px-1.5 py-0.5 border',
+                  tab === t.key ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-gray-600 group-hover:text-frh-yellow',
+                ].join(' ')}>
+                  {String(idx + 1).padStart(2, '0')}
+                </span>
+                <span>{t.label}</span>
+                {t.count !== null && (
+                  <span className={[
+                    'ml-auto font-mono text-[10px] px-1.5 py-0.5 border',
+                    tab === t.key ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-frh-yellow',
+                  ].join(' ')}>
+                    {t.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -263,7 +275,6 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'superlatives'    && <SuggestedSuperlativesPanel />}
         {tab === 'import'          && <ImportPanel          onRefresh={refreshPlayers} />}
         {tab === 'gods'            && <GodsPanel            gods={gods}   onRefresh={refreshGods} />}
-        {tab === 'homepage'        && <HomepageEditorPanel />}
       </RetroWindow>
     </div>
   );
@@ -2305,6 +2316,7 @@ function GodsPanel({ gods, onRefresh }) {
 // Lightweight panel that lives inside the admin dashboard and links out to
 // the full-screen homepage editor at /admin/homepage.
 
+// eslint-disable-next-line no-unused-vars
 function HomepageEditorPanel() {
   const [status, setStatus] = useState(null); // null | { hasDraft, hasPublished, publishedAt, savedAt }
   const [loading, setLoading] = useState(false);
