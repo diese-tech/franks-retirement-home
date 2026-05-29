@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useTransition } from 'react';
-import { RetroWindow, BrutalButton } from '@/components/ui';
+import { BrutalButton } from '@/components/ui';
 import HomepageClient from '@/app/HomepageClient';
 
-// ─── Toolbar ──────────────────────────────────────────────────────────────────
+// ─── Editor toolbar (sticky, only visible when admin is logged in) ─────────────
 
 function EditorToolbar({
   hasDraft, hasPublished, savedAt, publishedAt,
@@ -19,23 +19,24 @@ function EditorToolbar({
   };
 
   return (
-    <div style={{
-      position: 'sticky', top: 0, zIndex: 100,
-      background: 'var(--frh-bg, #0a0a0a)',
-      borderBottom: '2px solid #ffd400',
-      padding: '10px 16px',
-      display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10,
-    }}>
-      {/* Brand */}
+    <div
+      data-testid="editor-toolbar"
+      style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'var(--frh-bg, #0a0a0a)',
+        borderBottom: '2px solid #ffd400',
+        padding: '10px 16px',
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10,
+      }}
+    >
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#ffd400', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>
         ★ HOMEPAGE EDITOR
       </span>
 
       <div style={{ flex: 1 }} />
 
-      {/* Status text */}
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--frh-text-muted, #666)', whiteSpace: 'nowrap' }}>
-        {isSaving    ? '⟳ Saving…'
+        {isSaving      ? '⟳ Saving…'
          : isPublishing ? '⟳ Publishing…'
          : isResetting  ? '⟳ Resetting…'
          : isDirty      ? '● Unsaved changes'
@@ -49,7 +50,6 @@ function EditorToolbar({
         </span>
       )}
 
-      {/* Actions */}
       <BrutalButton onClick={onSave}    disabled={isSaving || isPublishing} size="sm" variant="secondary">
         {isSaving ? 'Saving…' : 'Save Draft'}
       </BrutalButton>
@@ -62,15 +62,12 @@ function EditorToolbar({
         Preview Public ↗
       </BrutalButton>
 
-      <BrutalButton onClick={onReset}   disabled={isResetting || (!hasDraft)} size="sm" variant="danger">
+      <BrutalButton onClick={onReset} disabled={isResetting || (!hasDraft)} size="sm" variant="danger">
         {isResetting ? 'Resetting…' : 'Reset to Default'}
       </BrutalButton>
     </div>
   );
 }
-
-
-// ─── Toast notifications ──────────────────────────────────────────────────────
 
 function Toast({ message, kind = 'success', onDismiss }) {
   const colors = {
@@ -93,72 +90,21 @@ function Toast({ message, kind = 'success', onDismiss }) {
   );
 }
 
-// ─── Password gate (reuses admin session from parent dashboard) ───────────────
+// ─── Main wrapper ─────────────────────────────────────────────────────────────
 
-function PasswordGate({ onAuthed }) {
-  const [pw, setPw] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true); setError('');
-    const res = await fetch('/api/admin-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
-    });
-    if (res.ok) { sessionStorage.setItem('frh_admin', '1'); onAuthed(); }
-    else { setError('Incorrect password'); setBusy(false); }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <RetroWindow title="AUTHENTICATION REQUIRED" titleBarColor="blue" className="w-full max-w-sm">
-        <h1 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Admin Access</h1>
-        <p className="text-sm text-gray-500 mb-6">Enter the admin password to continue.</p>
-        <form onSubmit={submit} className="space-y-4">
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)}
-            placeholder="Password" className="input-field w-full" autoFocus />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <BrutalButton type="submit" disabled={busy || !pw} className="w-full">
-            {busy ? 'Checking…' : 'Enter the Compound'}
-          </BrutalButton>
-        </form>
-      </RetroWindow>
-    </div>
-  );
-}
-
-
-// ─── Main editor component ────────────────────────────────────────────────────
-
-export default function HomepageEditorClient({
-  initialContent,
-  hasDraft: initialHasDraft,
-  hasPublished: initialHasPublished,
-  publishedAt: initialPublishedAt,
-  savedAt: initialSavedAt,
-  // DB-driven homepage props passed through to HomepageClient
+export default function HomepageWrapper({
+  isAdmin,
+  editableContent,
+  // DB-driven props passed through to HomepageClient
   activeSeason, liveMatches, upcomingMatches, recentDrafts,
-  divisionStandings, playerCount, matchCount, recentResults,
+  divisionStandings, playerCount, godCount, matchCount, recentResults,
+  // Editor metadata (admin only)
+  hasDraft: initialHasDraft = false,
+  hasPublished: initialHasPublished = false,
+  publishedAt: initialPublishedAt = null,
+  savedAt: initialSavedAt = null,
 }) {
-  const [authed, setAuthed] = useState(() => {
-    if (typeof window !== 'undefined') return sessionStorage.getItem('frh_admin') === '1';
-    return false;
-  });
-
-  // Validate session on mount
-  useState(() => {
-    if (typeof window === 'undefined') return;
-    if (sessionStorage.getItem('frh_admin') !== '1') return;
-    fetch('/api/admin-auth').then(r => {
-      if (r.status === 401) { sessionStorage.removeItem('frh_admin'); setAuthed(false); }
-      else setAuthed(true);
-    }).catch(() => setAuthed(true));
-  });
-
-  const [content, setContent] = useState(initialContent);
+  const [content, setContent] = useState(editableContent);
   const [isDirty, setIsDirty] = useState(false);
   const [hasDraft, setHasDraft] = useState(initialHasDraft);
   const [hasPublished, setHasPublished] = useState(initialHasPublished);
@@ -167,7 +113,7 @@ export default function HomepageEditorClient({
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [toast, setToast] = useState(null); // { message, kind }
+  const [toast, setToast] = useState(null);
   const [, startTransition] = useTransition();
 
   const showToast = (message, kind = 'success') => {
@@ -175,7 +121,6 @@ export default function HomepageEditorClient({
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ── Content change handler ────────────────────────────────────────────────
   const handleContentChange = useCallback((field, value) => {
     startTransition(() => {
       setContent(prev => ({ ...prev, [field]: value }));
@@ -183,7 +128,6 @@ export default function HomepageEditorClient({
     });
   }, []);
 
-  // ── Save Draft ────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -205,12 +149,10 @@ export default function HomepageEditorClient({
     }
   };
 
-  // ── Publish ───────────────────────────────────────────────────────────────
   const handlePublish = async () => {
     if (!confirm('Publish this draft? The public homepage will update immediately.')) return;
     setIsPublishing(true);
     try {
-      // Save draft first to ensure consistency, then publish
       const saveRes = await fetch('/api/admin/homepage-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,14 +184,12 @@ export default function HomepageEditorClient({
     }
   };
 
-  // ── Reset to Default ──────────────────────────────────────────────────────
   const handleReset = async () => {
     if (!confirm('Reset to defaults? This will delete your draft. Published content is not affected.')) return;
     setIsResetting(true);
     try {
       const res = await fetch('/api/admin/homepage-content?target=draft', { method: 'DELETE' });
       if (!res.ok) throw new Error('Reset failed');
-      // Re-import defaults dynamically to avoid circular dep issues
       const { HOMEPAGE_DEFAULTS } = await import('@/lib/homepageDefaults');
       setContent({ ...HOMEPAGE_DEFAULTS });
       setIsDirty(false);
@@ -263,12 +203,18 @@ export default function HomepageEditorClient({
     }
   };
 
-  // ── Preview ───────────────────────────────────────────────────────────────
   const handlePreview = () => {
     window.open('/?preview=draft', '_blank');
   };
 
-  if (!authed) return <PasswordGate onAuthed={() => setAuthed(true)} />;
+  const dbProps = {
+    activeSeason, liveMatches, upcomingMatches, recentDrafts,
+    divisionStandings, playerCount, godCount, matchCount, recentResults,
+  };
+
+  if (!isAdmin) {
+    return <HomepageClient mode="public" editableContent={content} {...dbProps} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--frh-bg, #0a0a0a)' }}>
@@ -287,7 +233,6 @@ export default function HomepageEditorClient({
         onReset={handleReset}
       />
 
-      {/* Editor mode banner */}
       <div style={{
         background: 'rgba(255,212,0,0.06)',
         borderBottom: '1px solid rgba(255,212,0,0.2)',
@@ -313,22 +258,13 @@ export default function HomepageEditorClient({
         )}
       </div>
 
-      {/* The actual homepage rendered in editor mode */}
       <HomepageClient
         mode="editor"
         editableContent={content}
         onContentChange={handleContentChange}
-        activeSeason={activeSeason}
-        liveMatches={liveMatches}
-        upcomingMatches={upcomingMatches}
-        recentDrafts={recentDrafts}
-        divisionStandings={divisionStandings}
-        playerCount={playerCount}
-        matchCount={matchCount}
-        recentResults={recentResults}
+        {...dbProps}
       />
 
-      {/* Toast */}
       {toast && (
         <Toast message={toast.message} kind={toast.kind} onDismiss={() => setToast(null)} />
       )}

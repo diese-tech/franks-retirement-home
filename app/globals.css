@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Boogaloo&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono:wght@400&family=VT323&display=swap');
+/* Fonts loaded via next/font/google in app/layout.js — no @import needed */
 
 @tailwind base;
 @tailwind components;

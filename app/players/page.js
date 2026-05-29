@@ -1,7 +1,7 @@
 import prisma from '@/lib/db';
 import { RetroWindow } from '@/components/ui';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 const ROLE_COLORS = {
   Solo: 'text-orange-400', Jungle: 'text-green-400', Mid: 'text-purple-400',

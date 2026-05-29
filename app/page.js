@@ -2,24 +2,44 @@ import prisma from '@/lib/db';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 import { computeStandings } from '@/lib/standings';
 import { mergeWithDefaults } from '@/lib/homepageDefaults';
-import HomepageClient from './HomepageClient';
+import { isDiscordAdminFromCookies } from '@/lib/serverAuth';
+import HomepageWrapper from './HomepageWrapper';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage({ searchParams }) {
-  // ── Editorial content: published row (or draft for ?preview=draft admins) ─
+  // ── Discord admin check — determines whether to render editor mode ─────────
+  let isAdmin = false;
+  try { isAdmin = isDiscordAdminFromCookies(); } catch { /* cookies() may throw outside request context */ }
+
+  // ── Editorial content ──────────────────────────────────────────────────────
+  // Admins always see the draft (so they edit the pre-publish version).
+  // Non-admins see published content. ?preview=draft is a low-stakes editorial
+  // preview (no auth gate — draft contains no sensitive data).
   let editableContent = null;
+  let hasDraft = false;
+  let hasPublished = false;
+  let savedAt = null;
+  let publishedAt = null;
   try {
-    // ?preview=draft allows admins to preview their draft before publishing.
-    // The route is not protected here by auth — it's low-stakes editorial
-    // preview, not a security boundary. Drafts contain no sensitive data.
-    const previewDraft = searchParams?.preview === 'draft';
-    const contentStatus = previewDraft ? 'draft' : 'published';
-    const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
-    editableContent = mergeWithDefaults(dbRow); // null-safe: returns defaults if no row
+    const previewDraft = !isAdmin && searchParams?.preview === 'draft';
+    if (isAdmin) {
+      const [draftRow, publishedRow] = await Promise.all([
+        prisma.homepageContent.findUnique({ where: { status: 'draft' } }),
+        prisma.homepageContent.findUnique({ where: { status: 'published' } }),
+      ]);
+      hasDraft = !!draftRow;
+      hasPublished = !!publishedRow;
+      savedAt = draftRow?.savedAt?.toISOString() ?? null;
+      publishedAt = publishedRow?.publishedAt?.toISOString() ?? null;
+      editableContent = mergeWithDefaults(draftRow ?? publishedRow);
+    } else {
+      const contentStatus = previewDraft ? 'draft' : 'published';
+      const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
+      editableContent = mergeWithDefaults(dbRow);
+    }
   } catch (err) {
     console.error('[homepage]', err);
-    // DB unavailable — fall back to hardcoded defaults (no editableContent = defaults)
   }
 
   // ── DB-driven structural data ─────────────────────────────────────────────
@@ -105,9 +125,13 @@ export default async function HomePage({ searchParams }) {
   } catch (err) { console.error('[homepage]', err); }
 
   return (
-    <HomepageClient
+    <HomepageWrapper
+      isAdmin={isAdmin}
       editableContent={editableContent}
-      mode="public"
+      hasDraft={hasDraft}
+      hasPublished={hasPublished}
+      savedAt={savedAt}
+      publishedAt={publishedAt}
       activeSeason={JSON.parse(JSON.stringify(activeSeason))}
       liveMatches={JSON.parse(JSON.stringify(liveMatches))}
       upcomingMatches={JSON.parse(JSON.stringify(upcomingMatches))}
