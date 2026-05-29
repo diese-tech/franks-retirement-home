@@ -129,12 +129,12 @@ export default function LobbyView({ state, role, callApi }) {
             <div className="mb-3">
               <RoleFilter options={['All', ...PLAYER_ROLES]} value={swapFilter} onChange={setSwapFilter} />
             </div>
-            <div className="max-h-64 overflow-y-auto space-y-1">
+            <div className="max-h-[55vh] overflow-y-auto space-y-1">
               {freeAgents.length === 0
                 ? <p className="text-xs text-gray-600 text-center py-6">No available free agents</p>
                 : freeAgents.map((player) => (
                   <button key={player.id} onClick={() => handleSwap(player.id)} disabled={busy}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-brand-950/40 border border-brand-600/20 hover:border-frost-500/40 hover:bg-frost-500/5 transition-all text-left">
+                    className="w-full flex items-center gap-2 px-3 py-3 bg-brand-950/40 border border-brand-600/20 hover:border-frost-500/40 hover:bg-frost-500/5 transition-all text-left min-h-[44px]">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-display font-medium text-sm text-gray-300">{player.name}</span>
@@ -183,7 +183,7 @@ function TeamRoster({ team, picks, myTeam, isAdmin, onSwap }) {
       </div>
       <div className="space-y-2">
         {picks.map((pick, i) => (
-          <div key={pick.id} className="flex items-center gap-2 px-3 py-2 bg-brand-900/70 border border-brand-700">
+          <div key={pick.id} className="flex items-center gap-2 px-3 py-3 bg-brand-900/70 border border-brand-700 min-h-[44px]">
             <span className="w-5 h-5 bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{i + 1}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">

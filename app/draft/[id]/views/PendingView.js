@@ -85,7 +85,7 @@ export default function PendingView({ state, role, draftId }) {
               <p className="text-xs text-gray-600 text-center py-6">No available players. Very exclusive.</p>
             ) : (
               available.map((player) => (
-                <div key={player.id} className="group flex items-center gap-2 px-2 py-1.5 bg-brand-950/40 border border-brand-600/20 hover:border-brand-600/40 transition-all">
+                <div key={player.id} className="flex items-center gap-2 px-2 py-2 bg-brand-950/40 border border-brand-600/20 hover:border-brand-600/40 transition-all">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-display font-medium text-sm text-gray-300 truncate">{player.name}</span>
@@ -94,9 +94,9 @@ export default function PendingView({ state, role, draftId }) {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <BrutalButton onClick={() => addPlayer(player.id, 'A')} size="sm" variant="secondary">A</BrutalButton>
-                    <BrutalButton onClick={() => addPlayer(player.id, 'B')} size="sm" variant="secondary">B</BrutalButton>
+                  <div className="flex gap-1">
+                    <BrutalButton onClick={() => addPlayer(player.id, 'A')} size="sm" variant="secondary" className="min-h-[36px]">A</BrutalButton>
+                    <BrutalButton onClick={() => addPlayer(player.id, 'B')} size="sm" variant="secondary" className="min-h-[36px]">B</BrutalButton>
                   </div>
                 </div>
               ))
@@ -131,7 +131,7 @@ function TeamColumn({ team, picks, onRemove }) {
           <div className="text-center py-10 text-gray-600 text-sm">No players drafted.</div>
         ) : (
           picks.map((pick, index) => (
-            <div key={pick.id} className="group flex items-center gap-2 px-3 py-2 bg-brand-900/70 border border-brand-700">
+            <div key={pick.id} className="flex items-center gap-2 px-3 py-2 bg-brand-900/70 border border-brand-700 min-h-[44px]">
               <span className="w-5 h-5 bg-brand-700 flex items-center justify-center text-[10px] font-mono text-gray-500 shrink-0">{index + 1}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -141,7 +141,7 @@ function TeamColumn({ team, picks, onRemove }) {
                   </span>
                 </div>
               </div>
-              <BrutalButton onClick={() => onRemove(pick.id)} variant="danger" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">X</BrutalButton>
+              <BrutalButton onClick={() => onRemove(pick.id)} variant="danger" size="sm" className="min-h-[36px]">✕</BrutalButton>
             </div>
           ))
         )}

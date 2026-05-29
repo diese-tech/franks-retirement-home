@@ -25,45 +25,46 @@ function EditorToolbar({
         position: 'sticky', top: 0, zIndex: 100,
         background: 'var(--frh-bg, #0a0a0a)',
         borderBottom: '2px solid #ffd400',
-        padding: '10px 16px',
-        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10,
+        padding: '8px 12px',
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+        minWidth: 0,
       }}
     >
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#ffd400', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>
-        ★ HOMEPAGE EDITOR
+        ★ EDITOR
       </span>
 
-      <div style={{ flex: 1 }} />
-
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--frh-text-muted, #666)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--frh-text-muted, #666)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
         {isSaving      ? '⟳ Saving…'
          : isPublishing ? '⟳ Publishing…'
          : isResetting  ? '⟳ Resetting…'
-         : isDirty      ? '● Unsaved changes'
-         : savedAt      ? `✓ Draft saved ${fmtTime(savedAt)}`
-         : 'No draft — showing defaults'}
+         : isDirty      ? '● Unsaved'
+         : savedAt      ? `✓ Saved ${fmtTime(savedAt)}`
+         : 'No draft'}
       </span>
 
       {hasPublished && publishedAt && (
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#4ade80', whiteSpace: 'nowrap' }}>
-          ✓ Published {fmtTime(publishedAt)}
+          ✓ {fmtTime(publishedAt)}
         </span>
       )}
 
-      <BrutalButton onClick={onSave}    disabled={isSaving || isPublishing} size="sm" variant="secondary">
-        {isSaving ? 'Saving…' : 'Save Draft'}
+      <div style={{ flex: 1, minWidth: 8 }} />
+
+      <BrutalButton onClick={onSave}    disabled={isSaving || isPublishing} size="sm" variant="secondary" className="min-h-[36px]">
+        {isSaving ? '…' : 'Save'}
       </BrutalButton>
 
-      <BrutalButton onClick={onPublish} disabled={isSaving || isPublishing} size="sm" variant="primary">
-        {isPublishing ? 'Publishing…' : 'Publish'}
+      <BrutalButton onClick={onPublish} disabled={isSaving || isPublishing} size="sm" variant="primary" className="min-h-[36px]">
+        {isPublishing ? '…' : 'Publish'}
       </BrutalButton>
 
-      <BrutalButton onClick={onPreview} size="sm" variant="secondary">
-        Preview Public ↗
+      <BrutalButton onClick={onPreview} size="sm" variant="secondary" className="hidden sm:inline-flex min-h-[36px]">
+        Preview ↗
       </BrutalButton>
 
-      <BrutalButton onClick={onReset} disabled={isResetting || (!hasDraft)} size="sm" variant="danger">
-        {isResetting ? 'Resetting…' : 'Reset to Default'}
+      <BrutalButton onClick={onReset} disabled={isResetting || (!hasDraft)} size="sm" variant="danger" className="min-h-[36px]">
+        {isResetting ? '…' : 'Reset'}
       </BrutalButton>
     </div>
   );
@@ -224,7 +225,8 @@ export default function HomepageWrapper({
         border: '1px solid #ffd400',
         color: isEditing ? '#0a0a0a' : '#ffd400',
         fontFamily: 'var(--font-mono)', fontSize: 11,
-        padding: '6px 12px', cursor: 'pointer',
+        padding: '10px 16px', cursor: 'pointer',
+        minHeight: 44, minWidth: 44,
         letterSpacing: '0.1em', whiteSpace: 'nowrap',
         transition: 'background 0.15s, color 0.15s',
       }}
