@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock next/headers before importing serverAuth
 vi.mock('next/headers', () => ({
@@ -13,13 +13,15 @@ vi.mock('@/lib/discordAuth', () => ({
 
 const { cookies } = await import('next/headers');
 const { getDiscordSessionFromRaw, hasDiscordAdminRole } = await import('@/lib/discordAuth');
-const { isDiscordAdminFromCookies } = await import('@/lib/serverAuth');
+const { isDiscordAdminFromCookies, hasDiscordSession } = await import('@/lib/serverAuth');
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ─── isDiscordAdminFromCookies ────────────────────────────────────────────────
 
 describe('isDiscordAdminFromCookies', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('returns true when cookie is present, session is valid, and user has admin role', () => {
     cookies.mockReturnValue({ get: () => ({ value: 'valid.cookie' }) });
     getDiscordSessionFromRaw.mockReturnValue({ discordId: 'u1', username: 'Admin', roles: ['admin-role'] });
@@ -58,5 +60,40 @@ describe('isDiscordAdminFromCookies', () => {
 
     expect(isDiscordAdminFromCookies()).toBe(false);
     expect(hasDiscordAdminRole).not.toHaveBeenCalled();
+  });
+});
+
+// ─── hasDiscordSession ────────────────────────────────────────────────────────
+
+describe('hasDiscordSession', () => {
+  it('returns true when a valid Discord session cookie is present', () => {
+    cookies.mockReturnValue({
+      get: (name) => name === 'frh_discord_session' ? { value: 'valid-cookie-value' } : undefined,
+    });
+    getDiscordSessionFromRaw.mockReturnValue({
+      discordId: '123456789',
+      username: 'TestUser',
+      roles: ['role-a'],
+    });
+
+    expect(hasDiscordSession()).toBe(true);
+  });
+
+  it('returns false when no cookie is present', () => {
+    cookies.mockReturnValue({
+      get: () => undefined,
+    });
+
+    expect(hasDiscordSession()).toBe(false);
+    expect(getDiscordSessionFromRaw).not.toHaveBeenCalled();
+  });
+
+  it('returns false when cookie is present but invalid/expired', () => {
+    cookies.mockReturnValue({
+      get: (name) => name === 'frh_discord_session' ? { value: 'expired-or-tampered-cookie' } : undefined,
+    });
+    getDiscordSessionFromRaw.mockReturnValue(null);
+
+    expect(hasDiscordSession()).toBe(false);
   });
 });

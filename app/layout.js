@@ -19,10 +19,16 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning className={fontVars}>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-frh-yellow focus:text-frh-ink focus:font-mono focus:text-sm focus:rounded"
+        >
+          Skip to main content
+        </a>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var s=localStorage.getItem('frh-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||(s===null&&d)){document.documentElement.classList.add('dark');}})();` }} />
         <IntroScreen />
         <Nav />
-        <main className="min-h-[calc(100vh-3.5rem)]">{children}</main>
+        <main id="main-content" className="min-h-[calc(100vh-3.5rem)]">{children}</main>
         <Footer />
       </body>
     </html>

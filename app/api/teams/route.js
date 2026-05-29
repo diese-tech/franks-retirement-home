@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 
 export async function GET(req) {
   try {
@@ -24,14 +24,16 @@ export async function GET(req) {
         },
       },
     });
-    return NextResponse.json(teams);
+    const res = NextResponse.json(teams);
+    res.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return res;
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch teams' }, { status: 500 });
   }
 }
 
 export async function POST(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {

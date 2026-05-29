@@ -97,14 +97,16 @@ describe('validateDiscordEnv', () => {
     expect(result.missing).toContain('DISCORD_CLIENT_SECRET');
     expect(result.missing).toContain('DISCORD_GUILD_ID');
     expect(result.missing).toContain('DISCORD_SESSION_SECRET');
-    expect(result.missing).toHaveLength(4);
+    expect(result.missing).toContain('DISCORD_ADMIN_ROLE_ID');
+    expect(result.missing).toHaveLength(5);
   });
 
-  it('returns { valid: true, missing: [] } when all 4 required vars are set', () => {
+  it('returns { valid: true, missing: [] } when all required vars are set', () => {
     process.env.DISCORD_CLIENT_ID = 'test-client-id';
     process.env.DISCORD_CLIENT_SECRET = 'test-client-secret';
     process.env.DISCORD_GUILD_ID = 'test-guild-id';
     process.env.DISCORD_SESSION_SECRET = 'test-session-secret-long-enough';
+    process.env.DISCORD_ADMIN_ROLE_ID = 'admin-role-id';
     const result = validateDiscordEnv();
     expect(result.valid).toBe(true);
     expect(result.missing).toHaveLength(0);

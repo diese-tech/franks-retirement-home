@@ -12,7 +12,9 @@ export async function GET(req) {
   }
   try {
     const standings = await computeStandings(divisionId);
-    return NextResponse.json(standings);
+    const res = NextResponse.json(standings);
+    res.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+    return res;
   } catch {
     return NextResponse.json({ error: 'Failed to compute standings' }, { status: 500 });
   }
