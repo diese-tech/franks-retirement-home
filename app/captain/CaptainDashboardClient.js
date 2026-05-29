@@ -89,6 +89,7 @@ export default function CaptainDashboardClient() {
   const [matches, setMatches] = useState([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState('');
+  const [playerDraft, setPlayerDraft] = useState(null);
 
   useEffect(() => {
     fetch('/api/auth/discord/me')
@@ -112,6 +113,16 @@ export default function CaptainDashboardClient() {
       .then(setMatches)
       .catch((err) => setMatchesError(err.message))
       .finally(() => setMatchesLoading(false));
+
+    // Load player drafts for this captain's division
+    fetch('/api/player-drafts')
+      .then((res) => res.ok ? res.json() : [])
+      .then((drafts) => {
+        // Find an active or pending draft for this captain's team division
+        const activeDraft = drafts.find(d => d.status === 'active' || d.status === 'paused' || d.status === 'pending');
+        setPlayerDraft(activeDraft ?? null);
+      })
+      .catch(() => {});
   }, [authState]);
 
   // Loading state
@@ -188,6 +199,29 @@ export default function CaptainDashboardClient() {
 
         {!matchesLoading && !matchesError && (
           <div className="space-y-6">
+            {/* PLAYER DRAFT CARD */}
+            {playerDraft && (
+              <div className={`border-2 p-3 space-y-2 ${playerDraft.status === 'active' ? 'border-frh-yellow/60 bg-frh-yellow/5' : 'border-frh-border'}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-ui text-xs uppercase tracking-widest text-frh-yellow">Player Draft</span>
+                  <PixelBadge
+                    label={playerDraft.status}
+                    color={{ pending: 'blue', active: 'lime', paused: 'purple', complete: 'cream' }[playerDraft.status] ?? 'blue'}
+                  />
+                </div>
+                <p className="font-mono text-xs text-frh-text">{playerDraft.name}</p>
+                <p className="font-mono text-[10px] text-frh-text-muted">
+                  {playerDraft.season?.name} · {playerDraft.division?.name}
+                  {playerDraft.status === 'active' && ` · Pick ${(playerDraft.currentPickIndex ?? 0) + 1}`}
+                </p>
+                <Link href={`/player-draft/${playerDraft.id}`}>
+                  <BrutalButton size="sm" variant="primary" className="min-h-[44px]">
+                    {playerDraft.status === 'active' ? 'Enter Draft Room →' : 'View Draft Room →'}
+                  </BrutalButton>
+                </Link>
+              </div>
+            )}
+
             {/* LIVE MATCHES */}
             <div>
               <h3 className="font-ui text-xs uppercase tracking-widest text-frh-lime mb-2">
