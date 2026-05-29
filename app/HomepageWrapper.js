@@ -105,6 +105,7 @@ export default function HomepageWrapper({
   savedAt: initialSavedAt = null,
 }) {
   const [content, setContent] = useState(editableContent);
+  const [isEditing, setIsEditing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [hasDraft, setHasDraft] = useState(initialHasDraft);
   const [hasPublished, setHasPublished] = useState(initialHasPublished);
@@ -212,8 +213,33 @@ export default function HomepageWrapper({
     divisionStandings, playerCount, godCount, matchCount, recentResults,
   };
 
-  if (!isAdmin) {
-    return <HomepageClient mode="public" editableContent={content} {...dbProps} />;
+  // Floating toggle shown to admins in all states
+  const editToggle = isAdmin && (
+    <button
+      onClick={() => setIsEditing(e => !e)}
+      title={isEditing ? 'Exit editor' : 'Edit homepage'}
+      style={{
+        position: 'fixed', bottom: 24, left: 24, zIndex: 10000,
+        background: isEditing ? '#ffd400' : 'rgba(255,212,0,0.15)',
+        border: '1px solid #ffd400',
+        color: isEditing ? '#0a0a0a' : '#ffd400',
+        fontFamily: 'var(--font-mono)', fontSize: 11,
+        padding: '6px 12px', cursor: 'pointer',
+        letterSpacing: '0.1em', whiteSpace: 'nowrap',
+        transition: 'background 0.15s, color 0.15s',
+      }}
+    >
+      {isEditing ? '✕ Exit Editor' : '✏ Edit'}
+    </button>
+  );
+
+  if (!isAdmin || !isEditing) {
+    return (
+      <>
+        <HomepageClient mode="public" editableContent={content} {...dbProps} />
+        {editToggle}
+      </>
+    );
   }
 
   return (
@@ -264,6 +290,8 @@ export default function HomepageWrapper({
         onContentChange={handleContentChange}
         {...dbProps}
       />
+
+      {editToggle}
 
       {toast && (
         <Toast message={toast.message} kind={toast.kind} onDismiss={() => setToast(null)} />

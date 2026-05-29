@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ function parseLimit(raw, fallback, max) {
 // Gated by `requireAdmin` (issue #6). Used by AdminClient share modal so
 // keys never leak through GET /api/drafts.
 export async function GET(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   const { searchParams } = new URL(request.url);

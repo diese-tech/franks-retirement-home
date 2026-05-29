@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(_req, { params }) {
   try {
@@ -23,11 +25,16 @@ export async function GET(_req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
+  let body;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { name, tag, orgId, captainPlayerId } = body;
+
   try {
-    const { name, tag, orgId, captainPlayerId } = await req.json();
     const team = await prisma.team.update({
       where: { id: params.id },
       data: { name, tag, orgId, captainPlayerId },
@@ -40,7 +47,7 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {

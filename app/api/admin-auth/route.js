@@ -3,7 +3,6 @@ import {
   buildClearSessionCookie,
   buildSessionCookie,
   createSessionToken,
-  isAdminAuthRequired,
   readSessionCookie,
   verifySessionToken,
 } from '@/lib/adminSession';
@@ -13,18 +12,15 @@ export const dynamic = 'force-dynamic';
 // GET /api/admin-auth
 // Lightweight probe used by AdminClient to detect a stale session before
 // rendering the dashboard. Returns:
-//   { ok: true, required: boolean } when the session is valid (or auth is off)
-//   401 { error } when ADMIN_AUTH_REQUIRED=true and the cookie is missing/expired
+//   { ok: true } when a valid admin session cookie is present
+//   401 { error } when the cookie is missing or expired
 export async function GET(request) {
-  if (!isAdminAuthRequired()) {
-    return NextResponse.json({ ok: true, required: false });
-  }
   const token = readSessionCookie(request);
   const result = verifySessionToken(token || '');
   if (!result.valid) {
     return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
   }
-  return NextResponse.json({ ok: true, required: true });
+  return NextResponse.json({ ok: true });
 }
 
 // POST /api/admin-auth

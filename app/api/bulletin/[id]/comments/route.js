@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 
+export const dynamic = 'force-dynamic';
+
 const MAX_COMMENT_LEN = 1000;
 
 // GET /api/bulletin/[id]/comments  — public list of comments on a post

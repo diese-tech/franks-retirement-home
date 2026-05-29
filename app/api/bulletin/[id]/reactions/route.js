@@ -3,6 +3,8 @@ import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { REACTION_EMOJI } from '@/lib/bulletinHelpers';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/bulletin/[id]/reactions  — toggle a reaction emoji on a post
 // Body: { emoji: 'beer' | 'fire' | 'skull' | 'goat' | 'clown' }
 export async function POST(request, { params }) {

@@ -1,4 +1,4 @@
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 // Exports ExtractedStatLine rows where status = 'pending'.
 // Filename and STATUS column make it unambiguous this is NOT official data.
 export async function GET(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const rows = await prisma.extractedStatLine.findMany({

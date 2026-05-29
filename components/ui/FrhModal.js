@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Overlay modal in the FRH retro broadcast style. Renders a centered window
@@ -13,13 +13,47 @@ import { useEffect } from 'react';
  *   - children
  */
 export default function FrhModal({ title, accent = 'blue', onClose, children }) {
+  const previousFocusRef = useRef(null);
+  const modalRef = useRef(null);
+
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    // Save previously focused element
+    previousFocusRef.current = document.activeElement;
+
+    // Move focus to first focusable element in modal
+    const timer = setTimeout(() => {
+      if (!modalRef.current) return;
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      );
+      focusable[0]?.focus();
+    }, 0);
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { onClose?.(); return; }
+      if (e.key !== 'Tab' || !modalRef.current) return;
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+
     return () => {
+      clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
+      // Restore focus on close — defer to avoid backdrop-click race
+      setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
   }, [onClose]);
 
@@ -39,6 +73,7 @@ export default function FrhModal({ title, accent = 'blue', onClose, children }) 
       }}
     >
       <div
+        ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         className="frh-panel"
         style={{ width: '100%', maxWidth: 520, margin: 'auto 0' }}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { RetroWindow, PixelBadge, BrutalButton } from '@/components/ui';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const ROLE_COLORS = {
   Solo: 'bg-orange-900/40 text-orange-300 border-orange-700',

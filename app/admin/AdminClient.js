@@ -99,7 +99,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
           setAuthed(true);
         }
       })
-      .catch(() => { if (!cancelled) setAuthed(true); });
+      .catch(() => { if (!cancelled) setAuthed(false); });
     return () => { cancelled = true; };
   }, []);
 

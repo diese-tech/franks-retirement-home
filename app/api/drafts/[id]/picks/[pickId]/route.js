@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { resolveRole } from '@/lib/draftAuth';
+import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +45,8 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Lineup Confirmation is only available after draft is complete' }, { status: 400 });
     }
 
-    const role = resolveRole(key, draft);
+    const auth = await resolveDraftCaptainAuth(req, draft, key);
+    const role = auth.role;
     if (role === 'spectator') {
       return NextResponse.json({ error: 'Captain or admin key required' }, { status: 401 });
     }

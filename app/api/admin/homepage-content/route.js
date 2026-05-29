@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { HOMEPAGE_DEFAULTS } from '@/lib/homepageDefaults';
+import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { consume, clientIp } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
+
+// ── Origin check ──────────────────────────────────────────────────────────────
+
+function checkOrigin(request) {
+  const origin = request.headers?.get?.('origin') ?? null;
+  if (!origin) return null; // absent = allow (server-to-server)
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+  if (origin === baseUrl || (vercelUrl && origin === vercelUrl)) return null;
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -48,8 +61,8 @@ function validatePayload(body) {
       errors.push('discordInviteUrl must be a string');
     } else if (u.length > MAX_LENGTHS.discordInviteUrl) {
       errors.push(`discordInviteUrl too long (max ${MAX_LENGTHS.discordInviteUrl})`);
-    } else if (u && !u.startsWith('https://')) {
-      errors.push('discordInviteUrl must start with https://');
+    } else if (u && !u.startsWith('https://discord.gg/') && !u.startsWith('https://discord.com/invite/')) {
+      errors.push('discordInviteUrl must be a discord.gg or discord.com/invite URL');
     }
   }
 
@@ -105,12 +118,21 @@ export async function POST(request) {
   const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
+  const originGuard = checkOrigin(request);
+  if (originGuard) return originGuard;
+
+  if (!consume(`admin-content:${clientIp(request)}`, { capacity: 10, refillPerSec: 0.167 })) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   let body;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { action = 'save', savedByAdminId = null, ...rest } = body;
+  const { action = 'save', ...rest } = body;
+  const discordSession = getDiscordSessionUser(request);
+  const savedByAdminId = discordSession?.discordId ?? 'admin-session';
   if (!['save', 'publish'].includes(action)) {
     return NextResponse.json({ error: 'action must be "save" or "publish"' }, { status: 400 });
   }
@@ -157,6 +179,13 @@ export async function POST(request) {
 export async function DELETE(request) {
   const guard = await resolveAdminAuth(request);
   if (guard) return guard;
+
+  const originGuard = checkOrigin(request);
+  if (originGuard) return originGuard;
+
+  if (!consume(`admin-content:${clientIp(request)}`, { capacity: 10, refillPerSec: 0.167 })) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
   const { searchParams } = new URL(request.url);
   const target = searchParams.get('target') ?? 'draft';

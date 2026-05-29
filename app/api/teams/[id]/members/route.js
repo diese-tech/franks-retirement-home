@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(_req, { params }) {
   try {
@@ -16,11 +18,16 @@ export async function GET(_req, { params }) {
 }
 
 export async function POST(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
+  let body;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const { playerId, role, isCaptain, isSub } = body;
+
   try {
-    const { playerId, role, isCaptain, isSub } = await req.json();
     if (!playerId || !role) {
       return NextResponse.json({ error: 'playerId and role are required' }, { status: 400 });
     }

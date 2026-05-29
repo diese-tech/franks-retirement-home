@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 // Resolves god by case-insensitive name. Resolves team by tag within the game's match.
 // Returns { imported, updated, errors: [{ row, reason }] }
 export async function POST(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;

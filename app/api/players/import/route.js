@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
+
+export const dynamic = 'force-dynamic';
 
 // POST /api/players/import
 // Body: { players: [{ name, role, discordUsername?, division? }] }
 // Upserts by discordUsername when present, falls back to name (case-insensitive).
 // Returns { imported, updated, skipped, errors }
 export async function POST(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   let body;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { computeStandings } from '@/lib/standings';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 
 // GET /api/exports?type=standings|schedule|roster|stats&divisionId=...&seasonId=...
 export async function GET(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const { searchParams } = new URL(req.url);

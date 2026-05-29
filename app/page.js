@@ -2,7 +2,7 @@ import prisma from '@/lib/db';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 import { computeStandings } from '@/lib/standings';
 import { mergeWithDefaults } from '@/lib/homepageDefaults';
-import { isDiscordAdminFromCookies } from '@/lib/serverAuth';
+import { isDiscordAdminFromCookies, hasDiscordSession } from '@/lib/serverAuth';
 import HomepageWrapper from './HomepageWrapper';
 
 export const dynamic = 'force-dynamic';
@@ -14,26 +14,29 @@ export default async function HomePage({ searchParams }) {
 
   // ── Editorial content ──────────────────────────────────────────────────────
   // Admins always see the draft (so they edit the pre-publish version).
-  // Non-admins see published content. ?preview=draft is a low-stakes editorial
-  // preview (no auth gate — draft contains no sensitive data).
+  // Non-admins see published content. ?preview=draft is gated behind a Discord
+  // session to avoid exposing drafts to anonymous users.
   let editableContent = null;
   let hasDraft = false;
   let hasPublished = false;
   let savedAt = null;
   let publishedAt = null;
   try {
-    const previewDraft = !isAdmin && searchParams?.preview === 'draft';
     if (isAdmin) {
-      const [draftRow, publishedRow] = await Promise.all([
-        prisma.homepageContent.findUnique({ where: { status: 'draft' } }),
-        prisma.homepageContent.findUnique({ where: { status: 'published' } }),
-      ]);
+      const rows = await prisma.homepageContent.findMany({
+        where: { status: { in: ['draft', 'published'] } },
+      });
+      const draftRow = rows.find(r => r.status === 'draft') ?? null;
+      const publishedRow = rows.find(r => r.status === 'published') ?? null;
       hasDraft = !!draftRow;
       hasPublished = !!publishedRow;
       savedAt = draftRow?.savedAt?.toISOString() ?? null;
       publishedAt = publishedRow?.publishedAt?.toISOString() ?? null;
       editableContent = mergeWithDefaults(draftRow ?? publishedRow);
     } else {
+      let sessionExists = false;
+      try { sessionExists = hasDiscordSession(); } catch {}
+      const previewDraft = !isAdmin && sessionExists && searchParams?.preview === 'draft';
       const contentStatus = previewDraft ? 'draft' : 'published';
       const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
       editableContent = mergeWithDefaults(dbRow);

@@ -5,6 +5,8 @@ import {
   createBulletinPostWithUniqueSlug,
 } from '@/lib/bulletinHelpers';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/bulletin/submit  — player-submitted post. Lands as a draft for
 // admin review before it can be published.
 export async function POST(request) {

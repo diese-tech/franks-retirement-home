@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildPlayerDraftFormat, totalPicks } from '@/lib/playerDraftOrder';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 //   2. Marks the draft complete.
 // Uses upsert to handle players manually pre-assigned to a team.
 export async function POST(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {

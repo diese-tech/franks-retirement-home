@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
 
 // POST /api/matches/[id]/games/[gameId]/draft
@@ -7,7 +7,7 @@ import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
 // Idempotent — returns 200 with the existing draft if one already exists.
 // The provisioning logic is shared with the auto-creation path in POST /api/matches.
 export async function POST(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const { id: matchId, gameId } = await params;

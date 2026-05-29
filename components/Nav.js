@@ -2,19 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from '@/app/components/ThemeToggle';
 
 const PUBLIC_LINKS = [
   { href: '/',               label: 'Home' },
   { href: '/schedule',       label: 'Schedule' },
-  { href: '/teams',          label: 'Teams' },
   { href: '/standings',      label: 'Standings' },
-  { href: '/players',        label: 'Players' },
+  { href: '/roster',         label: 'Roster' },
   { href: '/bulletin-board', label: 'Board' },
   { href: '/fraud-watch',    label: 'Fraud Watch' },
   { href: '/knows-ball',     label: 'Knows Ball' },
-  { href: '/roster',         label: 'Roster' },
 ];
 
 export default function Nav() {
@@ -22,6 +20,8 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const [time, setTime] = useState('');
   const [authState, setAuthState] = useState(null); // null=loading, object=loaded
+  const hamRef = useRef(null);
+  const drawerRef = useRef(null);
 
   useEffect(() => {
     const tick = () =>
@@ -41,6 +41,42 @@ export default function Nav() {
       .then(setAuthState)
       .catch(() => setAuthState({ anonymous: true }));
   }, []);
+
+  useEffect(() => {
+    if (!open || !drawerRef.current) return;
+
+    // Move focus to first focusable item in drawer
+    const focusable = Array.from(
+      drawerRef.current.querySelectorAll('a, button, [tabindex]:not([tabindex="-1"])')
+    ).filter(el => !el.disabled);
+    focusable[0]?.focus();
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        setTimeout(() => hamRef.current?.focus(), 0);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   const isActive = (href) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -99,6 +135,7 @@ export default function Nav() {
         {authState && authState.anonymous && (
           <Link
             href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+            prefetch={false}
             className="frh-menubar__item"
             style={{ fontSize: 10, marginLeft: 8 }}
           >
@@ -106,9 +143,12 @@ export default function Nav() {
           </Link>
         )}
         <button
+          ref={hamRef}
           className="frh-menubar__ham"
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
+          aria-expanded={open}
+          aria-controls="nav-drawer"
         >
           <span />
           <span />
@@ -117,7 +157,7 @@ export default function Nav() {
       </div>
 
       {open && (
-        <div className="frh-menubar__drawer">
+        <div ref={drawerRef} id="nav-drawer" className="frh-menubar__drawer">
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}
@@ -131,6 +171,7 @@ export default function Nav() {
           {authState && authState.anonymous && (
             <Link
               href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="frh-menubar__drawer-link"
             >

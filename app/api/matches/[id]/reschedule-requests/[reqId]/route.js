@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
@@ -108,13 +108,24 @@ async function handleCaptainResponse(req, rescheduleRequest, action, note) {
 
   const newStatus = action === 'acknowledge' ? 'acknowledged' : 'disputed';
 
-  const updated = await prisma.rescheduleRequest.update({
-    where: { id: rescheduleRequest.id },
+  // updateMany with a status guard prevents a race where two concurrent PATCH
+  // requests both pass the pending check and double-update.
+  const { count } = await prisma.rescheduleRequest.updateMany({
+    where: { id: rescheduleRequest.id, status: 'pending' },
     data: {
       status: newStatus,
       opposingCaptainNote: note?.trim() || null,
     },
   });
+
+  if (count === 0) {
+    return NextResponse.json(
+      { error: `Request is no longer pending and cannot be updated.` },
+      { status: 409 },
+    );
+  }
+
+  const updated = await prisma.rescheduleRequest.findUnique({ where: { id: rescheduleRequest.id } });
 
   logAudit('RescheduleRequest', rescheduleRequest.id, action, {
     payload: { matchId: rescheduleRequest.matchId, captainSide, newStatus },
@@ -126,7 +137,7 @@ async function handleCaptainResponse(req, rescheduleRequest, action, note) {
 // ─── Admin approve / deny ─────────────────────────────────────────────────────
 
 async function handleAdminDecision(req, rescheduleRequest, action, adminNote) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const newStatus = action === 'approve' ? 'approved' : 'denied';

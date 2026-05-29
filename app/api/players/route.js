@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
+
+export const dynamic = 'force-dynamic';
 
 const LIVE_STATUSES = ['lobby', 'banning', 'picking'];
 
@@ -19,14 +21,16 @@ export async function GET(request) {
       where: role ? { role } : undefined,
       orderBy: { name: 'asc' },
     });
-    return NextResponse.json(players);
+    const res = NextResponse.json(players);
+    res.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return res;
   } catch {
     return NextResponse.json({ error: 'Failed to fetch players' }, { status: 500 });
   }
 }
 
 export async function POST(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   let body;
@@ -71,7 +75,7 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   const { searchParams } = new URL(request.url);
