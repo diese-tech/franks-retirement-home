@@ -11,11 +11,16 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') ?? 'pending';
 
-  const requests = await prisma.changeRequest.findMany({
-    where: status === 'all' ? {} : { status },
-    include: { team: { select: { name: true, tag: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
-  return NextResponse.json(requests);
+  try {
+    const requests = await prisma.changeRequest.findMany({
+      where: status === 'all' ? {} : { status },
+      include: { team: { select: { name: true, tag: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    return NextResponse.json(requests);
+  } catch (err) {
+    console.error('[admin/change-requests GET]', err);
+    return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
+  }
 }

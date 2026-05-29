@@ -13,12 +13,17 @@ export async function GET(req) {
   const teamId = resolveTeamFromRoles(session.roles);
   if (!teamId) return NextResponse.json({ error: 'No team found for your account' }, { status: 403 });
 
-  const requests = await prisma.changeRequest.findMany({
-    where: { teamId },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  });
-  return NextResponse.json(requests);
+  try {
+    const requests = await prisma.changeRequest.findMany({
+      where: { teamId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return NextResponse.json(requests);
+  } catch (err) {
+    console.error('[captain/change-requests GET]', err);
+    return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
+  }
 }
 
 // POST — captain submits a change request
@@ -41,25 +46,32 @@ export async function POST(req) {
     return NextResponse.json({ error: 'playerId and playerName are required' }, { status: 400 });
   }
 
-  // Check for duplicate pending request
-  const existing = await prisma.changeRequest.findFirst({
-    where: { teamId, status: 'pending', payload: { path: ['playerId'], equals: playerId } },
-  });
-  if (existing) {
-    return NextResponse.json({ error: 'A pending request already exists for this player' }, { status: 409 });
+  let request;
+  let team;
+  try {
+    // Check for duplicate pending request
+    const existing = await prisma.changeRequest.findFirst({
+      where: { teamId, status: 'pending', payload: { path: ['playerId'], equals: playerId } },
+    });
+    if (existing) {
+      return NextResponse.json({ error: 'A pending request already exists for this player' }, { status: 409 });
+    }
+
+    team = await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, tag: true } });
+
+    request = await prisma.changeRequest.create({
+      data: {
+        type,
+        teamId,
+        requestedById: session.discordId,
+        requestedByName: session.username,
+        payload: { playerId, playerName, role: role ?? null, reason: reason ?? null },
+      },
+    });
+  } catch (err) {
+    console.error('[captain/change-requests POST]', err);
+    return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
   }
-
-  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, tag: true } });
-
-  const request = await prisma.changeRequest.create({
-    data: {
-      type,
-      teamId,
-      requestedById: session.discordId,
-      requestedByName: session.username,
-      payload: { playerId, playerName, role: role ?? null, reason: reason ?? null },
-    },
-  });
 
   logAudit({
     entity: 'ChangeRequest',

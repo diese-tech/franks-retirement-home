@@ -7,6 +7,51 @@ import HomepageWrapper from './HomepageWrapper';
 
 export const dynamic = 'force-dynamic';
 
+function formatHomepageCaseTime(value) {
+  if (!value) return 'just now';
+
+  const then = new Date(value).getTime();
+  const diffMs = Date.now() - then;
+  if (!Number.isFinite(diffMs) || diffMs < 0) return 'just now';
+
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days}d ago`;
+}
+
+function applyEditorialCasesToHomepage(content, cases) {
+  if (!content || !Array.isArray(cases)) return content;
+
+  const fraudWatch = cases
+    .filter(c => c.type === 'fraud_watch')
+    .map(c => ({
+      player: c.relatedPlayer?.name || c.title,
+      team: c.relatedTeam?.tag || 'FA',
+      charge: c.charge || c.body || c.title,
+      level: Math.min(3, Math.max(1, c.severity || 2)),
+    }));
+
+  const washedReports = cases
+    .filter(c => c.type === 'washed_report')
+    .map(c => ({
+      who: c.relatedPlayer?.name || c.title,
+      what: c.charge || c.body || c.title,
+      time: formatHomepageCaseTime(c.publishedAt || c.createdAt),
+    }));
+
+  return {
+    ...content,
+    fraudWatch: fraudWatch.length ? fraudWatch.slice(0, 4) : content.fraudWatch,
+    washedReports: washedReports.length ? washedReports.slice(0, 8) : content.washedReports,
+  };
+}
+
 export default async function HomePage({ searchParams }) {
   // ── Discord admin check — determines whether to render editor mode ─────────
   let isAdmin = false;
@@ -43,6 +88,24 @@ export default async function HomePage({ searchParams }) {
     }
   } catch (err) {
     console.error('[homepage]', err);
+  }
+
+  try {
+    const homepageCases = await prisma.editorialCase.findMany({
+      where: {
+        status: 'published',
+        type: { in: ['fraud_watch', 'washed_report'] },
+      },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 12,
+      include: {
+        relatedPlayer: { select: { name: true } },
+        relatedTeam: { select: { tag: true } },
+      },
+    });
+    editableContent = applyEditorialCasesToHomepage(editableContent, homepageCases);
+  } catch (err) {
+    console.error('[homepage/editorial-cases]', err);
   }
 
   // ── DB-driven structural data ─────────────────────────────────────────────
