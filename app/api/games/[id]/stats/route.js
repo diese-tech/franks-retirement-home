@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export async function GET(_req, { params }) {
 // Body: { playerId, teamId, kills, deaths, assists, damage, healing, gold, godId?, role?, notes? }
 // Uses upsert on (gameId, playerId) so admins can re-enter corrected values.
 export async function POST(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;
@@ -83,7 +83,7 @@ export async function POST(req, { params }) {
 
 // DELETE /api/games/[id]/stats?playerId=... — admin: remove one stat line
 export async function DELETE(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const { searchParams } = new URL(req.url);

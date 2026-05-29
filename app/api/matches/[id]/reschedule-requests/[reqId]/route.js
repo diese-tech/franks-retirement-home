@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
@@ -126,7 +126,7 @@ async function handleCaptainResponse(req, rescheduleRequest, action, note) {
 // ─── Admin approve / deny ─────────────────────────────────────────────────────
 
 async function handleAdminDecision(req, rescheduleRequest, action, adminNote) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const newStatus = action === 'approve' ? 'approved' : 'denied';

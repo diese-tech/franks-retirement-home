@@ -37,7 +37,6 @@ vi.mock('@/lib/db', () => {
 // ─── Mock @/lib/adminSession ─────────────────────────────────────────────────
 vi.mock('@/lib/adminSession', () => ({
   requireAdmin: vi.fn(() => ({ _body: { error: 'Unauthorized' }, _status: 401 })), // not admin by default
-  isAdminAuthRequired: vi.fn(() => true),
 }));
 
 // ─── Mock @/lib/standings ────────────────────────────────────────────────────

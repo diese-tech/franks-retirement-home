@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidateAllStandings } from '@/lib/standings';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/standings/recompute — admin: flush standings cache for all divisions
 export async function POST(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   invalidateAllStandings();

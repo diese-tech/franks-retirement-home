@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 import { invalidateAllStandings } from '@/lib/standings';
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/submissions/[id] — admin: full submission detail
 export async function GET(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {
@@ -44,7 +44,7 @@ export async function GET(req, { params }) {
 // reject: sets status=rejected + rejectionReason.
 // in_review: sets status=in_review + reviewStartedAt.
 export async function PATCH(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;

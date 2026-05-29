@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
 
 const FORMAT_GAME_COUNTS = { BO1: 1, BO3: 3, BO5: 5 };
@@ -41,7 +41,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;

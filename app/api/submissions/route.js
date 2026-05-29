@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/submissions?status=open — admin: list pending/in_review submissions
 export async function GET(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const { searchParams } = new URL(req.url);

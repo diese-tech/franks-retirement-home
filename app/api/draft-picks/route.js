@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { TEAMS } from '@/lib/constants';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 
 // Active-ish statuses where picks are locked into a live draft
 // eslint-disable-next-line no-unused-vars
@@ -30,7 +30,7 @@ export async function GET(request) {
 // Create: { draftId, playerId, team, pickOrder }
 // Update god (legacy admin): { id, godId } or { id, team }
 export async function POST(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   let body;
@@ -113,7 +113,7 @@ export async function POST(request) {
 // DELETE /api/draft-picks?id=xxx
 // DELETE /api/draft-picks?draftId=xxx&clear=true
 export async function DELETE(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   const { searchParams } = new URL(request.url);

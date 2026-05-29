@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildPlayerDraftState } from '@/lib/playerDraftState';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export async function GET(_req, { params }) {
 
 // PATCH — admin controls: start, pause, resume, complete, set order, undo last pick
 export async function PATCH(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;
@@ -124,7 +124,7 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {

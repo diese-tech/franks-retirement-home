@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth, resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
-import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +25,7 @@ async function fetchMatch(matchId) {
 // Admin only. Returns all reschedule requests for a match, newest first.
 
 export async function GET(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {

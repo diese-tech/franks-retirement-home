@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
 
 const DEFAULT_LIMIT = 50;
@@ -39,7 +39,7 @@ export async function GET(request) {
 // Create body: { name? }
 // Status update body: { id, status }
 export async function POST(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   let body;
@@ -93,7 +93,7 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   const { searchParams } = new URL(request.url);

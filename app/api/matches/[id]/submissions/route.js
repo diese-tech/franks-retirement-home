@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { checkMatchWindow } from '@/lib/matchWindow';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/matches/[id]/submissions — admin: list all submissions for a match
 export async function GET(req, { params }) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   try {
@@ -48,7 +48,7 @@ export async function POST(req, { params }) {
     if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
     // Determine whether this is an admin request or a captain request.
-    const adminErr = await requireAdmin(req);
+    const adminErr = await resolveAdminAuth(req);
     const auth = await resolveMatchCaptainAuth(req, match);
     const isAdmin = adminErr === null || auth.isAdmin;
     const captainSide = auth.side;

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/forgelens/jobs — admin: list OCR extractions
 export async function GET(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   const { searchParams } = new URL(req.url);
@@ -37,7 +37,7 @@ export async function GET(req) {
 // The ForgeLens endpoint is configured via FORGELENS_URL env var.
 // Returns the created OcrExtraction row immediately (job is async).
 export async function POST(req) {
-  const authError = await requireAdmin(req);
+  const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
   let body;
