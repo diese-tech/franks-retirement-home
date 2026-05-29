@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { BrutalButton, StatusBadge } from '@/components/ui';
 import EditableField from '@/components/EditableField';
+import { getTeamLogo } from '@/lib/teamLogos';
 import {
   DEFAULT_TICKER,
   DEFAULT_HEADLINES,
@@ -222,6 +224,8 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
     const m = liveMatch;
     const homeColor = m.homeTeam?.accentColor ?? '#CC3300';
     const awayColor = m.awayTeam?.accentColor ?? '#2B5BA8';
+    const homeLogo = getTeamLogo(m.homeTeam);
+    const awayLogo = getTeamLogo(m.awayTeam);
     const homeScore = m.games?.filter(g => g.winnerId === m.homeTeamId).length ?? 0;
     const awayScore = m.games?.filter(g => g.winnerId === m.awayTeamId).length ?? 0;
     return (
@@ -234,7 +238,7 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
         </div>
         <div className="frh-mega__teams">
           <div className="frh-mega__side" style={{ background: homeColor }}>
-            <div className="frh-mega__crest">{m.homeTeam?.tag ?? '—'}</div>
+            <div className="frh-mega__crest">{homeLogo ? <Image src={homeLogo} alt={`${m.homeTeam?.name ?? 'Home team'} logo`} width={84} height={84} /> : (m.homeTeam?.tag ?? '—')}</div>
             <div>
               <div className="frh-mega__teamname">{m.homeTeam?.name ?? 'Home Team'}</div>
               <div className="frh-mega__record">HOME</div>
@@ -251,7 +255,7 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
             <div className="frh-mega__period">GAME SCORE</div>
           </div>
           <div className="frh-mega__side right" style={{ background: awayColor }}>
-            <div className="frh-mega__crest">{m.awayTeam?.tag ?? '—'}</div>
+            <div className="frh-mega__crest">{awayLogo ? <Image src={awayLogo} alt={`${m.awayTeam?.name ?? 'Away team'} logo`} width={84} height={84} /> : (m.awayTeam?.tag ?? '—')}</div>
             <div>
               <div className="frh-mega__teamname">{m.awayTeam?.name ?? 'Away Team'}</div>
               <div className="frh-mega__record">AWAY</div>
@@ -279,6 +283,8 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
     const m = upcomingMatch;
     const homeColor = m.homeTeam?.accentColor ?? '#CC3300';
     const awayColor = m.awayTeam?.accentColor ?? '#2B5BA8';
+    const homeLogo = getTeamLogo(m.homeTeam);
+    const awayLogo = getTeamLogo(m.awayTeam);
     const dt = m.scheduledAt ? new Date(m.scheduledAt) : null;
     const dateStr = dt ? dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD';
     const timeStr = dt ? dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
@@ -290,7 +296,7 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
         </div>
         <div className="frh-mega__teams">
           <div className="frh-mega__side" style={{ background: homeColor }}>
-            <div className="frh-mega__crest">{m.homeTeam?.tag ?? '—'}</div>
+            <div className="frh-mega__crest">{homeLogo ? <Image src={homeLogo} alt={`${m.homeTeam?.name ?? 'Home team'} logo`} width={84} height={84} /> : (m.homeTeam?.tag ?? '—')}</div>
             <div>
               <div className="frh-mega__teamname">{m.homeTeam?.name ?? 'Home Team'}</div>
               <div className="frh-mega__record">HOME</div>
@@ -307,7 +313,7 @@ export function FrhMegaScoreboard({ liveMatch, upcomingMatch }) {
             <div className="frh-mega__period">{timeStr}</div>
           </div>
           <div className="frh-mega__side right" style={{ background: awayColor }}>
-            <div className="frh-mega__crest">{m.awayTeam?.tag ?? '—'}</div>
+            <div className="frh-mega__crest">{awayLogo ? <Image src={awayLogo} alt={`${m.awayTeam?.name ?? 'Away team'} logo`} width={84} height={84} /> : (m.awayTeam?.tag ?? '—')}</div>
             <div>
               <div className="frh-mega__teamname">{m.awayTeam?.name ?? 'Away Team'}</div>
               <div className="frh-mega__record">AWAY</div>
@@ -1167,6 +1173,8 @@ export default function HomepageClient({
               <div className="frh-slate">
                 {upcomingMatches.map((m) => {
                   const dt = m.scheduledAt ? new Date(m.scheduledAt) : null;
+                  const homeLogo = getTeamLogo(m.homeTeam);
+                  const awayLogo = getTeamLogo(m.awayTeam);
                   return (
                     <div key={m.id} className="frh-slate__row">
                       <div className="frh-slate__when">
@@ -1174,13 +1182,17 @@ export default function HomepageClient({
                         {dt && <span>{dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
                       </div>
                       <div className="frh-slate__team">
-                        <div className="frh-slate__mini-crest" style={{ background: m.homeTeam?.accentColor ?? '#444' }}>{m.homeTeam?.tag ?? '?'}</div>
+                        <div className="frh-slate__mini-crest" style={{ background: m.homeTeam?.accentColor ?? '#444' }}>
+                          {homeLogo ? <Image src={homeLogo} alt={`${m.homeTeam?.name ?? 'Home team'} logo`} width={22} height={22} /> : (m.homeTeam?.tag ?? '?')}
+                        </div>
                         {m.homeTeam?.name ?? 'TBD'}
                       </div>
                       <div className="frh-slate__vs">vs</div>
                       <div className="frh-slate__team right">
                         {m.awayTeam?.name ?? 'TBD'}
-                        <div className="frh-slate__mini-crest" style={{ background: m.awayTeam?.accentColor ?? '#444' }}>{m.awayTeam?.tag ?? '?'}</div>
+                        <div className="frh-slate__mini-crest" style={{ background: m.awayTeam?.accentColor ?? '#444' }}>
+                          {awayLogo ? <Image src={awayLogo} alt={`${m.awayTeam?.name ?? 'Away team'} logo`} width={22} height={22} /> : (m.awayTeam?.tag ?? '?')}
+                        </div>
                       </div>
                       <Link href={`/matches/${m.id}`} className="frh-slate__cta">&rarr;</Link>
                     </div>

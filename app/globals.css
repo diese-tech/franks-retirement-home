@@ -484,6 +484,12 @@ html:not(.dark) body {
   margin-bottom: 6px;
   box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
 }
+.frh-mega__crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
 .frh-mega__teamname {
   font-family: 'Boogaloo', sans-serif;
   font-size: 36px;
@@ -1842,6 +1848,12 @@ html:not(.dark) body {
   justify-content: center;
   flex-shrink: 0;
 }
+.frh-slate__mini-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 1px;
+}
 .frh-slate__vs {
   font-family: 'Boogaloo', sans-serif;
   font-size: 20px;
@@ -2515,6 +2527,13 @@ html:not(.dark) body {
   font-weight: bold;
   background: var(--frh-paper-alt);
   flex-shrink: 0;
+  overflow: hidden;
+}
+.team-card__crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
 }
 .dark .team-card__crest { background: var(--frh-surface-alt); }
 .team-card__name {
@@ -2595,6 +2614,13 @@ html:not(.dark) body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.depth__logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 .depth__row {
   display: grid;

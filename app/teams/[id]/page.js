@@ -1,7 +1,9 @@
 import prisma from '@/lib/db';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { RetroWindow, PixelBadge, BrutalButton } from '@/components/ui';
+import { getTeamLogo } from '@/lib/teamLogos';
 
 export const revalidate = 60;
 
@@ -52,6 +54,7 @@ export default async function TeamDetailPage({ params }) {
 
   const starters = team.members.filter((m) => !m.isSub);
   const subs = team.members.filter((m) => m.isSub);
+  const logo = getTeamLogo(team);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -64,7 +67,17 @@ export default async function TeamDetailPage({ params }) {
       <RetroWindow title={`[${team.tag}] TEAM FILE`} titleBarColor="yellow">
         {/* Team header */}
         <div className="flex items-start justify-between gap-4 mb-6 border-b-2 border-frh-border pb-4">
-          <div>
+          <div className="flex items-start gap-4">
+            {logo && (
+              <Image
+                src={logo}
+                alt={`${team.name} logo`}
+                width={64}
+                height={64}
+                className="w-16 h-16 object-contain border-2 border-frh-border bg-frh-surface-alt p-1 shrink-0"
+              />
+            )}
+            <div>
             <h1 className="font-ui text-xl uppercase tracking-widest text-frh-yellow mb-1">{team.name}</h1>
             <div className="flex items-center gap-2 flex-wrap">
               {team.division && (
@@ -76,6 +89,7 @@ export default async function TeamDetailPage({ params }) {
               {team.org && (
                 <span className="text-[10px] text-frh-text-muted border border-frh-border px-1.5 py-0.5">{team.org.name}</span>
               )}
+            </div>
             </div>
           </div>
           <div className="text-right shrink-0">

@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import Image from 'next/image';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
@@ -8,6 +9,7 @@ import CaptainRescheduleSection from './CaptainRescheduleSection';
 import CaptainResultSection from './CaptainResultSection';
 import { computeScore } from '@/lib/seriesResult';
 import { getDiscordSessionUser, resolveCaptainSideFromDiscord } from '@/lib/discordAuth';
+import { getTeamLogo } from '@/lib/teamLogos';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,13 +81,17 @@ const ROLE_COLORS = {
 function RosterColumn({ team, label }) {
   if (!team) return null;
   const starters = team.members?.filter((m) => !m.isSub) ?? [];
+  const logo = getTeamLogo(team);
   return (
     <div className="flex-1 min-w-0">
       <p className="text-[10px] font-ui uppercase text-frh-text-muted mb-2">{label}</p>
-      <p className="font-ui text-base text-frh-text mb-3">
-        {team.name}
-        <span className="ml-2 font-mono text-[10px] text-frh-text-muted border border-frh-border px-1">[{team.tag}]</span>
-      </p>
+      <div className="flex items-center gap-2 mb-3">
+        {logo && <Image src={logo} alt="" width={32} height={32} className="w-8 h-8 object-contain border border-frh-border bg-frh-surface-alt p-0.5" />}
+        <p className="font-ui text-base text-frh-text">
+          {team.name}
+          <span className="ml-2 font-mono text-[10px] text-frh-text-muted border border-frh-border px-1">[{team.tag}]</span>
+        </p>
+      </div>
       {starters.length === 0 ? (
         <p className="text-xs text-frh-text-muted">Roster TBD</p>
       ) : (
@@ -208,6 +214,8 @@ export default async function MatchDetailPage({ params, searchParams }) {
   const FORMAT_WIN_THRESHOLD = { BO1: 1, BO3: 2, BO5: 3 };
   const winThreshold = FORMAT_WIN_THRESHOLD[match.format] ?? 1;
   const seriesWon = homeWins >= winThreshold || awayWins >= winThreshold;
+  const homeLogo = getTeamLogo(match.homeTeam);
+  const awayLogo = getTeamLogo(match.awayTeam);
 
   // A game is unneeded if:
   //   - series is already won AND this game has no confirmed result yet
@@ -290,11 +298,13 @@ export default async function MatchDetailPage({ params, searchParams }) {
             </p>
             <div className="flex items-center gap-4">
               <div className="flex-1 text-center">
+                {homeLogo && <Image src={homeLogo} alt="" width={48} height={48} className="w-12 h-12 object-contain mx-auto mb-1" />}
                 <p className="font-display font-bold text-3xl text-frh-yellow">{homeWins}</p>
                 <p className="font-ui text-xs text-frh-text-muted truncate">{match.homeTeam?.name}</p>
               </div>
               <div className="font-mono text-xl text-frh-text-muted">—</div>
               <div className="flex-1 text-center">
+                {awayLogo && <Image src={awayLogo} alt="" width={48} height={48} className="w-12 h-12 object-contain mx-auto mb-1" />}
                 <p className="font-display font-bold text-3xl text-frh-yellow">{awayWins}</p>
                 <p className="font-ui text-xs text-frh-text-muted truncate">{match.awayTeam?.name}</p>
               </div>

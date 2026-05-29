@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { getTeamLogo } from '@/lib/teamLogos';
 
 const ROLE_ORDER = ['Solo', 'Jungle', 'Mid', 'Support', 'Carry', 'Fill'];
 
@@ -14,6 +16,7 @@ function roleSort(a, b) {
 function TeamCard({ team }) {
   const accentColor = team.org?.accentColor ?? '#1040aa';
   const initials = team.org?.logoInitials ?? team.tag?.slice(0, 2) ?? '??';
+  const logo = getTeamLogo(team);
   const members = [...(team.members ?? [])].sort((a, b) => roleSort(a, b));
 
   return (
@@ -21,7 +24,7 @@ function TeamCard({ team }) {
       <div className="team-card__band" style={{ background: accentColor }} />
       <div className="team-card__head">
         <div className="team-card__crest" style={{ background: accentColor + '22' }}>
-          {initials}
+          {logo ? <Image src={logo} alt={`${team.name} logo`} width={36} height={36} /> : initials}
         </div>
         <div className="team-card__name">{team.name}</div>
         <div className="team-card__tag">{team.tag}</div>
@@ -56,11 +59,13 @@ function TeamCard({ team }) {
 function DepthChart({ team }) {
   if (!team) return null;
   const accentColor = team.org?.accentColor ?? '#1040aa';
+  const logo = getTeamLogo(team);
   const members = [...(team.members ?? [])].sort((a, b) => roleSort(a, b));
 
   return (
     <div className="depth">
       <div className="depth__head">
+        {logo && <Image className="depth__logo" src={logo} alt="" width={24} height={24} />}
         <span style={{ color: '#ffd400' }}>{team.tag}</span>
         &nbsp;{team.name} — Depth Chart
         <span style={{ opacity: 0.6, fontSize: 10 }}>{team.division?.name}</span>
