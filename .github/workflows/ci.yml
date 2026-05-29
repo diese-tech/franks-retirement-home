@@ -33,6 +33,7 @@ jobs:
 
   migrate:
     runs-on: ubuntu-latest
+    environment: Production
     # Only deploy migrations on pushes to main (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
