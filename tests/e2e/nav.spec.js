@@ -8,11 +8,14 @@
 import { test, expect } from '@playwright/test';
 
 const PUBLIC_ROUTES = [
-  { path: '/',           label: 'homepage' },
-  { path: '/schedule',   label: 'schedule' },
-  { path: '/standings',  label: 'standings' },
-  { path: '/teams',      label: 'teams' },
-  { path: '/players',    label: 'players' },
+  { path: '/',                label: 'homepage' },
+  { path: '/schedule',        label: 'schedule' },
+  { path: '/standings',       label: 'standings' },
+  { path: '/roster',          label: 'roster' },
+  { path: '/bulletin-board',  label: 'bulletin board' },
+  // /teams and /players redirect to /roster — verify redirect is not a crash
+  { path: '/teams',           label: 'teams redirect' },
+  { path: '/players',         label: 'players redirect' },
 ];
 
 for (const { path, label } of PUBLIC_ROUTES) {
@@ -39,8 +42,9 @@ test('invalid draft ID shows a controlled not-found or error state', async ({ pa
 
 test('public nav links are present on homepage', async ({ page }) => {
   await page.goto('/');
-  // Expect navigation links to schedule, standings, teams, players to exist
-  for (const route of ['/schedule', '/standings', '/teams', '/players']) {
+  // Current nav: Home, Schedule, Standings, Roster, Board, Fraud Watch, Knows Ball
+  // /teams and /players were removed — they now redirect to /roster
+  for (const route of ['/schedule', '/standings', '/roster']) {
     const link = page.locator(`a[href="${route}"]`).first();
     await expect(link).toBeVisible();
   }
@@ -58,7 +62,7 @@ test('empty standings page renders without crashing', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('Application error');
 });
 
-test('empty teams page renders without crashing', async ({ page }) => {
+test('/teams redirects to /roster without crashing', async ({ page }) => {
   const res = await page.goto('/teams');
   expect(res?.status()).toBeLessThan(500);
   await expect(page.locator('body')).not.toContainText('Application error');
