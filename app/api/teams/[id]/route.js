@@ -35,9 +35,17 @@ export async function PATCH(req, { params }) {
   const { name, tag, orgId, captainPlayerId } = body;
 
   try {
+    if (tag !== undefined && !String(tag).trim()) {
+      return NextResponse.json({ error: 'tag cannot be empty' }, { status: 400 });
+    }
     const team = await prisma.team.update({
       where: { id: params.id },
-      data: { name, tag, orgId, captainPlayerId },
+      data: {
+        name: name === undefined ? undefined : String(name).trim(),
+        tag: tag === undefined ? undefined : String(tag).trim().toUpperCase(),
+        orgId,
+        captainPlayerId,
+      },
     });
     return NextResponse.json(team);
   } catch (e) {

@@ -210,17 +210,17 @@ async function main() {
   // ── Teams (with captainPlayerId) ──────────────────
   const teams = [
     // Hospice division
-    { id: 'team-caustic-crusaders',  name: 'Caustic Crusaders',     tag: 'CSTC', divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uw6i000m3bs4cfcb9hhg' },
-    { id: 'team-death-dealers',      name: 'Death Dealers',          tag: 'DEAD', divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uvq3000l3bs4xbhhjuld' },
-    { id: 'team-galactic-stingers',  name: 'The Galactic Stingers',  tag: 'GLXS', divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uwmx000n3bs481wtr8lt' },
-    { id: 'team-wheezys-mafia',      name: "Wheezy's Mafia",         tag: 'WHZY', divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uv9o000k3bs4k4nrsw8b' },
+    { id: 'team-caustic-crusaders',  name: 'Caustic Crusaders',     tag: 'CC',  divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uw6i000m3bs4cfcb9hhg' },
+    { id: 'team-death-dealers',      name: 'Death Dealers',          tag: 'DD',  divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uvq3000l3bs4xbhhjuld' },
+    { id: 'team-galactic-stingers',  name: 'The Galactic Stingers',  tag: 'GS',  divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uwmx000n3bs481wtr8lt' },
+    { id: 'team-wheezys-mafia',      name: "Wheezy's Mafia",         tag: 'WM',  divisionId: 'div-s9-hospice',        captainPlayerId: 'cmpq3uv9o000k3bs4k4nrsw8b' },
     // Rehabilitation division
-    { id: 'team-babas-kitchen',      name: "Baba's Kitchen",         tag: 'BABA', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wz10001s3bs4voy3pjzz' },
-    { id: 'team-cyberpunk-otters',   name: 'Cyberpunk Otters',       tag: 'CYBR', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wxnq001p3bs4rorkwthj' },
-    { id: 'team-exile-extinction',   name: 'Exile Extinction',       tag: 'EXIL', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wwqw001n3bs4runod8gy' },
-    { id: 'team-kappa-corp',         name: 'Kappa Corp',             tag: 'KAPA', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wx7b001o3bs4jds5tr0s' },
-    { id: 'team-ruined-order',       name: 'The Ruined Order',       tag: 'RUIN', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wy46001q3bs4gh8g63c7' },
-    { id: 'team-valhalla-vikings',   name: 'Valhalla Vikings',       tag: 'VALK', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wykl001r3bs4qfo8gqu8' },
+    { id: 'team-babas-kitchen',      name: "Baba's Kitchen",         tag: 'BK',  divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wz10001s3bs4voy3pjzz' },
+    { id: 'team-cyberpunk-otters',   name: 'Cyberpunk Otters',       tag: 'CPO', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wxnq001p3bs4rorkwthj' },
+    { id: 'team-exile-extinction',   name: 'Exile Extinction',       tag: 'EE',  divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wwqw001n3bs4runod8gy' },
+    { id: 'team-kappa-corp',         name: 'Kappa Corp',             tag: 'KC',  divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wx7b001o3bs4jds5tr0s' },
+    { id: 'team-ruined-order',       name: 'The Ruined Order',       tag: 'TRO', divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wy46001q3bs4gh8g63c7' },
+    { id: 'team-valhalla-vikings',   name: 'Valhalla Vikings',       tag: 'VV',  divisionId: 'div-s9-rehabilitation', captainPlayerId: 'cmpq3wykl001r3bs4qfo8gqu8' },
   ];
 
   for (const { id, divisionId, captainPlayerId, ...fields } of teams) {

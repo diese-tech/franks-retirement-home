@@ -606,6 +606,7 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamForm, setTeamForm] = useState({ name: '', tag: '' });
+  const [teamTagEdits, setTeamTagEdits] = useState({});
   const [memberForm, setMemberForm] = useState({ playerId: '', role: 'Mid', isCaptain: false, isSub: false });
   const [busy, setBusy] = useState(false);
   const { confirm, modal: confirmModal } = useConfirm();
@@ -640,6 +641,21 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
     await del(`/api/teams/${id}`);
     if (expandedTeamId === id) setExpandedTeamId(null);
     onRefreshTeams();
+  };
+
+  const saveTeamTag = async (team) => {
+    const tag = (teamTagEdits[team.id] ?? team.tag ?? '').trim().toUpperCase();
+    if (!tag) return;
+    setBusy(true);
+    const res = await patchJson(`/api/teams/${team.id}`, { tag });
+    if (res.error) { alert(res.error); setBusy(false); return; }
+    setTeamTagEdits((prev) => {
+      const next = { ...prev };
+      delete next[team.id];
+      return next;
+    });
+    await onRefreshTeams();
+    setBusy(false);
   };
 
   const addMember = async (teamId) => {
@@ -758,6 +774,26 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
                 {/* Expanded member management */}
                 {isExpanded && (
                   <div className="border-t-2 border-brand-700 p-3 bg-brand-900/30">
+                    <div className="mb-3 border border-brand-700 bg-brand-950/60 p-2">
+                      <label className="block text-[9px] font-ui uppercase tracking-widest text-gray-500 mb-1">Team Tag</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={teamTagEdits[team.id] ?? team.tag ?? ''}
+                          onChange={(e) => setTeamTagEdits((prev) => ({ ...prev, [team.id]: e.target.value.toUpperCase() }))}
+                          className="input-field w-28 text-center"
+                          maxLength={6}
+                        />
+                        <BrutalButton
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy || !(teamTagEdits[team.id] ?? team.tag ?? '').trim() || (teamTagEdits[team.id] ?? team.tag) === team.tag}
+                          onClick={() => saveTeamTag(team)}
+                        >
+                          Save Tag
+                        </BrutalButton>
+                      </div>
+                    </div>
+
                     {/* Current members */}
                     {team.members.length === 0 ? (
                       <p className="text-xs text-gray-600 mb-3">No members yet.</p>
