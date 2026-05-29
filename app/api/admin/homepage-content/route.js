@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // ── Origin check ──────────────────────────────────────────────────────────────
 
 function checkOrigin(request) {
-  const origin = request.headers.get('origin');
+  const origin = request.headers?.get?.('origin') ?? null;
   if (!origin) return null; // absent = allow (server-to-server)
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
   const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;

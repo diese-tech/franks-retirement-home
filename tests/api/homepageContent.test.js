@@ -18,6 +18,17 @@ vi.mock('@/lib/resolveAuth', () => ({
   resolveAdminAuth: vi.fn(async () => null), // null = authorized by default
 }));
 
+// ─── Mock rateLimit (allow all requests in tests) ────────────────────────────
+vi.mock('@/lib/rateLimit', () => ({
+  consume: vi.fn(() => true),
+  clientIp: vi.fn(() => 'test-ip'),
+}));
+
+// ─── Mock discordAuth (no Discord session in tests by default) ───────────────
+vi.mock('@/lib/discordAuth', () => ({
+  getDiscordSessionUser: vi.fn(() => null),
+}));
+
 // ─── Mock homepageDefaults ────────────────────────────────────────────────────
 vi.mock('@/lib/homepageDefaults', () => ({
   HOMEPAGE_DEFAULTS: {
