@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAdmin } from '@/lib/adminSession';
+import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { HOMEPAGE_DEFAULTS } from '@/lib/homepageDefaults';
 
 export const dynamic = 'force-dynamic';
@@ -81,7 +81,7 @@ function pickContentFields(body) {
 // ── GET /api/admin/homepage-content ──────────────────────────────────────────
 // Returns both draft and published rows (either may be null).
 export async function GET(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   try {
@@ -102,7 +102,7 @@ export async function GET(request) {
 // save    → upsert the draft row, do not touch published
 // publish → copy draft (or supplied body) to published row atomically
 export async function POST(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   let body;
@@ -155,7 +155,7 @@ export async function POST(request) {
 // ?target=published → delete published row (revert public page to defaults)
 // ?target=all       → delete both
 export async function DELETE(request) {
-  const guard = requireAdmin(request);
+  const guard = await resolveAdminAuth(request);
   if (guard) return guard;
 
   const { searchParams } = new URL(request.url);

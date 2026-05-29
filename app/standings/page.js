@@ -3,7 +3,7 @@ import { computeStandings } from '@/lib/standings';
 import { RetroWindow, PixelBadge } from '@/components/ui';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const DIVISION_COLORS = { Hospice: 'purple', Rehabilitation: 'blue' };
 

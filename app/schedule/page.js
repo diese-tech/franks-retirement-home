@@ -2,7 +2,7 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { RetroWindow, PixelBadge } from '@/components/ui';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const STATUS_COLOR = {
   scheduled: 'blue',
