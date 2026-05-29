@@ -137,6 +137,7 @@ export default function Nav() {
         {authState && authState.anonymous && (
           <Link
             href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+            prefetch={false}
             className="frh-menubar__item"
             style={{ fontSize: 10, marginLeft: 8 }}
           >
@@ -172,6 +173,7 @@ export default function Nav() {
           {authState && authState.anonymous && (
             <Link
               href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="frh-menubar__drawer-link"
             >

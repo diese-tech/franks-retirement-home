@@ -902,6 +902,7 @@ export default function HomepageClient({
             onClick={() => change(`show${field}`, !visible)}
             style={{
               position: 'absolute', top: 4, right: 4, zIndex: 10,
+              pointerEvents: 'auto',
               background: visible ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
               border: `1px solid ${visible ? '#4ade80' : '#f87171'}`,
               color: visible ? '#4ade80' : '#f87171',
