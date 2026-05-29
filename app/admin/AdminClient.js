@@ -1496,6 +1496,8 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   const [err, setErr] = useState('');
   const [form, setForm] = useState({ seasonId: '', divisionId: '', name: '', rounds: 5, pickTimerSeconds: 120 });
   const [boardId, setBoardId] = useState(null);
+  // orderEdits[draftId] = string[] of teamIds in current editing order
+  const [orderEdits, setOrderEdits] = useState({});
 
   const allDivisions = seasons.flatMap((s) =>
     s.divisions.map((d) => ({ ...d, seasonName: s.name, label: `${s.name} — ${d.name}` }))
@@ -1521,6 +1523,33 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   const act = async (id, action, extra = {}) => {
     const res = await patchJson(`/api/player-drafts/${id}`, { action, ...extra });
     if (res.error) { alert(res.error); return; }
+    await onRefresh();
+  };
+
+  const getOrderForDraft = (pd, divTeams) => {
+    if (orderEdits[pd.id]) return orderEdits[pd.id];
+    // Initialize from DB currentOrder, filtering to only teams still in this division
+    const divTeamIds = new Set(divTeams.map(t => t.id));
+    if (Array.isArray(pd.currentOrder) && pd.currentOrder.length > 0) {
+      return pd.currentOrder.filter(id => divTeamIds.has(id));
+    }
+    return divTeams.map(t => t.id);
+  };
+
+  const moveTeam = (draftId, index, direction, currentOrder) => {
+    const order = [...currentOrder];
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    setOrderEdits(prev => ({ ...prev, [draftId]: order }));
+  };
+
+  const setOrder = async (pd, divTeams) => {
+    const order = getOrderForDraft(pd, divTeams);
+    if (order.length === 0) { alert('No teams to order.'); return; }
+    const res = await patchJson(`/api/player-drafts/${pd.id}`, { action: 'setOrder', currentOrder: order });
+    if (res.error) { alert(res.error); return; }
+    setOrderEdits(prev => ({ ...prev, [pd.id]: order }));
     await onRefresh();
   };
 
@@ -1654,19 +1683,81 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
                       )}
                     </div>
                   </div>
-                  {(pd.status === 'active' || pd.status === 'paused') && (
-                    <button
-                      onClick={() => setBoardId(boardId === pd.id ? null : pd.id)}
-                      className="ml-auto font-mono text-[10px] text-frh-yellow underline hover:text-frh-orange"
-                    >
-                      {boardId === pd.id ? 'Hide Board' : 'View Board'}
-                    </button>
-                  )}
                   {pd.status === 'pending' && divTeams.length === 0 && (
                     <div className="px-3 py-2 border-t border-brand-700 bg-brand-900/20">
                       <p className="text-[10px] text-yellow-500">
                         No teams found in {pd.division?.name}. Add teams in the Teams tab before starting.
                       </p>
+                    </div>
+                  )}
+                  {pd.status === 'pending' && divTeams.length > 0 && (() => {
+                    const order = getOrderForDraft(pd, divTeams);
+                    const teamById = Object.fromEntries(divTeams.map(t => [t.id, t]));
+                    return (
+                      <div className="px-3 pb-3 border-t border-brand-700 bg-brand-900/20">
+                        <p className="font-ui text-[10px] uppercase tracking-widest text-gray-500 mt-3 mb-2">
+                          Pick Order <span className="text-gray-600 normal-case tracking-normal">(drag to reorder before starting)</span>
+                        </p>
+                        <div className="space-y-1 mb-3">
+                          {order.map((teamId, i) => {
+                            const t = teamById[teamId];
+                            if (!t) return null;
+                            return (
+                              <div key={teamId} className="flex items-center gap-2 bg-brand-950/60 border border-brand-700 px-2 py-1.5">
+                                <span className="font-mono text-[10px] text-gray-600 w-4 shrink-0">{i + 1}.</span>
+                                <span className="font-mono text-xs text-gray-300 flex-1 truncate">{t.name}</span>
+                                <span className="font-mono text-[9px] text-gray-600 mr-1">{t.tag}</span>
+                                <button
+                                  onClick={() => moveTeam(pd.id, i, -1, order)}
+                                  disabled={i === 0}
+                                  className="px-1.5 py-0.5 text-[10px] border border-brand-600 hover:border-frh-yellow disabled:opacity-20 disabled:cursor-not-allowed font-mono text-gray-400 hover:text-frh-yellow"
+                                  title="Move up"
+                                >↑</button>
+                                <button
+                                  onClick={() => moveTeam(pd.id, i, 1, order)}
+                                  disabled={i === order.length - 1}
+                                  className="px-1.5 py-0.5 text-[10px] border border-brand-600 hover:border-frh-yellow disabled:opacity-20 disabled:cursor-not-allowed font-mono text-gray-400 hover:text-frh-yellow"
+                                  title="Move down"
+                                >↓</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <BrutalButton size="sm" onClick={() => setOrder(pd, divTeams)}>
+                            Set Order
+                          </BrutalButton>
+                          <a
+                            href={`/player-draft/${pd.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-[10px] text-frh-yellow underline hover:text-frh-orange flex items-center"
+                          >
+                            View Captain Room ↗
+                          </a>
+                        </div>
+                        {Array.isArray(pd.currentOrder) && pd.currentOrder.length > 0 && (
+                          <p className="font-mono text-[9px] text-green-600 mt-2">✓ Order saved — ready to start</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {(pd.status === 'active' || pd.status === 'paused') && (
+                    <div className="px-3 py-2 border-t border-brand-700 flex items-center gap-3">
+                      <button
+                        onClick={() => setBoardId(boardId === pd.id ? null : pd.id)}
+                        className="font-mono text-[10px] text-frh-yellow underline hover:text-frh-orange"
+                      >
+                        {boardId === pd.id ? 'Hide Board' : 'View Board'}
+                      </button>
+                      <a
+                        href={`/player-draft/${pd.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] text-frh-yellow underline hover:text-frh-orange"
+                      >
+                        View Captain Room ↗
+                      </a>
                     </div>
                   )}
                   {boardId === pd.id && (
