@@ -112,9 +112,9 @@ export default async function SchedulePage({ searchParams }) {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Link href="/schedule" className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${!statusFilter && !weekFilter ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>All</Link>
+            <Link href="/schedule" className={`text-[10px] font-ui uppercase px-3 py-2 border transition-colors min-h-[36px] flex items-center ${!statusFilter && !weekFilter ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>All</Link>
             {['live', 'scheduled', 'completed'].map((s) => (
-              <Link key={s} href={`/schedule?status=${s}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${statusFilter === s ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
+              <Link key={s} href={`/schedule?status=${s}`} className={`text-[10px] font-ui uppercase px-3 py-2 border transition-colors min-h-[36px] flex items-center ${statusFilter === s ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
                 {s}
               </Link>
             ))}
@@ -125,7 +125,7 @@ export default async function SchedulePage({ searchParams }) {
         {weeks.length > 1 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {weeks.map((w) => (
-              <Link key={w} href={`/schedule?week=${w}`} className={`text-[10px] font-ui uppercase px-2 py-1 border transition-colors ${weekFilter === w ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
+              <Link key={w} href={`/schedule?week=${w}`} className={`text-[10px] font-ui uppercase px-3 py-2 border transition-colors min-h-[36px] flex items-center ${weekFilter === w ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-frh-text-muted hover:border-frh-text'}`}>
                 Wk {w}
               </Link>
             ))}

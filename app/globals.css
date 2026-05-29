@@ -1882,7 +1882,7 @@ html:not(.dark) body {
   }
   .input-field {
     @apply w-full px-3 py-2 bg-brand-950 border border-brand-600/60 rounded-md
-           text-gray-100 placeholder-gray-500 font-body text-sm
+           text-gray-100 placeholder-gray-500 font-body text-base sm:text-sm
            focus:outline-none focus:border-frost-500/60 focus:ring-1 focus:ring-frost-500/30 transition-colors;
   }
   .select-field {
@@ -2628,10 +2628,13 @@ html:not(.dark) body {
 }
 .filter-chip {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 4px 10px;
+  padding: 8px 12px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
   border: var(--thick-border);
   background: var(--frh-paper);
   box-shadow: var(--hard-shadow-sm);

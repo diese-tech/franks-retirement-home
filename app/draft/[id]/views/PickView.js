@@ -104,18 +104,23 @@ export default function PickView({ state, role, callApi }) {
         <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr_320px] gap-5 items-start">
-        <TeamDraftColumn
-          team="A"
-          picks={teamA}
-          isActive={activeTeam === 'A'}
-          activePendingPickId={activePendingPick?.id ?? null}
-          selectedGod={activeTeam === 'A' ? selectedGod : null}
-          isAdmin={isAdmin}
-          onUndoPick={undoPick}
-        />
+      <div className="space-y-5 xl:grid xl:space-y-0 xl:grid-cols-[320px_1fr_320px] xl:gap-5 xl:items-start">
+        <div className="hidden xl:block">
+          <TeamDraftColumn
+            team="A"
+            picks={teamA}
+            isActive={activeTeam === 'A'}
+            activePendingPickId={activePendingPick?.id ?? null}
+            selectedGod={activeTeam === 'A' ? selectedGod : null}
+            isAdmin={isAdmin}
+            onUndoPick={undoPick}
+          />
+        </div>
 
         <div className="space-y-5">
+          {/* Mobile-only compact team strips (sidebars are hidden below xl) */}
+          <MobileTeamStrips teamA={teamA} teamB={teamB} activeTeam={activeTeam} />
+
           <RetroWindow title="GOD SELECTION GRID" className="overflow-hidden">
             <div className="relative min-h-[620px] bg-[linear-gradient(135deg,#1572a1_0%,#31539d_44%,#3f238d_100%)]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(103,232,249,0.2),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.18),transparent_32%)]" />
@@ -135,7 +140,7 @@ export default function PickView({ state, role, callApi }) {
                     </div>
                   </div>
 
-                  <div className="flex gap-1.5 flex-wrap max-w-[240px] justify-end">
+                  <div className="flex gap-1.5 flex-wrap justify-end">
                     {PICK_ORDER.map((team, index) => {
                       const done = index < completedCount;
                       const current = index === completedCount && !isDone;
@@ -168,7 +173,7 @@ export default function PickView({ state, role, callApi }) {
                       placeholder="Search gods..."
                       value={godSearch}
                       onChange={(event) => setGodSearch(event.target.value)}
-                      className="input-field text-xs w-44"
+                      className="input-field text-sm flex-1 min-w-0 sm:flex-none sm:w-44"
                     />
                     <RoleFilter options={['All', ...GOD_ROLES]} value={godFilter} onChange={setGodFilter} />
                     <div className="ml-auto text-[10px] uppercase tracking-widest text-gray-400">
@@ -252,7 +257,7 @@ export default function PickView({ state, role, callApi }) {
                       <BrutalButton
                         onClick={submitPick}
                         disabled={!selectedGod || !isMyTurn || isDone || busy}
-                        size="sm"
+                        className="min-h-[44px]"
                       >
                         {busy ? 'Locking...' : 'Confirm Pick'}
                       </BrutalButton>
@@ -283,17 +288,50 @@ export default function PickView({ state, role, callApi }) {
           </RetroWindow>
         </div>
 
-        <TeamDraftColumn
-          team="B"
-          picks={teamB}
-          isActive={activeTeam === 'B'}
-          activePendingPickId={activePendingPick?.id ?? null}
-          selectedGod={activeTeam === 'B' ? selectedGod : null}
-          isAdmin={isAdmin}
-          onUndoPick={undoPick}
-          mirrored
-        />
+        <div className="hidden xl:block">
+          <TeamDraftColumn
+            team="B"
+            picks={teamB}
+            isActive={activeTeam === 'B'}
+            activePendingPickId={activePendingPick?.id ?? null}
+            selectedGod={activeTeam === 'B' ? selectedGod : null}
+            isAdmin={isAdmin}
+            onUndoPick={undoPick}
+            mirrored
+          />
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MobileTeamStrips({ teamA, teamB, activeTeam }) {
+  return (
+    <div className="xl:hidden grid grid-cols-2 gap-2">
+      {[{ picks: teamA, team: 'A' }, { picks: teamB, team: 'B' }].map(({ picks, team }) => {
+        const isA = team === 'A';
+        const isActive = activeTeam === team;
+        return (
+          <div key={team} className={`rounded-lg border p-2 ${isA ? 'border-cyan-300/30 bg-cyan-400/5' : 'border-amber-300/30 bg-amber-400/5'} ${isActive ? 'ring-1 ring-yellow-300/40' : ''}`}>
+            <div className={`text-[9px] font-ui uppercase tracking-widest mb-1.5 ${isA ? 'text-cyan-300' : 'text-amber-300'}`}>
+              Team {isA ? 'A' : 'B'}{isActive ? ' ▶' : ''}
+            </div>
+            <div className="space-y-0.5">
+              {picks.map((pick) => (
+                <div key={pick.id} className="flex items-center gap-1 min-h-[20px]">
+                  {pick.god
+                    ? <GodImage god={pick.god} godId={pick.god.id} name={pick.god.name} size={14} className="rounded shrink-0" />
+                    : <div className="w-3.5 h-3.5 rounded bg-white/10 shrink-0" />
+                  }
+                  <span className="text-[10px] text-gray-300 truncate">
+                    {pick.god?.name ?? pick.player?.name ?? '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

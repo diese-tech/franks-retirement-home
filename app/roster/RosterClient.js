@@ -205,10 +205,11 @@ export default function RosterClient({ activeSeason, teams, freeAgents }) {
                         onClick={() => setFocusTeamId(t.id)}
                         style={{
                           fontFamily: 'Share Tech Mono, monospace',
-                          fontSize: 9,
+                          fontSize: 11,
                           letterSpacing: '0.08em',
                           textTransform: 'uppercase',
-                          padding: '2px 8px',
+                          padding: '8px 12px',
+                          minHeight: 44,
                           border: '2px solid #141414',
                           background: focusTeam.id === t.id ? '#ffd400' : 'var(--frh-paper-alt)',
                           cursor: 'pointer',

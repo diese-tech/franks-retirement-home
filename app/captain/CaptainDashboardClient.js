@@ -54,27 +54,27 @@ function MatchCard({ match }) {
       <div className="flex gap-2 flex-wrap">
         {draftInProgress && (
           <Link href={`/draft/${draftInProgress.draft.id}`}>
-            <BrutalButton size="sm" variant="primary">Enter Draft</BrutalButton>
+            <BrutalButton size="sm" variant="primary" className="min-h-[44px]">Enter Draft</BrutalButton>
           </Link>
         )}
         {gameAwaitingReport && !draftInProgress && (
           <Link href={`/matches/${match.id}`}>
-            <BrutalButton size="sm" variant="primary">Report Result</BrutalButton>
+            <BrutalButton size="sm" variant="primary" className="min-h-[44px]">Report Result</BrutalButton>
           </Link>
         )}
         {gameAwaitingConfirmation && !draftInProgress && !gameAwaitingReport && (
           <Link href={`/matches/${match.id}`}>
-            <BrutalButton size="sm" variant="secondary">Confirm Result</BrutalButton>
+            <BrutalButton size="sm" variant="secondary" className="min-h-[44px]">Confirm Result</BrutalButton>
           </Link>
         )}
         {match.status === 'completed' && (
           <Link href={`/matches/${match.id}`}>
-            <BrutalButton size="sm" variant="secondary">Upload Screenshots</BrutalButton>
+            <BrutalButton size="sm" variant="secondary" className="min-h-[44px]">Upload Screenshots</BrutalButton>
           </Link>
         )}
         {(hasPendingReschedule || match.status === 'scheduled') && (
           <Link href={`/matches/${match.id}`}>
-            <BrutalButton size="sm" variant="secondary">
+            <BrutalButton size="sm" variant="secondary" className="min-h-[44px]">
               {hasPendingReschedule ? 'Reschedule' : 'View Match'}
             </BrutalButton>
           </Link>

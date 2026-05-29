@@ -84,9 +84,9 @@ function LineupColumn({ team, picks, roster, canEdit, draftKey, draftId }) {
           );
 
           return (
-            <div key={pick.id} className={`flex items-center gap-2 px-3 py-2 border ${pick.playerId ? 'border-green-600/40 bg-green-500/5' : 'border-brand-700 bg-brand-900/40'}`}>
+            <div key={pick.id} className={`flex items-center gap-2 px-3 py-2 border min-h-[44px] ${pick.playerId ? 'border-green-600/40 bg-green-500/5' : 'border-brand-700 bg-brand-900/40'}`}>
               {/* God */}
-              <div className="flex items-center gap-1.5 w-28 shrink-0">
+              <div className="flex items-center gap-1.5 w-16 sm:w-28 shrink-0">
                 {pick.god
                   ? <>
                       <GodImage godId={pick.god.id} name={pick.god.name} size={20} className="rounded-sm" />
@@ -102,7 +102,7 @@ function LineupColumn({ team, picks, roster, canEdit, draftKey, draftId }) {
                   value={pick.playerId ?? ''}
                   onChange={(e) => assignPlayer(pick.id, e.target.value)}
                   disabled={busy[pick.id]}
-                  className="select-field flex-1 text-xs py-1"
+                  className="select-field flex-1 text-sm py-1.5"
                 >
                   <option value="">— assign player —</option>
                   {availablePlayers.map((m) => (

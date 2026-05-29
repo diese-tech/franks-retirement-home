@@ -114,7 +114,7 @@ export default function BanView({ state, role, callApi }) {
             placeholder="Search..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="input-field text-xs w-40"
+            className="input-field text-sm flex-1 min-w-0 sm:flex-none sm:w-40"
           />
           <RoleFilter options={['All', ...GOD_ROLES]} value={roleFilter} onChange={setRoleFilter} />
         </div>
@@ -127,7 +127,7 @@ export default function BanView({ state, role, callApi }) {
                 key={god.id}
                 onClick={() => { if (!banned && isMyTurn) setSelected(isSelected ? null : god.id); }}
                 disabled={banned || !isMyTurn}
-                className={`relative flex flex-col items-center gap-1 p-2 border-2 transition-all ${
+                className={`relative flex flex-col items-center gap-1 p-2 border-2 transition-all min-h-[44px] ${
                   banned
                     ? 'bg-brand-900/30 border-brand-700 opacity-40 cursor-not-allowed'
                     : isSelected
@@ -159,7 +159,7 @@ export default function BanView({ state, role, callApi }) {
           ) : (
             <span className="text-xs text-gray-600 font-mono">Select a god to unlock confirmation.</span>
           )}
-          <BrutalButton onClick={submitBan} disabled={!selected || !isMyTurn || busy} variant="danger" className="sm:ml-0">
+          <BrutalButton onClick={submitBan} disabled={!selected || !isMyTurn || busy} variant="danger" className="sm:ml-0 min-h-[44px] w-full sm:w-auto">
             {busy ? 'Banning...' : 'Confirm Ban'}
           </BrutalButton>
         </div>
