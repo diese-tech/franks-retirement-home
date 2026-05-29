@@ -504,7 +504,9 @@ export function FrhBulletinForum({ items, isEditor, onItemChange, onMoveUp, onMo
       })}
       <div className="frh-forum__foot">
         <span>&#8593; STICKY</span>
-        <span style={{ marginLeft: 'auto' }}>VIEW ALL THREADS &rarr;</span>
+        <Link href="/bulletin-board" style={{ marginLeft: 'auto', color: '#ffd400', textDecoration: 'none' }}>
+          VIEW ALL THREADS &rarr;
+        </Link>
       </div>
       {isEditor && addBtn('Add bulletin post', onAdd)}
     </div>
@@ -555,6 +557,9 @@ export function FrhFraudWanted({ items, isEditor, onItemChange, onMoveUp, onMove
             )}
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 8, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <Link href="/fraud-watch" style={{ color: '#ffd400', textDecoration: 'none' }}>Open full case board &rarr;</Link>
       </div>
       {isEditor && addBtn('Add fraud case', onAdd)}
     </div>
@@ -667,6 +672,9 @@ export function FrhRivalryPosters({ items, isEditor, onItemChange, onMoveUp, onM
           )}
         </div>
       ))}
+      <div style={{ alignSelf: 'end', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <Link href="/schedule" style={{ color: '#ffd400', textDecoration: 'none' }}>See full slate &rarr;</Link>
+      </div>
       {isEditor && addBtn('Add rivalry', onAdd)}
     </div>
   );
@@ -708,6 +716,9 @@ export function FrhSocialStrip({ items, isEditor, onItemChange, onMoveUp, onMove
             )}
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 8, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <Link href="/bulletin-board" style={{ color: '#ffd400', textDecoration: 'none' }}>More from the wire &rarr;</Link>
       </div>
       {isEditor && addBtn('Add social card', onAdd)}
     </div>
@@ -770,6 +781,9 @@ export function FrhKnowsBallPanel({ items, isEditor, onItemChange, onMoveUp, onM
           )}
         </div>
       ))}
+      <div style={{ marginTop: 8, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <Link href="/knows-ball" style={{ color: '#ffd400', textDecoration: 'none' }}>View all open lines &rarr;</Link>
+      </div>
       {isEditor && addBtn('Add analyst pick', onAdd)}
     </FrhPanel>
   );
@@ -801,6 +815,9 @@ export function FrhWashedPanel({ items, isEditor, onItemChange, onMoveUp, onMove
             )}
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 8, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <Link href="/fraud-watch" style={{ color: '#ffd400', textDecoration: 'none' }}>Read all reports &rarr;</Link>
       </div>
       {isEditor && addBtn('Add washed report', onAdd)}
     </FrhPanel>
