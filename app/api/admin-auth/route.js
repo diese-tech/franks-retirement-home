@@ -6,6 +6,7 @@ import {
   readSessionCookie,
   verifySessionToken,
 } from '@/lib/adminSession';
+import { clientIp, checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,13 @@ export async function GET(request) {
 // HttpOnly session cookie. Same-origin AdminClient fetches send the cookie
 // automatically — no client changes required.
 export async function POST(request) {
+  // Brute-force protection: 10 attempts per 5 minutes per IP
+  const ip = clientIp(request);
+  const { allowed } = await checkRateLimit(`admin-auth:${ip}`, 10, 300);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many attempts. Try again in a few minutes.' }, { status: 429 });
+  }
+
   const { password } = await request.json().catch(() => ({}));
   if (!password) return NextResponse.json({ error: 'Password required' }, { status: 400 });
 
