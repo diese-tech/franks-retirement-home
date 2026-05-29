@@ -5,6 +5,7 @@ import { checkSeriesComplete } from '@/lib/seriesResult';
 import { invalidateAllStandings } from '@/lib/standings';
 import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
 import { captainLog } from '@/lib/captainLog';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +141,7 @@ export async function POST(req, { params }) {
 
     const updated = await prisma.game.findUnique({ where: { id: gameId } });
     captainLog('captain_result_reported', { matchId, gameId, captainSide, winnerTeamId, source: auth.source });
+    logAudit({ entity: 'Game', entityId: gameId, action: 'result_reported', payload: { winnerTeamId, matchId } });
     return NextResponse.json(updated, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to report result' }, { status: 500 });
@@ -286,5 +288,6 @@ async function confirmResult(match, game, winnerTeamId, confirmingTeamId) {
     invalidateAllStandings();
   }
 
+  logAudit({ entity: 'Game', entityId: game.id, action: 'result_confirmed', payload: { winnerTeamId, matchId: match.id } });
   return NextResponse.json(result);
 }

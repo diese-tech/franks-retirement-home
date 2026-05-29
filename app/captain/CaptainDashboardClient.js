@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
 
@@ -84,12 +84,128 @@ function MatchCard({ match }) {
   );
 }
 
+function ChangeRequestForm({ onSubmitted }) {
+  const [players, setPlayers] = useState([]);
+  const [form, setForm] = useState({ type: 'ROSTER_ADD', playerId: '', playerName: '', role: '', reason: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/players').then(r => r.ok ? r.json() : []).then(setPlayers).catch(() => {});
+  }, []);
+
+  const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    if (!form.playerId) { setErr('Select a player'); return; }
+    setBusy(true); setErr('');
+    const res = await fetch('/api/captain/change-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) { setErr(data.error ?? 'Failed to submit'); return; }
+    setOk(true);
+    setForm({ type: 'ROSTER_ADD', playerId: '', playerName: '', role: '', reason: '' });
+    onSubmitted?.();
+  }, [form, onSubmitted]);
+
+  if (ok) {
+    return (
+      <div className="border-2 border-frh-lime/40 bg-frh-lime/5 p-3">
+        <p className="font-mono text-xs text-frh-lime">Request submitted! An admin will review it shortly.</p>
+        <BrutalButton size="sm" variant="secondary" className="mt-2" onClick={() => setOk(false)}>Submit Another</BrutalButton>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <div className="flex gap-2">
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input type="radio" name="type" value="ROSTER_ADD" checked={form.type === 'ROSTER_ADD'} onChange={() => setForm(f => ({ ...f, type: 'ROSTER_ADD' }))} className="accent-frh-lime" />
+          <span className="font-mono text-xs text-frh-lime">Add</span>
+        </label>
+        <label className="flex items-center gap-1 cursor-pointer">
+          <input type="radio" name="type" value="ROSTER_REMOVE" checked={form.type === 'ROSTER_REMOVE'} onChange={() => setForm(f => ({ ...f, type: 'ROSTER_REMOVE' }))} className="accent-orange-400" />
+          <span className="font-mono text-xs text-orange-400">Remove</span>
+        </label>
+      </div>
+      <select
+        className="w-full font-mono text-xs border-2 border-frh-border bg-frh-base px-2 py-1.5 text-frh-text"
+        value={form.playerId}
+        onChange={(e) => {
+          const p = players.find(x => x.id === e.target.value);
+          setForm(f => ({ ...f, playerId: e.target.value, playerName: p?.name ?? '', role: p?.role ?? '' }));
+        }}
+      >
+        <option value="">Select player…</option>
+        {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.role})</option>)}
+      </select>
+      <textarea
+        className="w-full font-mono text-xs border-2 border-frh-border bg-frh-base px-2 py-1.5 text-frh-text resize-none"
+        rows={2}
+        placeholder="Reason (optional but recommended)"
+        value={form.reason}
+        onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
+      />
+      {err && <p className="font-mono text-[10px] text-red-400">{err}</p>}
+      <BrutalButton type="submit" size="sm" variant="primary" disabled={busy || !form.playerId}>
+        {busy ? 'Submitting…' : 'Submit Request'}
+      </BrutalButton>
+    </form>
+  );
+}
+
+function ChangeRequestHistory() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/captain/change-requests')
+      .then(r => r.ok ? r.json() : [])
+      .then(setRequests)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="font-mono text-[10px] text-frh-text-muted">Loading…</p>;
+  if (requests.length === 0) return <p className="font-mono text-[10px] text-frh-text-muted">No requests yet.</p>;
+
+  return (
+    <div className="space-y-2">
+      {requests.map(r => {
+        const p = r.payload ?? {};
+        return (
+          <div key={r.id} className="border border-frh-border/60 px-2 py-1.5 flex items-center gap-2 flex-wrap">
+            <PixelBadge
+              label={r.status}
+              color={{ pending: 'blue', approved: 'lime', rejected: 'orange' }[r.status] ?? 'cream'}
+            />
+            <span className={`font-mono text-[10px] ${r.type === 'ROSTER_ADD' ? 'text-frh-lime' : 'text-orange-400'}`}>
+              {r.type === 'ROSTER_ADD' ? '➕' : '➖'}
+            </span>
+            <span className="font-mono text-[10px] text-frh-text">{p.playerName ?? '—'}</span>
+            {r.reviewNote && r.status === 'rejected' && (
+              <span className="font-mono text-[10px] text-gray-500">— {r.reviewNote}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CaptainDashboardClient() {
   const [authState, setAuthState] = useState(null); // null=loading
   const [matches, setMatches] = useState([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState('');
   const [playerDraft, setPlayerDraft] = useState(null);
+  const [showChangeForm, setShowChangeForm] = useState(false);
+  const [requestsKey, setRequestsKey] = useState(0);
 
   useEffect(() => {
     fetch('/api/auth/discord/me')
@@ -262,6 +378,24 @@ export default function CaptainDashboardClient() {
                   {recentMatches.map((m) => <MatchCard key={m.id} match={m} />)}
                 </div>
               )}
+            </div>
+
+            {/* ROSTER CHANGE REQUESTS */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-ui text-xs uppercase tracking-widest text-frh-text-muted">
+                  Roster Changes
+                </h3>
+                <BrutalButton size="sm" variant="secondary" className="min-h-[36px]" onClick={() => setShowChangeForm(v => !v)}>
+                  {showChangeForm ? 'Cancel' : '+ Request'}
+                </BrutalButton>
+              </div>
+              {showChangeForm && (
+                <div className="mb-3 border-2 border-frh-border p-3">
+                  <ChangeRequestForm onSubmitted={() => { setShowChangeForm(false); setRequestsKey(k => k + 1); }} />
+                </div>
+              )}
+              <ChangeRequestHistory key={requestsKey} />
             </div>
           </div>
         )}

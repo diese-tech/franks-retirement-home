@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,7 @@ export async function POST(req, { params }) {
       },
       include: { player: { select: { id: true, name: true, role: true } } },
     });
+    logAudit({ entity: 'TeamMember', entityId: params.id, action: 'member_added', adminId: 'admin', payload: { playerId } });
     return NextResponse.json(member, { status: 201 });
   } catch (e) {
     if (e.code === 'P2002') {
