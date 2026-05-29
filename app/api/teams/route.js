@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export async function POST(req) {
     const team = await prisma.team.create({
       data: { divisionId, orgId, name, tag, captainPlayerId },
     });
+    logAudit({ entity: 'Team', entityId: team.id, action: 'team_created', adminId: 'admin', payload: { name, tag } });
     return NextResponse.json(team, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to create team' }, { status: 500 });

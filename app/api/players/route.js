@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +69,7 @@ export async function POST(request) {
     }
     const player = await prisma.player.create({ data });
     invalidatePlayers();
+    logAudit({ entity: 'Player', entityId: player.id, action: 'player_created', adminId: 'admin', payload: { name: data.name, role: data.role } });
     return NextResponse.json(player, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to save player' }, { status: 500 });

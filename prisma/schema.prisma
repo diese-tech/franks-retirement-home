@@ -75,6 +75,7 @@ model Team {
   bettingLinesA    BettingLine[]     @relation("BettingLineTeamA")
   bettingLinesB    BettingLine[]     @relation("BettingLineTeamB")
   selectedBets     Bet[]             @relation("BetSelectedTeam")
+  changeRequests   ChangeRequest[]
 }
 
 model TeamMember {
@@ -424,6 +425,26 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+model ChangeRequest {
+  id               String    @id @default(cuid())
+  type             String    // ROSTER_ADD | ROSTER_REMOVE
+  teamId           String
+  requestedById    String    // discordId of captain
+  requestedByName  String
+  payload          Json      // { playerId, playerName, role, reason }
+  status           String    @default("pending") // pending | approved | rejected
+  reviewedById     String?   // discordId or 'admin'
+  reviewedByName   String?
+  reviewNote       String?
+  createdAt        DateTime  @default(now())
+  reviewedAt       DateTime?
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([teamId])
 }
 
 // ─── ForgeLens OCR Pipeline ───────────────────────────────────────────────────

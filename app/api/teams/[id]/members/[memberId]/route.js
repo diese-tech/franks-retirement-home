@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ export async function DELETE(req, { params }) {
 
   try {
     await prisma.teamMember.delete({ where: { id: params.memberId } });
+    logAudit({ entity: 'TeamMember', entityId: params.memberId, action: 'member_removed', adminId: 'admin', payload: { teamId: params.id } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Member not found' }, { status: 404 });

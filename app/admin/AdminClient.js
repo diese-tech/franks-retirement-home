@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, ROLE_COLORS } from '@/lib/constants';
 import RoleFilter from '@/components/RoleFilter';
 import { RetroWindow, BrutalButton, PixelBadge, StatusBadge } from '@/components/ui';
@@ -9,6 +9,67 @@ async function api(url, opts) { const r = await fetch(url, opts); return r.json(
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 function del(url) { return api(url, { method: 'DELETE' }); }
 function patchJson(url, body) { return api(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+
+// ─── ConfirmModal + useConfirm ───────────────────────────────────────────────
+
+function ConfirmModal({ isOpen, title, message, confirmLabel = 'Confirm', variant = 'danger', onConfirm, onCancel }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="w-full max-w-sm border-2 border-frh-border bg-frh-base shadow-[4px_4px_0_#141414]">
+        <div className={`px-4 py-2 border-b-2 border-frh-border flex items-center gap-2 ${variant === 'danger' ? 'bg-red-900/30' : 'bg-frh-yellow/10'}`}>
+          <span className="font-ui text-xs uppercase tracking-widest text-gray-300">{title}</span>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <p className="font-mono text-sm text-gray-300">{message}</p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onCancel}
+              className="font-mono text-xs px-3 py-2 border-2 border-frh-border text-gray-400 hover:border-gray-400 min-h-[40px]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`font-mono text-xs px-4 py-2 border-2 min-h-[40px] font-bold ${
+                variant === 'danger'
+                  ? 'border-red-500 bg-red-900/40 text-red-300 hover:bg-red-900/70'
+                  : 'border-frh-yellow bg-frh-yellow/10 text-frh-yellow hover:bg-frh-yellow/20'
+              }`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useConfirm() {
+  const [state, setState] = useState(null);
+
+  const confirm = useCallback((opts) => new Promise((resolve) => {
+    setState({ ...opts, resolve });
+  }), []);
+
+  const handleConfirm = useCallback(() => { setState((s) => { s?.resolve(true); return null; }); }, []);
+  const handleCancel  = useCallback(() => { setState((s) => { s?.resolve(false); return null; }); }, []);
+
+  const modal = state ? (
+    <ConfirmModal
+      isOpen={true}
+      title={state.title}
+      message={state.message}
+      confirmLabel={state.confirmLabel}
+      variant={state.variant ?? 'danger'}
+      onConfirm={handleConfirm}
+      onCancel={handleCancel}
+    />
+  ) : null;
+
+  return { confirm, modal };
+}
 
 function RoleBadge({ role, secondary = false }) {
   const colors = ROLE_COLORS[role] ?? 'bg-gray-500/15 text-gray-400';
@@ -127,15 +188,17 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   };
 
   const tabs = [
-    { key: 'drafts',       label: 'Drafts',        count: drafts.length },
-    { key: 'players',      label: 'Players',        count: players.length },
-    { key: 'teams',        label: 'Teams',          count: teams.length },
-    { key: 'matches',      label: 'Schedule',       count: matches.length },
-    { key: 'playerDraft',  label: 'Player Draft',   count: playerDrafts.length },
-    { key: 'review',       label: 'Review Queue',   count: submissions.length || null },
-    { key: 'import',       label: 'Import',         count: null },
-    { key: 'gods',         label: 'Gods',           count: gods.length },
-    { key: 'homepage',     label: 'Homepage Editor', count: null },
+    { key: 'drafts',        label: 'Drafts',          count: drafts.length },
+    { key: 'players',       label: 'Players',          count: players.length },
+    { key: 'teams',         label: 'Teams',            count: teams.length },
+    { key: 'matches',       label: 'Schedule',         count: matches.length },
+    { key: 'playerDraft',   label: 'Player Draft',     count: playerDrafts.length },
+    { key: 'review',        label: 'Review Queue',     count: submissions.length || null },
+    { key: 'changeRequests',label: 'Change Requests',  count: null },
+    { key: 'superlatives',  label: 'Superlatives',     count: null },
+    { key: 'import',        label: 'Import',           count: null },
+    { key: 'gods',          label: 'Gods',             count: gods.length },
+    { key: 'homepage',      label: 'Homepage Editor',  count: null },
   ];
 
   return (
@@ -195,10 +258,12 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'teams'       && <TeamsPanel       teams={teams} players={players} seasons={seasons} onRefreshTeams={refreshTeams} onRefreshSeasons={refreshSeasons} />}
         {tab === 'matches'     && <MatchesPanel     matches={matches} seasons={seasons} teams={teams} onRefresh={refreshMatches} />}
         {tab === 'playerDraft' && <PlayerDraftPanel playerDrafts={playerDrafts} seasons={seasons} teams={teams} onRefresh={refreshPlayerDrafts} />}
-        {tab === 'review'      && <ReviewQueuePanel submissions={submissions} onRefresh={refreshSubmissions} />}
-        {tab === 'import'      && <ImportPanel      onRefresh={refreshPlayers} />}
-        {tab === 'gods'        && <GodsPanel        gods={gods}       onRefresh={refreshGods} />}
-        {tab === 'homepage'    && <HomepageEditorPanel />}
+        {tab === 'review'          && <ReviewQueuePanel   submissions={submissions} onRefresh={refreshSubmissions} />}
+        {tab === 'changeRequests'  && <ChangeRequestsPanel />}
+        {tab === 'superlatives'    && <SuggestedSuperlativesPanel />}
+        {tab === 'import'          && <ImportPanel          onRefresh={refreshPlayers} />}
+        {tab === 'gods'            && <GodsPanel            gods={gods}   onRefresh={refreshGods} />}
+        {tab === 'homepage'        && <HomepageEditorPanel />}
       </RetroWindow>
     </div>
   );
@@ -296,6 +361,7 @@ function DraftsPanel({ drafts, onRefresh }) {
   const [shareTarget, setShareTarget] = useState(null);
   const [keyCache, setKeyCache] = useState({});
   const [shareError, setShareError] = useState('');
+  const { confirm, modal: confirmModal } = useConfirm();
 
   const fetchKeys = async (id) => {
     if (keyCache[id]) return keyCache[id];
@@ -335,7 +401,8 @@ function DraftsPanel({ drafts, onRefresh }) {
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this draft and all picks?')) return;
+    const ok = await confirm({ title: 'Delete Draft', message: 'Delete this draft and all picks? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     await del(`/api/drafts?id=${id}`);
     onRefresh();
   };
@@ -373,6 +440,7 @@ function DraftsPanel({ drafts, onRefresh }) {
 
   return (
     <>
+      {confirmModal}
       {shareTarget && (
         <ShareModal
           draftId={shareTarget.id}
@@ -439,6 +507,7 @@ function PlayersPanel({ players, onRefresh }) {
   const [form, setForm] = useState({ name: '', role: 'Mid', discordUsername: '', division: '' });
   const [filterDiv, setFilterDiv] = useState('All');
   const [busy, setBusy] = useState(false);
+  const { confirm, modal: confirmModal } = useConfirm();
 
   const reset = () => { setForm({ name: '', role: 'Mid', discordUsername: '', division: '' }); setEditId(null); setShowForm(false); };
 
@@ -458,7 +527,8 @@ function PlayersPanel({ players, onRefresh }) {
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this player?')) return;
+    const ok = await confirm({ title: 'Delete Player', message: 'Permanently delete this player? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     const result = await del(`/api/players?id=${id}`);
     if (result.error) { alert(result.error); return; }
     onRefresh();
@@ -468,7 +538,9 @@ function PlayersPanel({ players, onRefresh }) {
   const filtered = filterDiv === 'All' ? players : players.filter((p) => p.division === filterDiv);
 
   return (
-    <RetroWindow title="PLAYER DATABASE">
+    <>
+      {confirmModal}
+      <RetroWindow title="PLAYER DATABASE">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Players ({players.length})</h2>
         <BrutalButton onClick={() => { reset(); setShowForm(!showForm); }} size="sm">{showForm ? 'Cancel' : '+ Add Player'}</BrutalButton>
@@ -524,6 +596,7 @@ function PlayersPanel({ players, onRefresh }) {
         </table>
       </div>
     </RetroWindow>
+    </>
   );
 }
 
@@ -535,6 +608,7 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   const [teamForm, setTeamForm] = useState({ name: '', tag: '' });
   const [memberForm, setMemberForm] = useState({ playerId: '', role: 'Mid', isCaptain: false, isSub: false });
   const [busy, setBusy] = useState(false);
+  const { confirm, modal: confirmModal } = useConfirm();
 
   // Flat list of all divisions across seasons for the selector
   const allDivisions = seasons.flatMap((s) =>
@@ -561,7 +635,8 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   };
 
   const deleteTeam = async (id) => {
-    if (!confirm('Delete this team and all its members?')) return;
+    const ok = await confirm({ title: 'Delete Team', message: 'Delete this team and ALL its members? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     await del(`/api/teams/${id}`);
     if (expandedTeamId === id) setExpandedTeamId(null);
     onRefreshTeams();
@@ -578,7 +653,8 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   };
 
   const removeMember = async (teamId, memberId) => {
-    if (!confirm('Remove this player from the team?')) return;
+    const ok = await confirm({ title: 'Remove Player', message: 'Remove this player from the team roster?', confirmLabel: 'Remove' });
+    if (!ok) return;
     await del(`/api/teams/${teamId}/members/${memberId}`);
     onRefreshTeams();
   };
@@ -594,7 +670,9 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
   const availablePlayers = divisionPlayers.filter((p) => !assignedPlayerIds.has(p.id));
 
   return (
-    <RetroWindow title="TEAM ROSTER MANAGEMENT">
+    <>
+      {confirmModal}
+      <RetroWindow title="TEAM ROSTER MANAGEMENT">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Teams</h2>
         <PixelBadge label={`${teams.length} total`} color="cream" />
@@ -769,6 +847,7 @@ function TeamsPanel({ teams, players, seasons, onRefreshTeams }) {
         </div>
       )}
     </RetroWindow>
+    </>
   );
 }
 
@@ -784,6 +863,7 @@ const STATUS_BADGE = {
 function MatchesPanel({ matches, seasons, teams, onRefresh }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const { confirm, modal: confirmModal } = useConfirm();
   const [form, setForm] = useState({
     seasonId: '',
     divisionId: '',
@@ -837,7 +917,8 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
   };
 
   const deleteMatch = async (matchId) => {
-    if (!confirm('Delete this match and all its games?')) return;
+    const ok = await confirm({ title: 'Delete Match', message: 'Delete this match and all its games? Results will be lost.', confirmLabel: 'Delete' });
+    if (!ok) return;
     await del(`/api/matches/${matchId}`);
     await onRefresh();
   };
@@ -850,7 +931,9 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
   }, {});
 
   return (
-    <div className="space-y-6">
+    <>
+      {confirmModal}
+      <div className="space-y-6">
       {/* Create match form */}
       <RetroWindow title="SCHEDULE A MATCH">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -1027,6 +1110,7 @@ function MatchesPanel({ matches, seasons, teams, onRefresh }) {
       {/* ── Reschedule Request Queue ──────────────────────────────────────── */}
       <RescheduleQueue matches={matches} onMatchRefresh={onRefresh} />
     </div>
+    </>
   );
 }
 
@@ -1498,6 +1582,7 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   const [boardId, setBoardId] = useState(null);
   // orderEdits[draftId] = string[] of teamIds in current editing order
   const [orderEdits, setOrderEdits] = useState({});
+  const { confirm, modal: confirmModal } = useConfirm();
 
   const allDivisions = seasons.flatMap((s) =>
     s.divisions.map((d) => ({ ...d, seasonName: s.name, label: `${s.name} — ${d.name}` }))
@@ -1554,7 +1639,8 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   };
 
   const complete = async (id) => {
-    if (!confirm('Complete this draft and create TeamMember rows? This cannot be undone.')) return;
+    const ok = await confirm({ title: 'Complete Player Draft', message: 'Create TeamMember rows from all picks? This cannot be undone.', confirmLabel: 'Complete', variant: 'warning' });
+    if (!ok) return;
     const res = await postJson(`/api/player-drafts/${id}/complete`, {});
     if (res.error) { alert(res.error); return; }
     alert(`Draft completed. ${res.teamMembersCreated} members created, ${res.teamMembersUpdated} updated.`);
@@ -1564,7 +1650,9 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
   const STATUS_COLOR = { pending: 'blue', active: 'lime', paused: 'purple', complete: 'cream' };
 
   return (
-    <div className="space-y-6">
+    <>
+      {confirmModal}
+      <div className="space-y-6">
       <RetroWindow title="CREATE PLAYER DRAFT">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
@@ -1772,6 +1860,7 @@ function PlayerDraftPanel({ playerDrafts, seasons, teams, onRefresh }) {
         </RetroWindow>
       )}
     </div>
+    </>
   );
 }
 
@@ -1936,6 +2025,155 @@ function ReviewQueuePanel({ submissions, onRefresh }) {
   );
 }
 
+// ─── Change Requests Panel ────────────────────────────────────────────────────
+
+function ChangeRequestsPanel() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
+  const [busy, setBusy] = useState({});
+  const [rejectNote, setRejectNote] = useState({});
+  const [showRejectFor, setShowRejectFor] = useState(null);
+  const { confirm, modal: confirmModal } = useConfirm();
+
+  const load = async (status) => {
+    setLoading(true);
+    const data = await api(`/api/admin/change-requests?status=${status}`);
+    setRequests(Array.isArray(data) ? data : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(filter); }, [filter]);
+
+  const handleAction = async (id, action) => {
+    const note = rejectNote[id] ?? '';
+    if (action === 'reject' && !note.trim()) {
+      setShowRejectFor(id);
+      return;
+    }
+    if (action === 'approve') {
+      const ok = await confirm({ title: 'Approve Request', message: 'Apply this roster change now?', confirmLabel: 'Approve', variant: 'warning' });
+      if (!ok) return;
+    }
+    setBusy((b) => ({ ...b, [id]: true }));
+    await patchJson(`/api/admin/change-requests/${id}`, { action, reviewNote: note || undefined });
+    setBusy((b) => ({ ...b, [id]: false }));
+    setShowRejectFor(null);
+    setRejectNote((n) => { const next = { ...n }; delete next[id]; return next; });
+    load(filter);
+  };
+
+  return (
+    <>
+      {confirmModal}
+      <RetroWindow title="ROSTER CHANGE REQUESTS">
+        <div className="flex gap-2 mb-4">
+          {['pending', 'approved', 'rejected', 'all'].map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`font-mono text-[10px] uppercase px-3 py-1 border-2 ${filter === s ? 'border-frh-yellow text-frh-yellow' : 'border-frh-border text-gray-500'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+        {loading && <p className="font-mono text-xs text-gray-500">Loading…</p>}
+        {!loading && requests.length === 0 && <p className="font-mono text-xs text-gray-500">No {filter} requests.</p>}
+        <div className="space-y-3">
+          {requests.map((r) => {
+            const p = r.payload ?? {};
+            const typeColor = r.type === 'ROSTER_ADD' ? 'text-frh-lime' : 'text-orange-400';
+            return (
+              <div key={r.id} className="border-2 border-frh-border p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`font-ui text-xs uppercase ${typeColor}`}>{r.type === 'ROSTER_ADD' ? '➕ Add' : '➖ Remove'}</span>
+                  <PixelBadge label={r.team?.tag ?? '?'} color="cream" />
+                  <PixelBadge label={r.status} color={{ pending: 'blue', approved: 'lime', rejected: 'orange' }[r.status] ?? 'cream'} />
+                </div>
+                <p className="font-mono text-xs text-frh-text">
+                  <span className="text-frh-yellow">{p.playerName}</span>
+                  {p.role && <span className="text-gray-400"> · {p.role}</span>}
+                  {' · by '}<span className="text-gray-400">{r.requestedByName}</span>
+                </p>
+                {p.reason && <p className="font-mono text-[10px] text-gray-500">Reason: {p.reason}</p>}
+                {r.status === 'pending' && (
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <BrutalButton size="sm" variant="primary" disabled={busy[r.id]} onClick={() => handleAction(r.id, 'approve')}>Approve</BrutalButton>
+                    {showRejectFor === r.id ? (
+                      <>
+                        <input
+                          className="input-field text-xs px-2 py-1 flex-1 min-w-0"
+                          placeholder="Rejection reason (required)"
+                          value={rejectNote[r.id] ?? ''}
+                          onChange={(e) => setRejectNote((n) => ({ ...n, [r.id]: e.target.value }))}
+                        />
+                        <BrutalButton size="sm" variant="danger" disabled={busy[r.id] || !(rejectNote[r.id] ?? '').trim()} onClick={() => handleAction(r.id, 'reject')}>Confirm Reject</BrutalButton>
+                        <BrutalButton size="sm" variant="secondary" onClick={() => setShowRejectFor(null)}>Cancel</BrutalButton>
+                      </>
+                    ) : (
+                      <BrutalButton size="sm" variant="danger" disabled={busy[r.id]} onClick={() => setShowRejectFor(r.id)}>Reject</BrutalButton>
+                    )}
+                  </div>
+                )}
+                {r.status !== 'pending' && r.reviewedByName && (
+                  <p className="font-mono text-[10px] text-gray-500">{r.status === 'approved' ? '✓' : '✗'} by {r.reviewedByName}{r.reviewNote ? ` — ${r.reviewNote}` : ''}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </RetroWindow>
+    </>
+  );
+}
+
+// ─── Suggested Superlatives Panel ─────────────────────────────────────────────
+
+function SuggestedSuperlativesPanel() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState({});
+
+  const load = async () => {
+    setLoading(true);
+    const data = await api('/api/admin/superlatives?status=suggested');
+    setItems(Array.isArray(data) ? data : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAction = async (id, action) => {
+    setBusy((b) => ({ ...b, [id]: true }));
+    const status = action === 'approve' ? 'active' : 'archived';
+    await patchJson(`/api/admin/superlatives/${id}`, { status });
+    setBusy((b) => ({ ...b, [id]: false }));
+    load();
+  };
+
+  return (
+    <RetroWindow title="SUGGESTED SUPERLATIVES">
+      {loading && <p className="font-mono text-xs text-gray-500">Loading…</p>}
+      {!loading && items.length === 0 && <p className="font-mono text-xs text-gray-500">No pending superlative suggestions.</p>}
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div key={item.id} className="border-2 border-frh-border p-3 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-ui text-xs uppercase text-frh-yellow">{item.title}</span>
+              <PixelBadge label="suggested" color="blue" />
+            </div>
+            {item.description && <p className="font-mono text-xs text-frh-text">{item.description}</p>}
+            {item.nominee && <p className="font-mono text-xs text-frh-text">Nominee: {item.nominee}</p>}
+            <p className="font-mono text-[10px] text-gray-500">Suggested by: {item.suggestedBy ?? 'anonymous'}</p>
+            <div className="flex gap-2">
+              <BrutalButton size="sm" variant="primary" disabled={busy[item.id]} onClick={() => handleAction(item.id, 'approve')}>Approve</BrutalButton>
+              <BrutalButton size="sm" variant="danger" disabled={busy[item.id]} onClick={() => handleAction(item.id, 'reject')}>Reject</BrutalButton>
+            </div>
+          </div>
+        ))}
+      </div>
+    </RetroWindow>
+  );
+}
+
 // ─── Gods Panel ──────────────────────────────────────
 
 function GodsPanel({ gods, onRefresh }) {
@@ -1944,6 +2182,7 @@ function GodsPanel({ gods, onRefresh }) {
   const [form, setForm] = useState({ name: '', role: 'Mage', godClass: 'Magical' });
   const [filterRole, setFilterRole] = useState('All');
   const [busy, setBusy] = useState(false);
+  const { confirm, modal: confirmModal } = useConfirm();
 
   const reset = () => { setForm({ name: '', role: 'Mage', godClass: 'Magical' }); setEditId(null); setShowForm(false); };
 
@@ -1959,7 +2198,8 @@ function GodsPanel({ gods, onRefresh }) {
   const edit = (g) => { setForm({ name: g.name, role: g.role, godClass: g.godClass }); setEditId(g.id); setShowForm(true); };
 
   const remove = async (id) => {
-    if (!confirm('Delete this god?')) return;
+    const ok = await confirm({ title: 'Delete God', message: 'Permanently delete this god from the pool? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     const result = await del(`/api/gods?id=${id}`);
     if (result.error) { alert(result.error); return; }
     onRefresh();
@@ -1968,7 +2208,9 @@ function GodsPanel({ gods, onRefresh }) {
   const filtered = filterRole === 'All' ? gods : gods.filter((g) => g.role === filterRole);
 
   return (
-    <RetroWindow title="GOD DATABASE">
+    <>
+      {confirmModal}
+      <RetroWindow title="GOD DATABASE">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow">Gods ({gods.length})</h2>
         <BrutalButton onClick={() => { reset(); setShowForm(!showForm); }} size="sm">{showForm ? 'Cancel' : '+ Add God'}</BrutalButton>
@@ -2018,6 +2260,7 @@ function GodsPanel({ gods, onRefresh }) {
         </table>
       </div>
     </RetroWindow>
+    </>
   );
 }
 
@@ -2029,6 +2272,7 @@ function GodsPanel({ gods, onRefresh }) {
 function HomepageEditorPanel() {
   const [status, setStatus] = useState(null); // null | { hasDraft, hasPublished, publishedAt, savedAt }
   const [loading, setLoading] = useState(false);
+  const { confirm, modal: confirmModal } = useConfirm();
 
   const loadStatus = async () => {
     setLoading(true);
@@ -2049,7 +2293,8 @@ function HomepageEditorPanel() {
   };
 
   const handleResetPublished = async () => {
-    if (!confirm('Revert the public homepage to hardcoded defaults? This deletes the published row.')) return;
+    const ok = await confirm({ title: 'Revert Homepage', message: 'Revert the public homepage to hardcoded defaults? This deletes the published row permanently.', confirmLabel: 'Revert', variant: 'danger' });
+    if (!ok) return;
     await fetch('/api/admin/homepage-content?target=published', { method: 'DELETE' });
     await loadStatus();
   };
@@ -2060,7 +2305,9 @@ function HomepageEditorPanel() {
   };
 
   return (
-    <RetroWindow title="HOMEPAGE EDITOR">
+    <>
+      {confirmModal}
+      <RetroWindow title="HOMEPAGE EDITOR">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Homepage Editorial Content</h2>
@@ -2124,5 +2371,6 @@ function HomepageEditorPanel() {
         </div>
       </div>
     </RetroWindow>
+    </>
   );
 }

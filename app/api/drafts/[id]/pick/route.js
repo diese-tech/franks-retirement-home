@@ -4,6 +4,7 @@ import { resolveRole } from '@/lib/draftAuth';
 import { currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
 import { addUsedGodId, readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,6 +142,12 @@ export async function POST(request, { params }) {
       }
     }
     if (result.http) return result.http;
+    logAudit({
+      entity: 'DraftPick',
+      entityId: params.id,
+      action: 'pick_recorded',
+      payload: { godId, slot: pickId },
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e?.code === 'P2002') return NextResponse.json({ error: 'That god is already in this draft' }, { status: 409 });

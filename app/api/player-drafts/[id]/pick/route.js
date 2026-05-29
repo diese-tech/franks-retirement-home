@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { buildPlayerDraftFormat, getFirstDraftTurn, getNextDraftTurn, totalPicks } from '@/lib/playerDraftOrder';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,7 +137,15 @@ export async function POST(req, { params }) {
         },
       });
 
-      return { draft: updated, nextTurn, isComplete };
+      return { draft: updated, nextTurn, isComplete, pickNumber, teamId, playerId };
+    });
+
+    logAudit({
+      entity: 'PlayerDraftPick',
+      entityId: params.id,
+      action: 'pick_recorded',
+      adminId: isAdmin ? 'admin' : body.teamId,
+      payload: { teamId: result.teamId, playerId: result.playerId, pickNumber: result.pickNumber },
     });
 
     return NextResponse.json(result);
