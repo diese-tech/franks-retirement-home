@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
 import { ROLE_COLORS } from '@/lib/constants';
 import { flattenFormat } from '@/lib/playerDraftOrder';
@@ -131,7 +132,9 @@ export default function PlayerDraftClient({
   isAdmin,
   captainTeamId,
   divisionTeams,
+  isAuthenticated,
 }) {
+  const pathname = usePathname();
   const [state, setState] = useState(initialState);
   const [connected, setConnected] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -271,6 +274,31 @@ export default function PlayerDraftClient({
         {draft.status === 'complete' && (
           <div className="border-2 border-green-700 px-4 py-3 bg-green-900/10 text-center">
             <p className="font-mono text-xs text-green-400">Draft is complete! All picks are final.</p>
+          </div>
+        )}
+
+        {/* Access banner: shown when viewer has no captain rights for this draft */}
+        {!isAdmin && !captainTeamId && (
+          <div className="border-2 border-yellow-700 px-4 py-3 bg-yellow-900/10 text-center space-y-2">
+            {!isAuthenticated ? (
+              <>
+                <p className="font-mono text-xs text-yellow-400">
+                  Log in with Discord to participate as a captain.
+                </p>
+                <Link
+                  href={`/api/auth/discord?returnUrl=${encodeURIComponent(pathname)}`}
+                  prefetch={false}
+                  className="inline-block font-mono text-[11px] px-3 py-1.5 border border-yellow-600 text-yellow-400 hover:bg-yellow-900/30"
+                >
+                  Login with Discord
+                </Link>
+              </>
+            ) : (
+              <p className="font-mono text-xs text-yellow-400">
+                You are not a captain for the <strong>{draft.division?.name}</strong> division.
+                {' '}Viewing as spectator.
+              </p>
+            )}
           </div>
         )}
 

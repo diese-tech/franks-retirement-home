@@ -142,19 +142,20 @@ export default function Nav() {
             Login
           </Link>
         )}
-        <button
-          ref={hamRef}
-          className="frh-menubar__ham"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-          aria-expanded={open}
-          aria-controls="nav-drawer"
-        >
-          <span />
-          <span />
-          <span />
-        </button>
       </div>
+
+      <button
+        ref={hamRef}
+        className="frh-menubar__ham"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Toggle menu"
+        aria-expanded={open}
+        aria-controls="nav-drawer"
+      >
+        <span />
+        <span />
+        <span />
+      </button>
 
       {open && (
         <div ref={drawerRef} id="nav-drawer" className="frh-menubar__drawer">

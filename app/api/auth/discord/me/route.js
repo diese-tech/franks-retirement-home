@@ -3,6 +3,7 @@ import {
   getDiscordSessionUser,
   hasDiscordAdminRole,
   resolveTeamFromRoles,
+  resolveDivisionFromRoles,
 } from '@/lib/discordAuth';
 
 export const dynamic = 'force-dynamic';
@@ -20,5 +21,6 @@ export async function GET(request) {
     username: session.username,
     isAdmin: hasDiscordAdminRole(session.roles),
     teamId: resolveTeamFromRoles(session.roles),
+    divisionId: resolveDivisionFromRoles(session.roles),
   });
 }
