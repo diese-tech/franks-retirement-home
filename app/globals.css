@@ -168,14 +168,23 @@ html:not(.dark) body {
 }
 .frh-menubar__ham {
   display: none;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 5px;
   padding: 6px 14px;
-  font-size: 18px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--frh-text);
   border-left: 1px solid var(--frh-border);
+}
+.frh-menubar__ham span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  pointer-events: none;
 }
 .frh-menubar__drawer {
   position: absolute;

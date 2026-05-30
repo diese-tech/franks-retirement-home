@@ -112,6 +112,14 @@ export async function POST(req, { params }) {
       });
       if (existingPick) throw Object.assign(new Error('Player already drafted'), { status: 409 });
 
+      // Check player isn't already assigned to a team in this division (e.g. a captain)
+      const existingMembership = await tx.teamMember.findFirst({
+        where: { playerId, team: { divisionId: draft.divisionId } },
+      });
+      if (existingMembership) {
+        throw Object.assign(new Error('Player is already assigned to a team in this division'), { status: 409 });
+      }
+
       const pickNumber = draft.currentPickIndex + 1;
       const nextIndex = pickNumber;
       const isComplete = nextIndex >= total;
