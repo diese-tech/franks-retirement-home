@@ -31,7 +31,7 @@ vi.mock('@/lib/db', () => {
     playerDraft: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
     playerDraftPick: { findUnique: vi.fn(), create: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
     player: { findUnique: vi.fn() },
-    teamMember: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    teamMember: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   };
   return { default: prisma };
@@ -68,6 +68,8 @@ const MOCK_PLAYER = { id: 'player-1', name: 'Zapman', role: 'Carry', division: '
 beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockReturnValue(null); // authorized
+  // Default: player is not already a team member (no pre-assigned/captain block)
+  prisma.teamMember.findFirst.mockResolvedValue(null);
 });
 
 // ─── Pick route ───────────────────────────────────────────────────────────────
@@ -143,6 +145,18 @@ describe('POST /api/player-drafts/[id]/pick', () => {
     prisma.playerDraftPick.findUnique.mockResolvedValue({ id: 'pick-1', playerId: 'player-1' });
     const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'player-1' }), PARAMS);
     expect(unwrap(res).status).toBe(409);
+  });
+
+  it('returns 409 when player is already a team member in the division (e.g. a captain)', async () => {
+    prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
+    prisma.playerDraft.findUnique.mockResolvedValue(MOCK_DRAFT);
+    prisma.player.findUnique.mockResolvedValue(MOCK_PLAYER);
+    prisma.playerDraftPick.findUnique.mockResolvedValue(null); // not yet picked
+    // But they already have a TeamMember row in this division (captain/pre-assigned)
+    prisma.teamMember.findFirst.mockResolvedValue({ id: 'tm-1', playerId: 'player-1', teamId: 'T1', isCaptain: true });
+    const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'player-1' }), PARAMS);
+    expect(unwrap(res).status).toBe(409);
+    expect(unwrap(res).body.error).toMatch(/already assigned/i);
   });
 
   it('division constraint is strict equality — Hospice != Rehabilitation', async () => {

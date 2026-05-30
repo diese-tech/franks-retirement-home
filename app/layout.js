@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
         >
           Skip to main content
         </a>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var s=localStorage.getItem('frh-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||(s===null&&d)){document.documentElement.classList.add('dark');}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){if(localStorage.getItem('frh-theme')==='dark'){document.documentElement.classList.add('dark');}})();` }} />
         <IntroScreen />
         <Nav />
         <main id="main-content" className="min-h-[calc(100vh-3.5rem)]">{children}</main>
