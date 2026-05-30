@@ -123,4 +123,35 @@ describe('Nav component', () => {
     );
     expect(adminLinks).toHaveLength(0);
   });
+
+  it('renders the hamburger button outside the right section so it is accessible on mobile', async () => {
+    mockFetchResponse({}, 401);
+    renderNav();
+    // Ham button must exist in the DOM
+    const ham = screen.getByRole('button', { name: /toggle menu/i });
+    expect(ham).toBeInTheDocument();
+    // The ham button must NOT be a descendant of .frh-menubar__right
+    // (if it were, display:none on the parent would hide it on mobile)
+    const rightSection = ham.closest('.frh-menubar__right');
+    expect(rightSection).toBeNull();
+  });
+
+  it('hamburger opens and closes the drawer', async () => {
+    mockFetchResponse({ username: 'TestUser', teamId: null, isAdmin: false });
+    renderNav();
+    const ham = screen.getByRole('button', { name: /toggle menu/i });
+    // Drawer closed initially
+    expect(screen.queryByRole('navigation', { hidden: true })?.querySelector('#nav-drawer')).toBeNull();
+    // Open drawer
+    ham.click();
+    await waitFor(() => {
+      expect(screen.getByText('Home')).toBeInTheDocument();
+    });
+    expect(ham).toHaveAttribute('aria-expanded', 'true');
+    // Close drawer
+    ham.click();
+    await waitFor(() => {
+      expect(ham).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
 });

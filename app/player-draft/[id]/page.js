@@ -16,25 +16,29 @@ export default async function PlayerDraftPage({ params }) {
 
   // Resolve the viewer's Discord session to find their captainTeamId in this draft
   let captainTeamId = null;
+  let isAuthenticated = false;
   try {
     const cookieStore = cookies();
     const rawCookie = cookieStore.get(DISCORD_SESSION_COOKIE)?.value ?? null;
     const session = getDiscordSessionFromRaw(rawCookie);
-    if (session && !isAdmin) {
-      const player = await prisma.player.findFirst({
-        where: { discordId: session.discordId },
-        select: { id: true },
-      });
-      if (player) {
-        const membership = await prisma.teamMember.findFirst({
-          where: {
-            playerId: player.id,
-            isCaptain: true,
-            team: { divisionId: state.draft.divisionId },
-          },
-          select: { teamId: true },
+    if (session) {
+      isAuthenticated = true;
+      if (!isAdmin) {
+        const player = await prisma.player.findFirst({
+          where: { discordId: session.discordId },
+          select: { id: true },
         });
-        captainTeamId = membership?.teamId ?? null;
+        if (player) {
+          const membership = await prisma.teamMember.findFirst({
+            where: {
+              playerId: player.id,
+              isCaptain: true,
+              team: { divisionId: state.draft.divisionId },
+            },
+            select: { teamId: true },
+          });
+          captainTeamId = membership?.teamId ?? null;
+        }
       }
     }
   } catch {
@@ -55,6 +59,7 @@ export default async function PlayerDraftPage({ params }) {
       isAdmin={isAdmin}
       captainTeamId={captainTeamId}
       divisionTeams={divisionTeams}
+      isAuthenticated={isAuthenticated}
     />
   );
 }

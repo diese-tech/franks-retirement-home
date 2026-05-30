@@ -230,11 +230,14 @@ export default function CaptainDashboardClient() {
       .catch((err) => setMatchesError(err.message))
       .finally(() => setMatchesLoading(false));
 
-    // Load player drafts for this captain's division
-    fetch('/api/player-drafts')
+    // Load player drafts scoped to this captain's division
+    const divisionId = authState.divisionId;
+    const draftUrl = divisionId
+      ? `/api/player-drafts?divisionId=${encodeURIComponent(divisionId)}`
+      : '/api/player-drafts';
+    fetch(draftUrl)
       .then((res) => res.ok ? res.json() : [])
       .then((drafts) => {
-        // Find an active or pending draft for this captain's team division
         const activeDraft = drafts.find(d => d.status === 'active' || d.status === 'paused' || d.status === 'pending');
         setPlayerDraft(activeDraft ?? null);
       })
