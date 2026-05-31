@@ -579,8 +579,8 @@ function PlayersPanel({ players, onRefresh }) {
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
+          <thead className="sticky top-0 bg-brand-800">
+            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-300 border-b border-brand-700/50">
               <th className="text-left py-2 px-2">Name</th>
               <th className="text-left py-2 px-2">Discord</th>
               <th className="text-left py-2 px-2">Role</th>
@@ -590,11 +590,11 @@ function PlayersPanel({ players, onRefresh }) {
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-brand-700/30 hover:bg-brand-700/20 transition-colors">
-                <td className="py-2 px-2 font-display font-medium text-gray-300">{p.name}</td>
-                <td className="py-2 px-2 text-xs text-gray-500 font-mono">{p.discordUsername || <span className="text-gray-700">—</span>}</td>
-                <td className="py-2 px-2"><span className={`text-[9px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[p.role]}`}>{p.role}</span></td>
-                <td className="py-2 px-2 text-xs text-gray-500">{p.division || <span className="text-gray-700">—</span>}</td>
+              <tr key={p.id} className="border-b border-frh-border/50 hover:bg-frh-surface-alt/40 transition-colors">
+                <td className="py-2 px-2 font-display font-medium text-frh-text">{p.name}</td>
+                <td className="py-2 px-2 text-xs text-frh-text-muted font-mono">{p.discordUsername || <span className="opacity-40">—</span>}</td>
+                <td className="py-2 px-2"><span className={`text-[10px] font-display font-bold uppercase px-1.5 py-0.5 rounded ${ROLE_COLORS[p.role]}`}>{p.role}</span></td>
+                <td className="py-2 px-2 text-xs text-frh-text-muted">{p.division || <span className="opacity-40">—</span>}</td>
                 <td className="py-2 px-2 text-right">
                   <div className="flex justify-end gap-2">
                     <BrutalButton onClick={() => edit(p)} variant="secondary" size="sm">Edit</BrutalButton>
@@ -2285,7 +2285,7 @@ function GodsPanel({ gods, onRefresh }) {
       <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-brand-800">
-            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-500 border-b border-brand-600/30">
+            <tr className="text-[10px] font-ui uppercase tracking-widest text-gray-300 border-b border-brand-700/50">
               <th className="text-left py-2 px-2">Name</th>
               <th className="text-left py-2 px-2">Role</th>
               <th className="text-left py-2 px-2">Class</th>
@@ -2294,10 +2294,10 @@ function GodsPanel({ gods, onRefresh }) {
           </thead>
           <tbody>
             {filtered.map((g) => (
-              <tr key={g.id} className="border-b border-brand-700/30 hover:bg-brand-700/20 transition-colors">
-                <td className="py-2 px-2 font-display font-medium text-gray-300">{g.name}</td>
-                <td className="py-2 px-2 text-gray-500">{g.role}</td>
-                <td className="py-2 px-2 text-gray-500">{g.godClass}</td>
+              <tr key={g.id} className="border-b border-frh-border/50 hover:bg-frh-surface-alt/40 transition-colors">
+                <td className="py-2 px-2 font-display font-medium text-frh-text">{g.name}</td>
+                <td className="py-2 px-2 text-frh-text-muted">{g.role}</td>
+                <td className="py-2 px-2 text-frh-text-muted">{g.godClass}</td>
                 <td className="py-2 px-2 text-right">
                   <div className="flex justify-end gap-2"><BrutalButton onClick={() => edit(g)} variant="secondary" size="sm">Edit</BrutalButton><BrutalButton onClick={() => remove(g.id)} variant="danger" size="sm">Delete</BrutalButton></div>
                 </td>

@@ -10,9 +10,9 @@ const DIVISION_COLORS = { Hospice: 'purple', Rehabilitation: 'blue' };
 function WinLoss({ wins, losses }) {
   return (
     <span className="font-mono text-sm">
-      <span className="text-green-400 font-bold">{wins}</span>
+      <span className="text-green-700 dark:text-green-400 font-bold">{wins}</span>
       <span className="text-frh-text-muted">–</span>
-      <span className="text-red-400 font-bold">{losses}</span>
+      <span className="text-red-600 dark:text-red-400 font-bold">{losses}</span>
     </span>
   );
 }
@@ -43,7 +43,7 @@ function StandingsTable({ rows, divisionName }) {
           {rows.map((row, i) => (
             <tr
               key={row.teamId}
-              className={`border-b border-frh-border/40 hover:bg-frh-surface-alt/20 transition-colors ${i === 0 ? 'bg-frh-yellow/5' : ''}`}
+              className={`border-b border-frh-border/60 hover:bg-frh-surface-alt/60 transition-colors ${i === 0 ? 'bg-frh-yellow/5' : ''}`}
             >
               <td className="py-3 px-3">
                 <span className={`font-ui text-xs ${i === 0 ? 'text-frh-yellow font-bold' : 'text-frh-text-muted'}`}>
@@ -62,13 +62,13 @@ function StandingsTable({ rows, divisionName }) {
               <td className="py-3 px-3 text-center font-mono text-xs text-frh-text-muted">{row.played}</td>
               <td className="py-3 px-3 text-center">
                 <span className="font-mono text-xs">
-                  <span className="text-green-400">{row.gameWins}</span>
+                  <span className="text-green-700 dark:text-green-400">{row.gameWins}</span>
                   <span className="text-frh-text-muted">–</span>
-                  <span className="text-red-400">{row.gameLosses}</span>
+                  <span className="text-red-600 dark:text-red-400">{row.gameLosses}</span>
                 </span>
               </td>
               <td className="py-3 px-3 text-center hidden sm:table-cell">
-                <span className={`font-mono text-xs font-bold ${row.gameDiff > 0 ? 'text-green-400' : row.gameDiff < 0 ? 'text-red-400' : 'text-frh-text-muted'}`}>
+                <span className={`font-mono text-xs font-bold ${row.gameDiff > 0 ? 'text-green-700 dark:text-green-400' : row.gameDiff < 0 ? 'text-red-600 dark:text-red-400' : 'text-frh-text-muted'}`}>
                   {row.gameDiff > 0 ? '+' : ''}{row.gameDiff}
                 </span>
               </td>
