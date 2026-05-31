@@ -95,6 +95,7 @@ function Toast({ message, kind = 'success', onDismiss }) {
 
 export default function HomepageWrapper({
   isAdmin,
+  forcePublicPreview = false,
   editableContent,
   // DB-driven props passed through to HomepageClient
   activeSeason, liveMatches, upcomingMatches, recentDrafts,
@@ -215,8 +216,9 @@ export default function HomepageWrapper({
   };
 
   // Floating toggle shown to admins in all states
-  const editToggle = isAdmin && (
+  const editToggle = isAdmin && !forcePublicPreview && (
     <button
+      data-testid="homepage-edit-toggle"
       onClick={() => setIsEditing(e => !e)}
       title={isEditing ? 'Exit editor' : 'Edit homepage'}
       style={{
@@ -235,7 +237,7 @@ export default function HomepageWrapper({
     </button>
   );
 
-  if (!isAdmin || !isEditing) {
+  if (forcePublicPreview || !isAdmin || !isEditing) {
     return (
       <>
         <HomepageClient mode="public" editableContent={content} {...dbProps} />
