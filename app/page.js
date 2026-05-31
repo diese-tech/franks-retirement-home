@@ -220,6 +220,7 @@ export default async function HomePage({ searchParams }) {
   // ── Discord admin check — determines whether to render editor mode ─────────
   let isAdmin = false;
   try { isAdmin = isDiscordAdminFromCookies(); } catch { /* cookies() may throw outside request context */ }
+  const forcePublicPreview = isAdmin && searchParams?.preview === 'draft';
 
   // ── Editorial content ──────────────────────────────────────────────────────
   // Admins always see the draft (so they edit the pre-publish version).
@@ -234,7 +235,7 @@ export default async function HomePage({ searchParams }) {
   let liveEditorialCases = [];
   let liveBettingLines = [];
   try {
-    if (isAdmin) {
+    if (isAdmin && !forcePublicPreview) {
       const rows = await prisma.homepageContent.findMany({
         where: { status: { in: ['draft', 'published'] } },
       });
@@ -248,7 +249,7 @@ export default async function HomePage({ searchParams }) {
     } else {
       let sessionExists = false;
       try { sessionExists = hasDiscordSession(); } catch {}
-      const previewDraft = !isAdmin && sessionExists && searchParams?.preview === 'draft';
+      const previewDraft = searchParams?.preview === 'draft' && (isAdmin || sessionExists);
       const contentStatus = previewDraft ? 'draft' : 'published';
       const dbRow = await prisma.homepageContent.findUnique({ where: { status: contentStatus } });
       editableContent = mergeWithDefaults(dbRow);
@@ -425,6 +426,7 @@ export default async function HomePage({ searchParams }) {
   return (
     <HomepageWrapper
       isAdmin={isAdmin}
+      forcePublicPreview={forcePublicPreview}
       editableContent={editableContent}
       hasDraft={hasDraft}
       hasPublished={hasPublished}

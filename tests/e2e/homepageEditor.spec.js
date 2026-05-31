@@ -1,18 +1,11 @@
 /**
- * E2E: Homepage inline editor — Discord admin gate
+ * E2E: Homepage editor - Discord admin gate
  *
- * Injects a real HMAC-signed frh_discord_session cookie to simulate Discord login
- * without needing an actual OAuth flow. Uses DISCORD_SESSION_SECRET from env.
- *
- * Test structure:
- *  - Admin user  → sees sticky editor toolbar, can edit inline fields
- *  - No cookie   → sees only public homepage (no toolbar)
- *  - Captain     → has Discord session but no admin role, sees no toolbar
+ * Injects a signed frh_discord_session cookie to simulate Discord login
+ * without needing the OAuth flow.
  */
 import { test, expect } from '@playwright/test';
 import { createHmac } from 'node:crypto';
-
-// ─── Cookie helper ───────────────────────────────────────────────────────────
 
 const COOKIE_NAME = 'frh_discord_session';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -35,7 +28,6 @@ function adminCookie() {
 }
 
 function captainCookie() {
-  // Has a valid Discord session but NOT the admin role
   return mintSessionCookie({ discordId: 'captain-1', username: 'CaptainUser', roles: ['captain-role-only'] });
 }
 
@@ -61,28 +53,29 @@ async function setCaptainCookie(context) {
   }]);
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
-
-test.describe('Homepage editor — admin user', () => {
+test.describe('Homepage editor - admin user', () => {
   test.beforeEach(async ({ context }) => {
     await setAdminCookie(context);
   });
 
-  test('admin sees sticky editor toolbar on homepage', async ({ page }) => {
+  test('admin sees edit toggle on homepage', async ({ page }) => {
     await page.goto('/');
+    await expect(page.locator('[data-testid="homepage-edit-toggle"]')).toBeVisible();
+  });
+
+  test('admin can enter editor mode from homepage', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('[data-testid="homepage-edit-toggle"]').click();
+
     const toolbar = page.locator('[data-testid="editor-toolbar"]');
     await expect(toolbar).toBeVisible();
-    await expect(toolbar.locator('text=Save Draft')).toBeVisible();
-    await expect(toolbar.locator('text=Publish')).toBeVisible();
-    await expect(toolbar.locator('text=Reset to Default')).toBeVisible();
-  });
-
-  test('admin editor mode banner is visible', async ({ page }) => {
-    await page.goto('/');
     await expect(page.locator('text=ADMIN EDITOR MODE')).toBeVisible();
+    await expect(page.locator('button:has-text("Save")')).toBeVisible();
+    await expect(page.locator('button:has-text("Publish")')).toBeVisible();
+    await expect(page.locator('button:has-text("Reset")')).toBeVisible();
   });
 
-  test('Save Draft button calls homepage-content API', async ({ page }) => {
+  test('save button calls homepage-content API', async ({ page }) => {
     const requests = [];
     page.on('request', req => {
       if (req.url().includes('/api/admin/homepage-content') && req.method() === 'POST') {
@@ -91,40 +84,38 @@ test.describe('Homepage editor — admin user', () => {
     });
 
     await page.goto('/');
-    const toolbar = page.locator('[data-testid="editor-toolbar"]');
-    await expect(toolbar).toBeVisible();
-    await page.locator('button:has-text("Save Draft")').first().click();
+    await page.locator('[data-testid="homepage-edit-toggle"]').click();
+    await expect(page.locator('[data-testid="editor-toolbar"]')).toBeVisible();
+    await page.locator('button:has-text("Save")').first().click();
 
-    // Wait for network request (or status change)
     await page.waitForTimeout(1000);
 
-    // API was called or toolbar shows a save-related state
     const hasSavedText = await page.locator('text=Draft saved').isVisible().catch(() => false);
-    const apiCalled = requests.length > 0;
-    expect(hasSavedText || apiCalled).toBe(true);
+    expect(hasSavedText || requests.length > 0).toBe(true);
   });
 
-  test('Preview button opens /?preview=draft in new tab', async ({ page, context }) => {
+  test('preview button opens draft in a public preview mode', async ({ page, context }) => {
     await page.goto('/');
+    await page.locator('[data-testid="homepage-edit-toggle"]').click();
+
     const [newTab] = await Promise.all([
       context.waitForEvent('page'),
-      page.locator('button:has-text("Preview Public")').click(),
+      page.locator('button:has-text("Preview")').click(),
     ]);
-    await expect(newTab.url()).toContain('preview=draft');
+
+    await expect(newTab).toHaveURL(/preview=draft/);
+    await expect(newTab.locator('[data-testid="editor-toolbar"]')).not.toBeVisible();
+    await expect(newTab.locator('[data-testid="homepage-edit-toggle"]')).not.toBeVisible();
+    await expect(newTab.locator('text=ADMIN EDITOR MODE')).not.toBeVisible();
     await newTab.close();
   });
 });
 
-test.describe('Homepage editor — non-admin user (no cookie)', () => {
-  test('public visitor sees no editor toolbar', async ({ page }) => {
-    // No cookie set — pure public visitor
+test.describe('Homepage editor - non-admin user', () => {
+  test('public visitor sees no editor controls', async ({ page }) => {
     await page.goto('/');
-    const toolbar = page.locator('[data-testid="editor-toolbar"]');
-    await expect(toolbar).not.toBeVisible();
-  });
-
-  test('public visitor sees no ADMIN EDITOR MODE banner', async ({ page }) => {
-    await page.goto('/');
+    await expect(page.locator('[data-testid="editor-toolbar"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="homepage-edit-toggle"]')).not.toBeVisible();
     await expect(page.locator('text=ADMIN EDITOR MODE')).not.toBeVisible();
   });
 
@@ -135,14 +126,14 @@ test.describe('Homepage editor — non-admin user (no cookie)', () => {
   });
 });
 
-test.describe('Homepage editor — captain (non-admin Discord session)', () => {
+test.describe('Homepage editor - captain user', () => {
   test.beforeEach(async ({ context }) => {
     await setCaptainCookie(context);
   });
 
-  test('captain with non-admin role sees no editor toolbar', async ({ page }) => {
+  test('captain with non-admin role sees no editor controls', async ({ page }) => {
     await page.goto('/');
-    const toolbar = page.locator('[data-testid="editor-toolbar"]');
-    await expect(toolbar).not.toBeVisible();
+    await expect(page.locator('[data-testid="editor-toolbar"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="homepage-edit-toggle"]')).not.toBeVisible();
   });
 });
