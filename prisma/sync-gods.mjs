@@ -263,6 +263,13 @@ const gods = [
     "needsReview": false
   },
   {
+    "id": "horus",
+    "name": "Horus",
+    "role": "Warrior",
+    "godClass": "Physical",
+    "needsReview": false
+  },
+  {
     "id": "hou-yi",
     "name": "Hou Yi",
     "role": "Hunter",
