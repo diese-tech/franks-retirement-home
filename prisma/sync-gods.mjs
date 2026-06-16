@@ -123,6 +123,13 @@ const gods = [
     "needsReview": false
   },
   {
+    "id": "bastet",
+    "name": "Bastet",
+    "role": "Assassin",
+    "godClass": "Physical",
+    "needsReview": false
+  },
+  {
     "id": "bellona",
     "name": "Bellona",
     "role": "Warrior",
