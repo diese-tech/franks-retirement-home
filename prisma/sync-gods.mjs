@@ -179,6 +179,13 @@ const gods = [
     "needsReview": false
   },
   {
+    "id": "chronos",
+    "name": "Chronos",
+    "role": "Mage",
+    "godClass": "Magical",
+    "needsReview": true
+  },
+  {
     "id": "cupid",
     "name": "Cupid",
     "role": "Hunter",
