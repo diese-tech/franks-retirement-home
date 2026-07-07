@@ -16,8 +16,15 @@ export async function POST(req) {
   const signature = req.headers.get('x-forgelens-signature');
   const secret = process.env.FORGELENS_HMAC_SECRET;
 
-  // Always verify signature if secret is configured
-  if (secret) {
+  // Fail closed: without a shared secret there is no way to authenticate the
+  // caller, and this endpoint writes staging stat rows. Only skip verification
+  // in non-production so local development works without a worker.
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[forgelens/callback] FORGELENS_HMAC_SECRET is not set — rejecting callback');
+      return NextResponse.json({ error: 'ForgeLens not configured' }, { status: 503 });
+    }
+  } else {
     if (!signature) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
