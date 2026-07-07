@@ -26,6 +26,8 @@ jobs:
 
       - run: npm run lint
 
+      - run: npm test
+
       - run: npm run build
         env:
           DATABASE_URL: "postgresql://fake:fake@localhost:5432/fake"
