@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,12 @@ export async function POST(request) {
       { error: 'Are you an editor? Hmm, didn’t think so... log in to place a bet.' },
       { status: 401 },
     );
+  }
+
+  // 10 bets per minute per Discord identity.
+  const { allowed } = await checkRateLimit(`bets:${session.discordId}`, 10, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Slow down — too many bets. Try again in a minute.' }, { status: 429 });
   }
 
   let body;
@@ -103,13 +110,21 @@ export async function POST(request) {
       if (wallet.status === 'suspended') {
         throw Object.assign(new Error('Wallet suspended'), { httpStatus: 403 });
       }
-      if (wallet.balance < stake) {
+
+      // 3. Deduct the stake with a conditional atomic decrement. The balance
+      // read above can be stale under concurrent bets (READ COMMITTED lost
+      // update), so the WHERE clause — not the read — is the spend guard.
+      const debited = await tx.wallet.updateMany({
+        where: { id: wallet.id, status: 'active', balance: { gte: stake } },
+        data: { balance: { decrement: stake } },
+      });
+      if (debited.count === 0) {
         throw Object.assign(new Error('Insufficient points'), { httpStatus: 409 });
       }
-
-      // 3. Deduct stake and record the ledger entry.
-      const newBalance = wallet.balance - stake;
-      await tx.wallet.update({ where: { id: wallet.id }, data: { balance: newBalance } });
+      const { balance: newBalance } = await tx.wallet.findUnique({
+        where: { id: wallet.id },
+        select: { balance: true },
+      });
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
