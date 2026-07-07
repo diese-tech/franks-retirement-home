@@ -13,7 +13,8 @@ vi.mock('@/lib/discordAuth', () => ({
 
 const { cookies } = await import('next/headers');
 const { getDiscordSessionFromRaw, hasDiscordAdminRole } = await import('@/lib/discordAuth');
-const { isDiscordAdminFromCookies, hasDiscordSession } = await import('@/lib/serverAuth');
+const { isDiscordAdminFromCookies, hasDiscordSession, isAdminFromCookies } = await import('@/lib/serverAuth');
+const { createSessionToken, SESSION_COOKIE_NAME } = await import('@/lib/adminSession');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -60,6 +61,60 @@ describe('isDiscordAdminFromCookies', () => {
 
     expect(isDiscordAdminFromCookies()).toBe(false);
     expect(hasDiscordAdminRole).not.toHaveBeenCalled();
+  });
+});
+
+// ─── isAdminFromCookies ───────────────────────────────────────────────────────
+
+describe('isAdminFromCookies', () => {
+  it('returns true for a Discord admin session', () => {
+    cookies.mockReturnValue({ get: (name) => name === 'frh_discord_session' ? { value: 'valid.cookie' } : undefined });
+    getDiscordSessionFromRaw.mockReturnValue({ discordId: 'u1', username: 'Admin', roles: ['admin-role'] });
+    hasDiscordAdminRole.mockReturnValue(true);
+
+    expect(isAdminFromCookies()).toBe(true);
+  });
+
+  it('returns true for a valid admin password session cookie', () => {
+    const token = createSessionToken();
+    cookies.mockReturnValue({ get: (name) => name === SESSION_COOKIE_NAME ? { value: token } : undefined });
+    getDiscordSessionFromRaw.mockReturnValue(null);
+    hasDiscordAdminRole.mockReturnValue(false);
+
+    expect(isAdminFromCookies()).toBe(true);
+  });
+
+  it('returns false when neither cookie is present', () => {
+    cookies.mockReturnValue({ get: () => undefined });
+
+    expect(isAdminFromCookies()).toBe(false);
+  });
+
+  it('returns false for a tampered admin session token', () => {
+    const token = createSessionToken();
+    const tampered = `${token}x`;
+    cookies.mockReturnValue({ get: (name) => name === SESSION_COOKIE_NAME ? { value: tampered } : undefined });
+    getDiscordSessionFromRaw.mockReturnValue(null);
+    hasDiscordAdminRole.mockReturnValue(false);
+
+    expect(isAdminFromCookies()).toBe(false);
+  });
+
+  it('returns false for an expired admin session token', () => {
+    const token = createSessionToken(Date.now() - 13 * 60 * 60 * 1000); // beyond 12h TTL
+    cookies.mockReturnValue({ get: (name) => name === SESSION_COOKIE_NAME ? { value: token } : undefined });
+    getDiscordSessionFromRaw.mockReturnValue(null);
+    hasDiscordAdminRole.mockReturnValue(false);
+
+    expect(isAdminFromCookies()).toBe(false);
+  });
+
+  it('returns false when Discord session exists but user is not admin and no password cookie', () => {
+    cookies.mockReturnValue({ get: (name) => name === 'frh_discord_session' ? { value: 'valid.cookie' } : undefined });
+    getDiscordSessionFromRaw.mockReturnValue({ discordId: 'u2', username: 'Captain', roles: ['captain-role'] });
+    hasDiscordAdminRole.mockReturnValue(false);
+
+    expect(isAdminFromCookies()).toBe(false);
   });
 });
 

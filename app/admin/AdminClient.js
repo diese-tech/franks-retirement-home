@@ -88,55 +88,7 @@ function RoleBadge({ role, secondary = false }) {
   );
 }
 
-function PasswordGate({ onAuthed }) {
-  const [pw, setPw] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    const res = await fetch('/api/admin-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
-    });
-    if (res.ok) {
-      sessionStorage.setItem('frh_admin', '1');
-      onAuthed();
-    } else {
-      setError('Incorrect password');
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <RetroWindow title="AUTHENTICATION REQUIRED" titleBarColor="blue" className="w-full max-w-sm">
-        <h1 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Admin Access</h1>
-        <p className="text-sm text-gray-500 mb-6">Enter the admin password to continue.</p>
-        <form onSubmit={submit} className="space-y-4">
-          <input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="Password"
-            className="input-field w-full"
-            autoFocus
-          />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <BrutalButton type="submit" disabled={busy || !pw} className="w-full">
-            {busy ? 'Checking...' : 'Enter the Compound'}
-          </BrutalButton>
-        </form>
-      </RetroWindow>
-    </div>
-  );
-}
-
 export default function AdminClient({ initialPlayers, initialGods, initialDrafts, initialSeasons = [], initialTeams = [], initialMatches = [], initialPlayerDrafts = [], initialSubmissions = [], overview = {} }) {
-  const [authed, setAuthed] = useState(false);
   const [players, setPlayers] = useState(initialPlayers);
   const [gods, setGods] = useState(initialGods);
   const [drafts, setDrafts] = useState(initialDrafts);
@@ -146,25 +98,6 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   const [playerDrafts, setPlayerDrafts] = useState(initialPlayerDrafts);
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState('drafts');
-
-  useEffect(() => {
-    if (sessionStorage.getItem('frh_admin') !== '1') return;
-    let cancelled = false;
-    fetch('/api/admin-auth', { method: 'GET' })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.status === 401) {
-          sessionStorage.removeItem('frh_admin');
-          setAuthed(false);
-        } else {
-          setAuthed(true);
-        }
-      })
-      .catch(() => { if (!cancelled) setAuthed(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  if (!authed) return <PasswordGate onAuthed={() => setAuthed(true)} />;
 
   const refreshPlayers = async () => setPlayers(await api('/api/players'));
   const refreshGods    = async () => setGods(await api('/api/gods'));

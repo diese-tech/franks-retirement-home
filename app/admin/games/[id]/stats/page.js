@@ -1,10 +1,16 @@
 import prisma from '@/lib/db';
 import { notFound } from 'next/navigation';
 import StatsEntryClient from './StatsEntryClient';
+import PasswordGate from '../../../PasswordGate';
+import { isAdminFromCookies } from '@/lib/serverAuth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function GameStatsPage({ params }) {
+  let isAdmin = false;
+  try { isAdmin = isAdminFromCookies(); } catch { /* cookies() may throw outside request context */ }
+  if (!isAdmin) return <PasswordGate />;
+
   const game = await prisma.game.findUnique({
     where: { id: params.id },
     include: {

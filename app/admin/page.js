@@ -1,10 +1,18 @@
 import prisma from '@/lib/db';
 import AdminClient from './AdminClient';
+import PasswordGate from './PasswordGate';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
+import { isAdminFromCookies } from '@/lib/serverAuth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
+  // Server-side gate: no admin session (Discord admin or password cookie)
+  // means no data is fetched or serialized into the RSC payload.
+  let isAdmin = false;
+  try { isAdmin = isAdminFromCookies(); } catch { /* cookies() may throw outside request context */ }
+  if (!isAdmin) return <PasswordGate />;
+
   let data = null;
   try {
     const players = await prisma.player.findMany({ orderBy: { name: 'asc' } });
