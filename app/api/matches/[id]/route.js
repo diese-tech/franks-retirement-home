@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { MATCH_STATUSES } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,18 @@ export async function PATCH(req, { params }) {
                   key === 'scheduledAt' && body[key] ? new Date(body[key]) :
                   body[key];
     }
+  }
+
+  // Status values drive standings computation — an off-list value would
+  // silently drop the match from (or wrongly include it in) standings.
+  if ('status' in data && !MATCH_STATUSES.includes(data.status)) {
+    return NextResponse.json(
+      { error: `status must be one of: ${MATCH_STATUSES.join(', ')}` },
+      { status: 400 },
+    );
+  }
+  if ('week' in data && !Number.isInteger(data.week)) {
+    return NextResponse.json({ error: 'week must be an integer' }, { status: 400 });
   }
 
   // Explicitly reject any attempt to mutate the eligibility anchor.

@@ -139,6 +139,9 @@ export async function POST(req) {
     if (e.code === 'P2003') {
       return NextResponse.json({ error: 'Invalid seasonId, divisionId, homeTeamId, or awayTeamId' }, { status: 400 });
     }
+    if (e.code === 'P2002') {
+      return NextResponse.json({ error: 'A match for this home/away pairing already exists in this week' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Failed to create match' }, { status: 500 });
   }
 }

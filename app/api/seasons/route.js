@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { SEASON_STATUSES } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,9 @@ export async function POST(req) {
   try {
     if (!name || !slug) {
       return NextResponse.json({ error: 'name and slug are required' }, { status: 400 });
+    }
+    if (status !== undefined && !SEASON_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `status must be one of: ${SEASON_STATUSES.join(', ')}` }, { status: 400 });
     }
     const season = await prisma.season.create({
       data: { name, slug, status: status ?? 'upcoming', startsAt, endsAt },

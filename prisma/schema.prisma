@@ -76,6 +76,8 @@ model Team {
   bettingLinesB    BettingLine[]     @relation("BettingLineTeamB")
   selectedBets     Bet[]             @relation("BetSelectedTeam")
   changeRequests   ChangeRequest[]
+
+  @@index([divisionId])
 }
 
 model TeamMember {
@@ -121,6 +123,16 @@ model Match {
   bulletinPosts       BulletinPost[]
   editorialCases      EditorialCase[]
   bettingLines        BettingLine[]
+
+  // One fixture per home/away pairing per week — guards against double-run
+  // scheduling actions inserting duplicate matches.
+  @@unique([seasonId, week, homeTeamId, awayTeamId])
+  // Standings computation filters by division + completed status on every
+  // cache miss; schedule pages filter by season + week.
+  @@index([divisionId, status])
+  @@index([seasonId, week])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
 }
 
 model Game {
@@ -378,6 +390,9 @@ model StatLine {
   god    God?   @relation(fields: [godId], references: [id], onDelete: SetNull)
 
   @@unique([gameId, playerId]) // one stat line per player per game
+  // Player-profile and team stat aggregation query by player/team first.
+  @@index([playerId])
+  @@index([teamId])
 }
 
 // ─── Reschedule Requests ─────────────────────────────────────────────────────
@@ -809,18 +824,19 @@ model WalletTransaction {
 }
 
 model BettingLine {
-  id          String    @id @default(cuid())
-  matchId     String
-  status      String    @default("open") // open | locked | settled | void
-  teamAId     String
-  teamAOdds   Int
-  teamBId     String
-  teamBOdds   Int
-  closesAt    DateTime?
-  createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  settledAt   DateTime?
+  id            String    @id @default(cuid())
+  matchId       String
+  status        String    @default("open") // open | locked | settled | void
+  teamAId       String
+  teamAOdds     Int
+  teamBId       String
+  teamBOdds     Int
+  closesAt      DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  settledAt     DateTime?
+  winningTeamId String?   // teamAId or teamBId, recorded at settlement (bet resolution)
 
   match  Match  @relation(fields: [matchId], references: [id])
   teamA  Team   @relation("BettingLineTeamA", fields: [teamAId], references: [id])
