@@ -35,17 +35,75 @@ export async function PATCH(request, { params }) {
     if (!VALID_STATUSES.includes(body.status)) {
       return NextResponse.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
     }
+    // settled/void are terminal: bets have been paid out or refunded, so
+    // reopening would allow a second resolution round (double payout).
+    if (['settled', 'void'].includes(existing.status) && body.status !== existing.status) {
+      return NextResponse.json({ error: `Line is ${existing.status} and cannot change status` }, { status: 409 });
+    }
     data.status = body.status;
     if (body.status === 'settled') data.settledAt = new Date();
   }
 
+  // Settling requires a winner and resolves every pending bet; voiding
+  // refunds every pending stake. Both must happen exactly once — the
+  // status guard on the line update makes double-settle a no-op 409.
+  if (data.status === 'settled') {
+    const { winningTeamId } = body;
+    if (winningTeamId !== existing.teamAId && winningTeamId !== existing.teamBId) {
+      return NextResponse.json({ error: 'winningTeamId must be one of the two teams on this line' }, { status: 400 });
+    }
+    data.winningTeamId = winningTeamId;
+  }
+
   try {
+    if (data.status === 'settled' || data.status === 'void') {
+      const line = await prisma.$transaction(async (tx) => {
+        const claimed = await tx.bettingLine.updateMany({
+          where: { id, status: { in: ['open', 'locked'] } },
+          data,
+        });
+        if (claimed.count === 0) {
+          throw Object.assign(new Error('Line is already settled or void'), { httpStatus: 409 });
+        }
+
+        const pendingBets = await tx.bet.findMany({ where: { lineId: id, status: 'pending' } });
+        for (const bet of pendingBets) {
+          if (data.status === 'void') {
+            await tx.bet.update({ where: { id: bet.id }, data: { status: 'void' } });
+            await creditWallet(tx, bet.walletId, bet.stake, 'bet_refund', `Refund — line ${id} voided`);
+          } else if (bet.selectedTeamId === data.winningTeamId) {
+            await tx.bet.update({ where: { id: bet.id }, data: { status: 'won' } });
+            await creditWallet(tx, bet.walletId, bet.potentialPayout, 'bet_payout', `Payout — won bet on line ${id}`);
+          } else {
+            await tx.bet.update({ where: { id: bet.id }, data: { status: 'lost' } });
+          }
+        }
+
+        return tx.bettingLine.findUnique({ where: { id } });
+      });
+      return NextResponse.json(line);
+    }
+
     const line = await prisma.bettingLine.update({ where: { id }, data });
     return NextResponse.json(line);
   } catch (err) {
-    console.error('[admin/betting-lines PATCH]', err);
-    return NextResponse.json({ error: 'Failed to update line' }, { status: 500 });
+    const status = err?.httpStatus ?? 500;
+    if (status === 500) console.error('[admin/betting-lines PATCH]', err);
+    return NextResponse.json({ error: status === 500 ? 'Failed to update line' : err.message }, { status });
   }
+}
+
+// Credits a wallet atomically and records the ledger row with the
+// post-credit balance read inside the same transaction.
+async function creditWallet(tx, walletId, amount, type, reason) {
+  await tx.wallet.update({
+    where: { id: walletId },
+    data: { balance: { increment: amount } },
+  });
+  const { balance } = await tx.wallet.findUnique({ where: { id: walletId }, select: { balance: true } });
+  await tx.walletTransaction.create({
+    data: { walletId, type, amount, balanceAfter: balance, reason },
+  });
 }
 
 // DELETE /api/admin/betting-lines/[id]  — only when no bets placed
