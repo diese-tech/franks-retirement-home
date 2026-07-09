@@ -49,6 +49,12 @@ export async function POST(req) {
     if (!divisionId || !name || !tag) {
       return NextResponse.json({ error: 'divisionId, name, and tag are required' }, { status: 400 });
     }
+    if (typeof name !== 'string' || name.length > 100) {
+      return NextResponse.json({ error: 'name must be a string of at most 100 chars' }, { status: 400 });
+    }
+    if (typeof tag !== 'string' || tag.length > 10) {
+      return NextResponse.json({ error: 'tag must be a string of at most 10 chars' }, { status: 400 });
+    }
     const team = await prisma.team.create({
       data: { divisionId, orgId, name, tag, captainPlayerId },
     });

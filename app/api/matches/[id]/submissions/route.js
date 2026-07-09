@@ -6,6 +6,10 @@ import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 
 export const dynamic = 'force-dynamic';
 
+const MAX_ATTACHMENTS = 10;
+const MAX_URL_LEN = 2000;
+const MAX_NOTES_LEN = 2000;
+
 // GET /api/matches/[id]/submissions — admin: list all submissions for a match
 export async function GET(req, { params }) {
   const authError = await resolveAdminAuth(req);
@@ -67,6 +71,21 @@ export async function POST(req, { params }) {
     }
 
     const { gameId, reportedWinnerTeamId, notes, attachments = [] } = body;
+
+    if (!Array.isArray(attachments) || attachments.length > MAX_ATTACHMENTS) {
+      return NextResponse.json(
+        { error: `attachments must be an array of at most ${MAX_ATTACHMENTS}` },
+        { status: 400 },
+      );
+    }
+    for (const a of attachments) {
+      if (!a?.url || typeof a.url !== 'string' || a.url.length > MAX_URL_LEN || !/^https?:\/\//.test(a.url)) {
+        return NextResponse.json({ error: 'each attachment needs a valid http(s) url' }, { status: 400 });
+      }
+    }
+    if (notes && (typeof notes !== 'string' || notes.length > MAX_NOTES_LEN)) {
+      return NextResponse.json({ error: `notes must be a string under ${MAX_NOTES_LEN} chars` }, { status: 400 });
+    }
 
     const submission = await prisma.matchSubmission.create({
       data: {

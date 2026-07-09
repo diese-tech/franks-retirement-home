@@ -4,6 +4,7 @@ import {
   PLAYER_SUBMITTABLE_TYPES,
   createBulletinPostWithUniqueSlug,
 } from '@/lib/bulletinHelpers';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,12 @@ export async function POST(request) {
       { error: 'Only rostered league members can submit posts.' },
       { status: 403 },
     );
+  }
+
+  // 5 submissions per 10 minutes per Discord identity.
+  const { allowed } = await checkRateLimit(`bulletin-submit:${session.discordId}`, 5, 600);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many submissions. Try again in a few minutes.' }, { status: 429 });
   }
 
   let body;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import prisma from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import { clampStat, MAX_KDA, MAX_AMOUNT } from '@/lib/statBounds';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +17,15 @@ export async function POST(req) {
   const signature = req.headers.get('x-forgelens-signature');
   const secret = process.env.FORGELENS_HMAC_SECRET;
 
-  // Always verify signature if secret is configured
-  if (secret) {
+  // Fail closed: without a shared secret there is no way to authenticate the
+  // caller, and this endpoint writes staging stat rows. Only skip verification
+  // in non-production so local development works without a worker.
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[forgelens/callback] FORGELENS_HMAC_SECRET is not set — rejecting callback');
+      return NextResponse.json({ error: 'ForgeLens not configured' }, { status: 503 });
+    }
+  } else {
     if (!signature) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
@@ -82,14 +90,14 @@ export async function POST(req) {
             teamRaw: row.team ?? null,
             roleRaw: row.role ?? null,
             godRaw: row.god ?? null,
-            kills: row.kills ?? 0,
-            deaths: row.deaths ?? 0,
-            assists: row.assists ?? 0,
-            damageDealt: row.damageDealt ?? 0,
-            damageMitigated: row.damageMitigated ?? 0,
-            healing: row.healing ?? 0,
-            goldEarned: row.goldEarned ?? 0,
-            structureDamage: row.structureDamage ?? 0,
+            kills: clampStat(row.kills, MAX_KDA),
+            deaths: clampStat(row.deaths, MAX_KDA),
+            assists: clampStat(row.assists, MAX_KDA),
+            damageDealt: clampStat(row.damageDealt, MAX_AMOUNT),
+            damageMitigated: clampStat(row.damageMitigated, MAX_AMOUNT),
+            healing: clampStat(row.healing, MAX_AMOUNT),
+            goldEarned: clampStat(row.goldEarned, MAX_AMOUNT),
+            structureDamage: clampStat(row.structureDamage, MAX_AMOUNT),
             confidence: row.confidence ?? null,
             status: 'pending',
           },

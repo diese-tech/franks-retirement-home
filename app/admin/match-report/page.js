@@ -1,10 +1,16 @@
 import prisma from '@/lib/db';
 import MatchReportClient from './MatchReportClient';
+import PasswordGate from '../PasswordGate';
+import { isAdminFromCookies } from '@/lib/serverAuth';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Match Report — FRH Admin' };
 
 export default async function MatchReportPage() {
+  let isAdmin = false;
+  try { isAdmin = isAdminFromCookies(); } catch { /* cookies() may throw outside request context */ }
+  if (!isAdmin) return <PasswordGate />;
+
   const [matches, gods, recentExtractions] = await Promise.all([
     prisma.match.findMany({
       orderBy: [{ week: 'asc' }, { scheduledAt: 'asc' }],

@@ -78,6 +78,7 @@ See:
 | Document | Purpose |
 |---|---|
 | `docs/SETUP.md` | Fresh environment setup guide -- start here |
+| `docs/LAUNCH_CHECKLIST.md` | Launch-day operational checklist and known caveats |
 | `docs/PRISMA_WORKFLOW.md` | Prisma migration policy and workflow reference |
 | `docs/ARCHITECTURE.md` | System architecture -- shared components, admin mirror pattern |
 | `docs/DEPLOYMENT_NOTES.md` | Production deployment workflow and operational steps |
