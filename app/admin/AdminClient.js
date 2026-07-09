@@ -5,7 +5,20 @@ import { PLAYER_ROLES, GOD_ROLES, GOD_CLASSES, ROLE_COLORS } from '@/lib/constan
 import RoleFilter from '@/components/RoleFilter';
 import { RetroWindow, BrutalButton, PixelBadge, StatusBadge } from '@/components/ui';
 
-async function api(url, opts) { const r = await fetch(url, opts); return r.json(); }
+// Set by AdminClient on mount so the shared fetch helper can surface
+// non-OK responses (expired session, validation errors, 500s) instead of
+// letting mutations silently no-op.
+let notifyApiError = () => {};
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  let data = null;
+  try { data = await r.json(); } catch { /* empty or non-JSON body */ }
+  if (!r.ok) {
+    notifyApiError(data?.error || `Request failed (${r.status}) — ${url}`);
+  }
+  return data;
+}
 function postJson(url, body) { return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 function del(url) { return api(url, { method: 'DELETE' }); }
 function patchJson(url, body) { return api(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -98,6 +111,17 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   const [playerDrafts, setPlayerDrafts] = useState(initialPlayerDrafts);
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState('drafts');
+  const [apiError, setApiError] = useState(null);
+
+  useEffect(() => {
+    let timer = null;
+    notifyApiError = (message) => {
+      setApiError(message);
+      clearTimeout(timer);
+      timer = setTimeout(() => setApiError(null), 6000);
+    };
+    return () => { notifyApiError = () => {}; clearTimeout(timer); };
+  }, []);
 
   const refreshPlayers = async () => setPlayers(await api('/api/players'));
   const refreshGods    = async () => setGods(await api('/api/gods'));
@@ -135,6 +159,15 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      {apiError && (
+        <div
+          role="alert"
+          className="fixed bottom-6 right-6 z-[9999] max-w-sm border border-red-400 bg-red-950/90 text-red-300 font-mono text-xs px-4 py-3 flex items-start gap-3 shadow-[0_0_20px_rgba(248,113,113,0.2)]"
+        >
+          <span className="flex-1">{apiError}</span>
+          <button onClick={() => setApiError(null)} className="text-red-300 hover:text-red-100 leading-none">✕</button>
+        </div>
+      )}
       <RetroWindow title="FRANK'S COMMAND CENTER v1.0" titleBarColor="yellow">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6 border-b-2 border-brand-700 pb-4">
           <div>

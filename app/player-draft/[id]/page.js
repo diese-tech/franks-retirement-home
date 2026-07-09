@@ -9,7 +9,24 @@ import PlayerDraftClient from './PlayerDraftClient';
 export const dynamic = 'force-dynamic';
 
 export default async function PlayerDraftPage({ params }) {
-  const state = await buildPlayerDraftState(params.id);
+  let state = null;
+  let dbError = false;
+  try {
+    state = await buildPlayerDraftState(params.id);
+  } catch (err) {
+    console.error('[player-draft]', err);
+    dbError = true;
+  }
+
+  if (dbError) {
+    return (
+      <div className="max-w-md mx-auto mt-20 text-center card">
+        <p className="text-red-400 mb-4">Unable to load player draft. Database may be unreachable.</p>
+        <a href="/" className="btn-secondary text-xs">&larr; Back Home</a>
+      </div>
+    );
+  }
+
   if (!state) notFound();
 
   const isAdmin = await isDiscordAdminFromCookies();
