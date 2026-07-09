@@ -50,25 +50,37 @@ export async function POST(request) {
     return NextResponse.json({ error: `stake must be a whole number of at least ${MIN_STAKE} points` }, { status: 400 });
   }
 
-  const line = await prisma.bettingLine.findUnique({ where: { id: lineId } });
-  if (!line) {
-    return NextResponse.json({ error: 'Line not found' }, { status: 404 });
-  }
-  if (line.status !== 'open') {
-    return NextResponse.json({ error: 'This line is closed for betting' }, { status: 409 });
-  }
-  if (line.closesAt && new Date(line.closesAt) < new Date()) {
-    return NextResponse.json({ error: 'This line has closed' }, { status: 409 });
-  }
-  if (selectedTeamId !== line.teamAId && selectedTeamId !== line.teamBId) {
-    return NextResponse.json({ error: 'selectedTeam must be one of the two teams on this line' }, { status: 400 });
-  }
-
-  const odds = selectedTeamId === line.teamAId ? line.teamAOdds : line.teamBOdds;
-  const potentialPayout = computePayout(stake, odds);
-
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // 0. Lock the line row before validating it. Without this, a bet
+      // placed while a line is 'open' could still be created after an
+      // admin's settlement transaction has already read its pending bets —
+      // the stake would be debited but the bet would never be resolved.
+      // FOR UPDATE makes this mutually exclusive with the settlement
+      // updateMany() in admin/betting-lines/[id]/route.js: whichever
+      // transaction reaches the row first, the other blocks until it
+      // commits and then sees the up-to-date status.
+      const rows = await tx.$queryRaw`
+        SELECT status, "closesAt", "teamAId", "teamAOdds", "teamBId", "teamBOdds"
+        FROM "BettingLine" WHERE id = ${lineId} FOR UPDATE
+      `;
+      const line = rows[0];
+      if (!line) {
+        throw Object.assign(new Error('Line not found'), { httpStatus: 404 });
+      }
+      if (line.status !== 'open') {
+        throw Object.assign(new Error('This line is closed for betting'), { httpStatus: 409 });
+      }
+      if (line.closesAt && new Date(line.closesAt) < new Date()) {
+        throw Object.assign(new Error('This line has closed'), { httpStatus: 409 });
+      }
+      if (selectedTeamId !== line.teamAId && selectedTeamId !== line.teamBId) {
+        throw Object.assign(new Error('selectedTeam must be one of the two teams on this line'), { httpStatus: 400 });
+      }
+
+      const odds = selectedTeamId === line.teamAId ? line.teamAOdds : line.teamBOdds;
+      const potentialPayout = computePayout(stake, odds);
+
       // 1. Ensure a User row exists for this Discord identity.
       const user = await tx.user.upsert({
         where: { discordId: session.discordId },

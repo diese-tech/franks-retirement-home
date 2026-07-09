@@ -18,13 +18,13 @@ vi.mock('next/server', () => ({
 // ─── Mock @/lib/db ───────────────────────────────────────────────────────────
 vi.mock('@/lib/db', () => {
   const tx = {
+    $queryRaw: vi.fn(),
     user: { upsert: vi.fn() },
     wallet: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     walletTransaction: { create: vi.fn() },
     bet: { create: vi.fn() },
   };
   const prisma = {
-    bettingLine: { findUnique: vi.fn() },
     $transaction: vi.fn((fn) => fn(tx)),
     _tx: tx,
   };
@@ -49,8 +49,9 @@ const { POST } = await import('@/app/api/bets/route.js');
 const tx = prisma._tx;
 
 const SESSION = { discordId: 'discord-1', username: 'Bettor', roles: [] };
-const LINE = {
-  id: 'line-1',
+// Shape returned by the raw `SELECT ... FOR UPDATE` in the route, not the
+// Prisma model shape — no `id`, matching the column list in the query.
+const LINE_ROW = {
   status: 'open',
   closesAt: null,
   teamAId: 'team-a',
@@ -65,7 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getDiscordSessionUser.mockReturnValue(SESSION);
   checkRateLimit.mockResolvedValue({ allowed: true });
-  prisma.bettingLine.findUnique.mockResolvedValue(LINE);
+  tx.$queryRaw.mockResolvedValue([LINE_ROW]);
   prisma.$transaction.mockImplementation((fn) => fn(tx));
   tx.user.upsert.mockResolvedValue({ id: 'user-1' });
   tx.wallet.findUnique
@@ -131,7 +132,32 @@ describe('POST /api/bets', () => {
   });
 
   it('rejects bets on closed lines with 409', async () => {
-    prisma.bettingLine.findUnique.mockResolvedValue({ ...LINE, status: 'locked' });
+    tx.$queryRaw.mockResolvedValue([{ ...LINE_ROW, status: 'locked' }]);
     expect(unwrap(await POST(makeReq(VALID_BODY))).status).toBe(409);
+  });
+
+  it('returns 404 when the line row is not found under lock', async () => {
+    tx.$queryRaw.mockResolvedValue([]);
+    const { status } = unwrap(await POST(makeReq(VALID_BODY)));
+    expect(status).toBe(404);
+  });
+
+  it('locks the line row for update before any wallet mutation (settlement race guard)', async () => {
+    await POST(makeReq(VALID_BODY));
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    // The lock must be acquired before the wallet is touched, so a
+    // concurrent settlement transaction either fully precedes or fully
+    // follows this one rather than interleaving.
+    const lockOrder = tx.$queryRaw.mock.invocationCallOrder[0];
+    const walletOrder = tx.wallet.findUnique.mock.invocationCallOrder[0];
+    expect(lockOrder).toBeLessThan(walletOrder);
+  });
+
+  it('rejects a bet on a line settled since the caller last read it', async () => {
+    tx.$queryRaw.mockResolvedValue([{ ...LINE_ROW, status: 'settled' }]);
+    const { status } = unwrap(await POST(makeReq(VALID_BODY)));
+    expect(status).toBe(409);
+    expect(tx.wallet.updateMany).not.toHaveBeenCalled();
+    expect(tx.bet.create).not.toHaveBeenCalled();
   });
 });

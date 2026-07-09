@@ -122,7 +122,10 @@ export async function POST(req) {
           assists: clampStat(p.assists, MAX_KDA),
           damageDealt: clampStat(p.playerDamage, MAX_AMOUNT),
           damageMitigated: clampStat(p.damageMitigated, MAX_AMOUNT),
-          healing: clampStat(p.selfHealing, MAX_AMOUNT) + clampStat(p.allyHealing, MAX_AMOUNT),
+          // Clamp each addend first so a garbled value in one field doesn't
+          // zero out a legitimate value in the other, then clamp the combined
+          // total so the persisted column never exceeds MAX_AMOUNT.
+          healing: clampStat(clampStat(p.selfHealing, MAX_AMOUNT) + clampStat(p.allyHealing, MAX_AMOUNT), MAX_AMOUNT),
           structureDamage: clampStat(p.structureDamage, MAX_AMOUNT),
           resolvedGodId: godMatch?.id ?? null,
           resolvedPlayerId: playerMatch?.playerId ?? null,
