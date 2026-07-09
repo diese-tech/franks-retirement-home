@@ -159,6 +159,11 @@ export async function POST(req, { params }) {
     return NextResponse.json(result);
   } catch (e) {
     if (e.status) return NextResponse.json({ error: e.message }, { status: e.status });
+    // Concurrent double-pick trips the (playerDraftId, playerId) / pickNumber
+    // unique constraints — surface as a conflict, not a server error.
+    if (e.code === 'P2002') {
+      return NextResponse.json({ error: 'That pick was already recorded' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Failed to record pick' }, { status: 500 });
   }
 }

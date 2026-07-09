@@ -5,6 +5,8 @@ import { logAudit } from '@/lib/audit';
 import { extractSmite2Details } from '@/lib/gemini';
 import { checkMatchWindow } from '@/lib/matchWindow';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
+import { clampStat, MAX_KDA, MAX_AMOUNT } from '@/lib/statBounds';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +62,13 @@ export async function POST(req) {
       if (!windowCheck.ok) {
         return NextResponse.json({ error: windowCheck.reason }, { status: 403 });
       }
+
+      // Every extraction is a paid Gemini call — cap captain uploads.
+      // 6 per 10 minutes per client is plenty for a BO3/BO5 screenshot set.
+      const { allowed } = await checkRateLimit(`ocr-extract:${clientIp(req)}`, 6, 600);
+      if (!allowed) {
+        return NextResponse.json({ error: 'Too many uploads. Try again in a few minutes.' }, { status: 429 });
+      }
     }
   }
 
@@ -108,13 +117,13 @@ export async function POST(req) {
           ignRaw: p.ign ?? '',
           teamRaw: p.side ?? null,
           godRaw: p.god ?? null,
-          kills: p.kills ?? 0,
-          deaths: p.deaths ?? 0,
-          assists: p.assists ?? 0,
-          damageDealt: p.playerDamage ?? 0,
-          damageMitigated: p.damageMitigated ?? 0,
-          healing: (p.selfHealing ?? 0) + (p.allyHealing ?? 0),
-          structureDamage: p.structureDamage ?? 0,
+          kills: clampStat(p.kills, MAX_KDA),
+          deaths: clampStat(p.deaths, MAX_KDA),
+          assists: clampStat(p.assists, MAX_KDA),
+          damageDealt: clampStat(p.playerDamage, MAX_AMOUNT),
+          damageMitigated: clampStat(p.damageMitigated, MAX_AMOUNT),
+          healing: clampStat(p.selfHealing, MAX_AMOUNT) + clampStat(p.allyHealing, MAX_AMOUNT),
+          structureDamage: clampStat(p.structureDamage, MAX_AMOUNT),
           resolvedGodId: godMatch?.id ?? null,
           resolvedPlayerId: playerMatch?.playerId ?? null,
           status: 'pending',

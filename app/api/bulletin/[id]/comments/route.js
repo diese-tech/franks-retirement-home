@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,12 @@ export async function POST(request, { params }) {
       { error: 'Are you an editor? Hmm, didn’t think so... log in to comment.' },
       { status: 401 },
     );
+  }
+
+  // 10 comments per minute per Discord identity.
+  const { allowed } = await checkRateLimit(`bulletin-comment:${session.discordId}`, 10, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Slow down — too many comments.' }, { status: 429 });
   }
 
   const { id: postId } = params;

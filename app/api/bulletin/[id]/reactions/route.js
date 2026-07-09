@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { REACTION_EMOJI } from '@/lib/bulletinHelpers';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,12 @@ export async function POST(request, { params }) {
       { error: 'Are you an editor? Hmm, didn’t think so... log in to react.' },
       { status: 401 },
     );
+  }
+
+  // 30 reaction toggles per minute per Discord identity.
+  const { allowed } = await checkRateLimit(`bulletin-react:${session.discordId}`, 30, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Slow down — too many reactions.' }, { status: 429 });
   }
 
   const { id: postId } = params;

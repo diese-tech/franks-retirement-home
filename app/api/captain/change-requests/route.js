@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getDiscordSessionUser, resolveTeamFromRoles } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
 import { notifyChangeRequest } from '@/lib/discordWebhook';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,12 @@ export async function POST(req) {
   if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   const teamId = resolveTeamFromRoles(session.roles);
   if (!teamId) return NextResponse.json({ error: 'No team found for your account' }, { status: 403 });
+
+  // 5 change requests per 10 minutes per Discord identity.
+  const { allowed } = await checkRateLimit(`change-request:${session.discordId}`, 5, 600);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Try again in a few minutes.' }, { status: 429 });
+  }
 
   let body;
   try { body = await req.json(); } catch {

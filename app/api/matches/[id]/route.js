@@ -62,6 +62,13 @@ export async function PATCH(req, { params }) {
   if ('week' in data && !Number.isInteger(data.week)) {
     return NextResponse.json({ error: 'week must be an integer' }, { status: 400 });
   }
+  for (const urlKey of ['streamUrl', 'vodUrl']) {
+    const value = data[urlKey];
+    if (value !== undefined && value !== null && value !== '' &&
+        (typeof value !== 'string' || value.length > 2000 || !/^https?:\/\//.test(value))) {
+      return NextResponse.json({ error: `${urlKey} must be an http(s) URL` }, { status: 400 });
+    }
+  }
 
   // Explicitly reject any attempt to mutate the eligibility anchor.
   if ('defaultScheduledAt' in body) {
