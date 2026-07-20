@@ -585,6 +585,13 @@ const gods = [
     "needsReview": false
   },
   {
+    "id": "xing-tian",
+    "name": "Xing Tian",
+    "role": "Guardian",
+    "godClass": "Magical",
+    "needsReview": false
+  },
+  {
     "id": "yemoja",
     "name": "Yemoja",
     "role": "Guardian",
