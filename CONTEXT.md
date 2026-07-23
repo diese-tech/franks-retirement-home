@@ -11,3 +11,7 @@ _Avoid_: Bracket (the tournament is the event; "bracket" is its visual/structura
 **Participant**:
 A free-text name an admin types into a Tournament slot. Not a foreign key to `Team` — a Tournament frequently reuses the season's team names, but must also work for guests, byes, or entirely unrelated events.
 _Avoid_: Team (reserved for the canonical roster entity), Entrant
+
+**Bracket Match**:
+One node in a Tournament's bracket tree — two Participant slots, a winner, and a pointer to the next Bracket Match the winner advances into. Modeled with an optional loser-routing pointer as well, even though only single-elimination logic is active this release, so double-elimination can be added later without a data migration.
+_Avoid_: Game (reserved for a game within a league `Match`), Round (a Round is a generation/column of Bracket Matches, not a match itself)
