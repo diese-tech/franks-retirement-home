@@ -29,8 +29,8 @@ model Season {
 model Division {
   id        String   @id @default(cuid())
   seasonId  String
-  name      String   // "Hospice" | "Rehabilitation"
-  tier      Int      // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
+  name      String // "Hospice" | "Rehabilitation"
+  tier      Int // 1 = lower, 2 = higher (display/sorting only; not a pick gate)
   createdAt DateTime @default(now())
 
   season         Season          @relation(fields: [seasonId], references: [id])
@@ -84,7 +84,7 @@ model TeamMember {
   id        String    @id @default(cuid())
   teamId    String
   playerId  String
-  role      String    // Solo | Jungle | Mid | Support | Carry | Fill
+  role      String // Solo | Jungle | Mid | Support | Carry | Fill
   isCaptain Boolean   @default(false)
   isSub     Boolean   @default(false)
   joinedAt  DateTime  @default(now())
@@ -97,32 +97,32 @@ model TeamMember {
 }
 
 model Match {
-  id                   String    @id @default(cuid())
-  seasonId             String
-  divisionId           String
-  week                 Int
-  defaultScheduledAt   DateTime? // Immutable original schedule anchor — eligibility window derives from this only
-  scheduledAt          DateTime? // Currently approved play time — updated by approved reschedule requests
-  status               String    @default("scheduled") // scheduled | live | completed | postponed
-  homeTeamId           String
-  awayTeamId           String
-  format               String    @default("BO1")        // BO1 | BO3 | BO5
-  streamUrl            String?
-  vodUrl               String?
-  homeTeamCaptainKey   String?   @unique
-  awayTeamCaptainKey   String?   @unique
-  createdAt            DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  seasonId           String
+  divisionId         String
+  week               Int
+  defaultScheduledAt DateTime? // Immutable original schedule anchor — eligibility window derives from this only
+  scheduledAt        DateTime? // Currently approved play time — updated by approved reschedule requests
+  status             String    @default("scheduled") // scheduled | live | completed | postponed
+  homeTeamId         String
+  awayTeamId         String
+  format             String    @default("BO1") // BO1 | BO3 | BO5
+  streamUrl          String?
+  vodUrl             String?
+  homeTeamCaptainKey String?   @unique
+  awayTeamCaptainKey String?   @unique
+  createdAt          DateTime  @default(now())
 
-  season              Season              @relation(fields: [seasonId], references: [id])
-  division            Division            @relation(fields: [divisionId], references: [id])
-  homeTeam            Team                @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam            Team                @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  games               Game[]
-  submissions         MatchSubmission[]
-  rescheduleRequests  RescheduleRequest[]
-  bulletinPosts       BulletinPost[]
-  editorialCases      EditorialCase[]
-  bettingLines        BettingLine[]
+  season             Season              @relation(fields: [seasonId], references: [id])
+  division           Division            @relation(fields: [divisionId], references: [id])
+  homeTeam           Team                @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam           Team                @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  games              Game[]
+  submissions        MatchSubmission[]
+  rescheduleRequests RescheduleRequest[]
+  bulletinPosts      BulletinPost[]
+  editorialCases     EditorialCase[]
+  bettingLines       BettingLine[]
 
   // One fixture per home/away pairing per week — guards against double-run
   // scheduling actions inserting duplicate matches.
@@ -138,8 +138,8 @@ model Match {
 model Game {
   id              String   @id @default(cuid())
   matchId         String
-  gameNumber      Int      // 1-based within the match
-  winnerTeamId    String?  // set when result is confirmed (or by admin override)
+  gameNumber      Int // 1-based within the match
+  winnerTeamId    String? // set when result is confirmed (or by admin override)
   durationSeconds Int?
   createdAt       DateTime @default(now())
 
@@ -150,13 +150,13 @@ model Game {
   //   reported  → confirmed : opposing captain PATCHes action=confirm
   //   reported  → disputed  : opposing captain PATCHes action=dispute
   //   disputed  → confirmed : admin PATCHes action=resolve (sets winnerTeamId)
-  resultStatus          String?  // pending | reported | confirmed | disputed
-  reportedWinnerTeamId  String?  // which team the reporting captain says won
-  reportedByTeamId      String?  // which team submitted the report (home or away)
-  confirmedByTeamId     String?  // which team confirmed the result
-  resultReportedAt      DateTime?
-  resultConfirmedAt     DateTime?
-  resultDisputedAt      DateTime?
+  resultStatus         String? // pending | reported | confirmed | disputed
+  reportedWinnerTeamId String? // which team the reporting captain says won
+  reportedByTeamId     String? // which team submitted the report (home or away)
+  confirmedByTeamId    String? // which team confirmed the result
+  resultReportedAt     DateTime?
+  resultConfirmedAt    DateTime?
+  resultDisputedAt     DateTime?
 
   match          Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
   draft          Draft?
@@ -179,7 +179,7 @@ model PlayerDraft {
   name             String    @default("Player Draft")
   status           String    @default("pending") // pending | active | paused | complete
   rounds           Int       @default(5)
-  pickTimerSeconds Int       @default(120)        // 0 = no timer
+  pickTimerSeconds Int       @default(120) // 0 = no timer
   // Original approved pick order (teamId array). Immutable once draft starts — audit trail.
   baseOrder        Json      @default("[]")
   // Live order — admin applies bilateral slot-trade requests here.
@@ -205,7 +205,7 @@ model PlayerDraft {
 model PlayerDraftPick {
   id            String   @id @default(cuid())
   playerDraftId String
-  pickNumber    Int      // 1-based across the full snake sequence
+  pickNumber    Int // 1-based across the full snake sequence
   teamId        String
   playerId      String
   pickedAt      DateTime @default(now())
@@ -214,7 +214,7 @@ model PlayerDraftPick {
   team        Team        @relation(fields: [teamId], references: [id])
   player      Player      @relation(fields: [playerId], references: [id])
 
-  @@unique([playerDraftId, playerId])   // a player can only be drafted once
+  @@unique([playerDraftId, playerId]) // a player can only be drafted once
   @@unique([playerDraftId, pickNumber]) // each pick slot is unique
 }
 
@@ -224,14 +224,14 @@ model MatchSubmission {
   id                   String    @id @default(cuid())
   matchId              String
   gameId               String?
-  submittedByPlayerId  String?   // captain who submitted; null if admin-created
+  submittedByPlayerId  String? // captain who submitted; null if admin-created
   status               String    @default("pending") // pending | in_review | approved | rejected | superseded
   reportedWinnerTeamId String?
   notes                String?
   rejectionReason      String?
   reviewStartedAt      DateTime?
   reviewedAt           DateTime?
-  reviewedByAdminId    String?   // opaque admin identifier — no User table in S9
+  reviewedByAdminId    String? // opaque admin identifier — no User table in S9
   createdAt            DateTime  @default(now())
 
   match       Match                  @relation(fields: [matchId], references: [id], onDelete: Cascade)
@@ -242,7 +242,7 @@ model MatchSubmission {
 model SubmissionAttachment {
   id           String   @id @default(cuid())
   submissionId String
-  kind         String   // screenshot | document
+  kind         String // screenshot | document
   url          String
   checksum     String?
   mimeType     String?
@@ -257,12 +257,12 @@ model SubmissionAttachment {
 model Player {
   id              String   @id @default(cuid())
   name            String
-  role            String   // Solo, Jungle, Mid, Support, Carry, Fill
+  role            String // Solo, Jungle, Mid, Support, Carry, Fill
   discordUsername String?
   discordId       String?
   avatarUrl       String?
   claimedByUserId String?
-  division        String?  // e.g. Hospice, Rehabilitation
+  division        String? // e.g. Hospice, Rehabilitation
   timezone        String?
   secondaryRoles  String[] @default([])
   createdAt       DateTime @default(now())
@@ -273,7 +273,7 @@ model Player {
   statLines          StatLine[]
   extractedStatLines ExtractedStatLine[]
   aliases            PlayerAlias[]
-  claimedByUser      User?              @relation("ClaimedByUser", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  claimedByUser      User?               @relation("ClaimedByUser", fields: [claimedByUserId], references: [id], onDelete: SetNull)
   playerClaims       PlayerClaim[]
   bulletinPosts      BulletinPost[]
   editorialCases     EditorialCase[]
@@ -283,8 +283,8 @@ model Player {
 model God {
   id        String   @id @default(cuid())
   name      String
-  role      String   // Warrior, Assassin, Mage, Guardian, Hunter
-  godClass  String   // Physical, Magical
+  role      String // Warrior, Assassin, Mage, Guardian, Hunter
+  godClass  String // Physical, Magical
   createdAt DateTime @default(now())
 
   draftPicks         DraftPick[]
@@ -294,26 +294,26 @@ model God {
 }
 
 model Draft {
-  id             String   @id @default(cuid())
-  name           String   @default("Draft")
-  status         String   @default("pending") // pending | lobby | banning | picking | complete
-  captainAKey    String?  @unique
-  captainBKey    String?  @unique
-  adminKey       String?  @unique
-  captainAReady  Boolean  @default(false)
-  captainBReady  Boolean  @default(false)
-  usedGodIds     Json     @default("[]")
-  version        Int      @default(0)
-  chatsVersion   Int      @default(0)
+  id            String   @id @default(cuid())
+  name          String   @default("Draft")
+  status        String   @default("pending") // pending | lobby | banning | picking | complete
+  captainAKey   String?  @unique
+  captainBKey   String?  @unique
+  adminKey      String?  @unique
+  captainAReady Boolean  @default(false)
+  captainBReady Boolean  @default(false)
+  usedGodIds    Json     @default("[]")
+  version       Int      @default(0)
+  chatsVersion  Int      @default(0)
   // Nullable FK to Game. Null = standalone draft (scrims/testing). @unique = one draft per game at most.
-  gameId         String?  @unique
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  gameId        String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   picks DraftPick[]
   bans  DraftBan[]
   chats DraftChat[]
-  game  Game?        @relation(fields: [gameId], references: [id])
+  game  Game?       @relation(fields: [gameId], references: [id])
 }
 
 // PRE-SEASON ONLY: playerId is nullable to support team-level picks during the
@@ -324,7 +324,7 @@ model DraftPick {
   id        String   @id @default(cuid())
   draftId   String
   playerId  String?
-  team      String   // A or B
+  team      String // A or B
   godId     String?
   pickOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -340,7 +340,7 @@ model DraftBan {
   id        String   @id @default(cuid())
   draftId   String
   godId     String
-  team      String   // A or B — which team submitted the ban
+  team      String // A or B — which team submitted the ban
   banOrder  Int      @default(0)
   createdAt DateTime @default(now())
 
@@ -353,7 +353,7 @@ model DraftBan {
 model DraftChat {
   id         String   @id @default(cuid())
   draftId    String
-  team       String   // A | B | admin | spectator
+  team       String // A | B | admin | spectator
   senderName String
   message    String
   createdAt  DateTime @default(now())
@@ -366,12 +366,12 @@ model DraftChat {
 // Per-player per-game statistics entered manually by admin after a match.
 // One row per player per game. godId is nullable for games before Lineup Confirmation.
 model StatLine {
-  id        String   @id @default(cuid())
-  gameId    String
-  playerId  String
-  teamId    String
-  godId     String?  // which god this player used
-  role      String?  // role played in this specific game (may differ from player.role)
+  id              String   @id @default(cuid())
+  gameId          String
+  playerId        String
+  teamId          String
+  godId           String? // which god this player used
+  role            String? // role played in this specific game (may differ from player.role)
   kills           Int      @default(0)
   deaths          Int      @default(0)
   assists         Int      @default(0)
@@ -381,8 +381,8 @@ model StatLine {
   structureDamage Int      @default(0)
   gold            Int      @default(0)
   notes           String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id])
@@ -402,22 +402,22 @@ model StatLine {
 // Only admin approval updates Match.scheduledAt.
 // Match.defaultScheduledAt (eligibility window anchor) is NEVER changed.
 model RescheduleRequest {
-  id                    String    @id @default(cuid())
-  matchId               String
-  proposedScheduledAt   DateTime
+  id                     String    @id @default(cuid())
+  matchId                String
+  proposedScheduledAt    DateTime
   // Which captain side submitted: "home" | "away"
   requestedByCaptainSide String
   // "pending" | "acknowledged" | "disputed" | "approved" | "denied"
-  status                String    @default("pending")
-  evidenceText          String?
+  status                 String    @default("pending")
+  evidenceText           String?
   // Opposing captain response text (optional note alongside ack/dispute)
-  opposingCaptainNote   String?
+  opposingCaptainNote    String?
   // Admin decision fields
-  adminNote             String?
-  adminId               String?   // opaque admin identifier — no User table in S9
-  decidedAt             DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  adminNote              String?
+  adminId                String? // opaque admin identifier — no User table in S9
+  decidedAt              DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
@@ -431,10 +431,10 @@ model RescheduleRequest {
 // payload is a JSON object with action-specific context.
 model AuditLog {
   id        String   @id @default(cuid())
-  entity    String   // "Match" | "PlayerDraft" | "MatchSubmission" | "StatLine" | etc.
+  entity    String // "Match" | "PlayerDraft" | "MatchSubmission" | "StatLine" | etc.
   entityId  String
-  action    String   // "created" | "approved" | "rejected" | "status_changed" | "pick_recorded" | etc.
-  adminId   String?  // opaque identifier — no User table in S9
+  action    String // "created" | "approved" | "rejected" | "status_changed" | "pick_recorded" | etc.
+  adminId   String? // opaque identifier — no User table in S9
   payload   Json     @default("{}")
   createdAt DateTime @default(now())
 
@@ -443,18 +443,18 @@ model AuditLog {
 }
 
 model ChangeRequest {
-  id               String    @id @default(cuid())
-  type             String    // ROSTER_ADD | ROSTER_REMOVE
-  teamId           String
-  requestedById    String    // discordId of captain
-  requestedByName  String
-  payload          Json      // { playerId, playerName, role, reason }
-  status           String    @default("pending") // pending | approved | rejected
-  reviewedById     String?   // discordId or 'admin'
-  reviewedByName   String?
-  reviewNote       String?
-  createdAt        DateTime  @default(now())
-  reviewedAt       DateTime?
+  id              String    @id @default(cuid())
+  type            String // ROSTER_ADD | ROSTER_REMOVE
+  teamId          String
+  requestedById   String // discordId of captain
+  requestedByName String
+  payload         Json // { playerId, playerName, role, reason }
+  status          String    @default("pending") // pending | approved | rejected
+  reviewedById    String? // discordId or 'admin'
+  reviewedByName  String?
+  reviewNote      String?
+  createdAt       DateTime  @default(now())
+  reviewedAt      DateTime?
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
@@ -467,45 +467,45 @@ model ChangeRequest {
 // One row per screenshot submitted for OCR. Tracks job lifecycle.
 // Status: pending → processing → completed | needs_review | failed
 model OcrExtraction {
-  id                String    @id @default(cuid())
-  submissionId      String?   // optional link to the MatchSubmission that triggered this
-  gameId            String?   // which game's stats are being extracted
-  status            String    @default("pending") // pending | processing | completed | needs_review | failed
-  attachmentUrl     String    // the screenshot URL sent to ForgeLens
+  id                 String    @id @default(cuid())
+  submissionId       String? // optional link to the MatchSubmission that triggered this
+  gameId             String? // which game's stats are being extracted
+  status             String    @default("pending") // pending | processing | completed | needs_review | failed
+  attachmentUrl      String // the screenshot URL sent to ForgeLens
   attachmentChecksum String?
-  mimeType          String?
-  confidence        Float?    // returned by ForgeLens (0.0–1.0)
-  parserVersion     String?
-  rawModelOutput    String?   // raw Gemini text (for audit / debugging)
-  warnings          Json      @default("[]") // array of { field, ign, reason }
-  errorMessage      String?
-  requestedAt       DateTime  @default(now())
-  completedAt       DateTime?
+  mimeType           String?
+  confidence         Float? // returned by ForgeLens (0.0–1.0)
+  parserVersion      String?
+  rawModelOutput     String? // raw Gemini text (for audit / debugging)
+  warnings           Json      @default("[]") // array of { field, ign, reason }
+  errorMessage       String?
+  requestedAt        DateTime  @default(now())
+  completedAt        DateTime?
 
-  game        Game?              @relation(fields: [gameId], references: [id])
-  rows        ExtractedStatLine[]
+  game Game?               @relation(fields: [gameId], references: [id])
+  rows ExtractedStatLine[]
 }
 
 // One row per player-row in the ForgeLens callback `rows` array.
 // Admin reviews and approves/rejects before these become canonical StatLine rows.
 model ExtractedStatLine {
-  id             String  @id @default(cuid())
-  extractionId   String
-  status         String  @default("pending") // pending | approved | rejected
+  id               String  @id @default(cuid())
+  extractionId     String
+  status           String  @default("pending") // pending | approved | rejected
   // Raw values from ForgeLens (stored as extracted, not yet resolved)
-  ignRaw         String  // ign as parsed from the screenshot
-  teamRaw        String? // "home" | "away" as parsed
-  roleRaw        String?
-  godRaw         String?
-  kills          Int     @default(0)
-  deaths         Int     @default(0)
-  assists        Int     @default(0)
-  damageDealt    Int     @default(0)
-  damageMitigated Int    @default(0)
-  healing        Int     @default(0)
-  goldEarned     Int     @default(0)
-  structureDamage Int    @default(0)
-  confidence     Float?  // per-row confidence if provided
+  ignRaw           String // ign as parsed from the screenshot
+  teamRaw          String? // "home" | "away" as parsed
+  roleRaw          String?
+  godRaw           String?
+  kills            Int     @default(0)
+  deaths           Int     @default(0)
+  assists          Int     @default(0)
+  damageDealt      Int     @default(0)
+  damageMitigated  Int     @default(0)
+  healing          Int     @default(0)
+  goldEarned       Int     @default(0)
+  structureDamage  Int     @default(0)
+  confidence       Float? // per-row confidence if provided
   // Admin-resolved references (null until admin confirms identity)
   resolvedPlayerId String?
   resolvedGodId    String?
@@ -521,7 +521,7 @@ model ExtractedStatLine {
 model PlayerAlias {
   id        String   @id @default(cuid())
   playerId  String
-  alias     String   // raw name variant (case-sensitive as ForgeLens returns it)
+  alias     String // raw name variant (case-sensitive as ForgeLens returns it)
   source    String   @default("admin") // "admin" | "forgelens" | "import"
   createdAt DateTime @default(now())
 
@@ -546,15 +546,15 @@ model HomepageContent {
   status String @default("draft") // "draft" | "published"
 
   // ── Editable sections (JSON arrays / objects) ──────────────────────────────
-  ticker       Json @default("[]")  // TickerItem[]
-  headlines    Json @default("[]")  // HeadlineItem[]
-  bulletin     Json @default("[]")  // BulletinItem[]
-  fraudWatch   Json @default("[]")  // FraudItem[]
-  motw         Json @default("{}")  // MotwData
-  rivalries    Json @default("[]")  // RivalryItem[]
-  knowsBall    Json @default("[]")  // KnowsBallItem[]
+  ticker        Json @default("[]") // TickerItem[]
+  headlines     Json @default("[]") // HeadlineItem[]
+  bulletin      Json @default("[]") // BulletinItem[]
+  fraudWatch    Json @default("[]") // FraudItem[]
+  motw          Json @default("{}") // MotwData
+  rivalries     Json @default("[]") // RivalryItem[]
+  knowsBall     Json @default("[]") // KnowsBallItem[]
   washedReports Json @default("[]") // WashedItem[]
-  socialCards  Json @default("[]")  // SocialCardItem[]
+  socialCards   Json @default("[]") // SocialCardItem[]
 
   // ── Scalar overrides ───────────────────────────────────────────────────────
   discordInviteUrl String @default("https://discord.gg/HPAZmHmBpD")
@@ -590,9 +590,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  playerProfiles Player[]      @relation("ClaimedByUser")
-  claimedPlayers PlayerClaim[] @relation("ClaimRequester")
-  reviewedClaims PlayerClaim[] @relation("ClaimReviewer")
+  playerProfiles Player[]       @relation("ClaimedByUser")
+  claimedPlayers PlayerClaim[]  @relation("ClaimRequester")
+  reviewedClaims PlayerClaim[]  @relation("ClaimReviewer")
   rosterImports  RosterImport[]
   wallet         Wallet?
 }
@@ -607,9 +607,9 @@ model PlayerClaim {
   reviewedById String?
   note         String?
 
-  user       User    @relation("ClaimRequester", fields: [userId], references: [id])
-  player     Player  @relation(fields: [playerId], references: [id])
-  reviewedBy User?   @relation("ClaimReviewer", fields: [reviewedById], references: [id])
+  user       User   @relation("ClaimRequester", fields: [userId], references: [id])
+  player     Player @relation(fields: [playerId], references: [id])
+  reviewedBy User?  @relation("ClaimReviewer", fields: [reviewedById], references: [id])
 
   @@index([userId])
   @@index([playerId])
@@ -628,8 +628,8 @@ model RosterImport {
   createdAt     DateTime  @default(now())
   importedAt    DateTime?
 
-  season    Season?          @relation(fields: [seasonId], references: [id])
-  createdBy User?            @relation(fields: [createdById], references: [id])
+  season    Season?           @relation(fields: [seasonId], references: [id])
+  createdBy User?             @relation(fields: [createdById], references: [id])
   rows      RosterImportRow[]
 }
 
@@ -655,7 +655,7 @@ model BulletinPost {
   id                String    @id @default(cuid())
   title             String
   slug              String    @unique
-  type              String    // announcement | match_hype | player_spotlight | team_roast | weekly_recap
+  type              String // announcement | match_hype | player_spotlight | team_roast | weekly_recap
   status            String    @default("draft") // draft | published | archived
   body              String
   excerpt           String?
@@ -672,11 +672,11 @@ model BulletinPost {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  relatedPlayer   Player?   @relation(fields: [relatedPlayerId], references: [id], onDelete: SetNull)
-  relatedTeam     Team?     @relation(fields: [relatedTeamId], references: [id], onDelete: SetNull)
-  relatedMatch    Match?    @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
-  relatedDivision Division? @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
-  relatedSeason   Season?   @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
+  relatedPlayer   Player?            @relation(fields: [relatedPlayerId], references: [id], onDelete: SetNull)
+  relatedTeam     Team?              @relation(fields: [relatedTeamId], references: [id], onDelete: SetNull)
+  relatedMatch    Match?             @relation(fields: [relatedMatchId], references: [id], onDelete: SetNull)
+  relatedDivision Division?          @relation(fields: [relatedDivisionId], references: [id], onDelete: SetNull)
+  relatedSeason   Season?            @relation(fields: [relatedSeasonId], references: [id], onDelete: SetNull)
   reactions       BulletinReaction[]
   comments        BulletinComment[]
 
@@ -694,8 +694,8 @@ model BulletinPost {
 model BulletinReaction {
   id        String   @id @default(cuid())
   postId    String
-  discordId String   // reacting user's Discord ID
-  emoji     String   // beer | fire | skull | goat | clown
+  discordId String // reacting user's Discord ID
+  emoji     String // beer | fire | skull | goat | clown
   createdAt DateTime @default(now())
 
   post BulletinPost @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -707,8 +707,8 @@ model BulletinReaction {
 model BulletinComment {
   id         String   @id @default(cuid())
   postId     String
-  discordId  String   // commenter's Discord ID (for ownership checks)
-  authorName String   // display snapshot of username at comment time
+  discordId  String // commenter's Discord ID (for ownership checks)
+  authorName String // display snapshot of username at comment time
   body       String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -730,12 +730,12 @@ model Superlative {
   id           String   @id @default(cuid())
   title        String
   description  String?
-  nominee      String?  // free-text nominee (admin-set)
+  nominee      String? // free-text nominee (admin-set)
   status       String   @default("active") // active | suggested | archived
   weekLabel    String?
   displayOrder Int?
-  createdById  String?  // admin username who created/approved
-  suggestedBy  String?  // player username who suggested (when status=suggested)
+  createdById  String? // admin username who created/approved
+  suggestedBy  String? // player username who suggested (when status=suggested)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -762,7 +762,7 @@ model HomepageSectionConfig {
 
 model EditorialCase {
   id                String    @id @default(cuid())
-  type              String    // fraud_watch | washed_report
+  type              String // fraud_watch | washed_report
   status            String    @default("draft") // draft | published | archived
   severity          Int?
   title             String
@@ -811,7 +811,7 @@ model Wallet {
 model WalletTransaction {
   id           String   @id @default(cuid())
   walletId     String
-  type         String   // starter_grant | bet_stake | bet_payout | admin_adjustment | fine | bonus | void_refund
+  type         String // starter_grant | bet_stake | bet_payout | admin_adjustment | fine | bonus | void_refund
   amount       Int
   balanceAfter Int
   reason       String?
@@ -836,12 +836,12 @@ model BettingLine {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   settledAt     DateTime?
-  winningTeamId String?   // teamAId or teamBId, recorded at settlement (bet resolution)
+  winningTeamId String? // teamAId or teamBId, recorded at settlement (bet resolution)
 
-  match  Match  @relation(fields: [matchId], references: [id])
-  teamA  Team   @relation("BettingLineTeamA", fields: [teamAId], references: [id])
-  teamB  Team   @relation("BettingLineTeamB", fields: [teamBId], references: [id])
-  bets   Bet[]
+  match Match @relation(fields: [matchId], references: [id])
+  teamA Team  @relation("BettingLineTeamA", fields: [teamAId], references: [id])
+  teamB Team  @relation("BettingLineTeamB", fields: [teamBId], references: [id])
+  bets  Bet[]
 
   @@index([matchId])
 }
@@ -863,4 +863,54 @@ model Bet {
 
   @@index([walletId])
   @@index([lineId])
+}
+
+// Standalone bracket event, decoupled from Season/Division/Team (see
+// docs/adr/0001). Not tied to league data — participants are free text
+// (docs/adr/0007 covers byes) and admin flips status draft -> live ->
+// completed. version bumps on every mutation for the SSE stream (docs/adr
+// 0003, tournament-bracket-implementation-plan.md).
+model Tournament {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("draft") // draft | live | completed
+  version   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  participants Participant[]
+  matches      BracketMatch[]
+}
+
+model Participant {
+  id           String @id @default(cuid())
+  tournamentId String
+  name         String
+  seed         Int // initial ordering position; determines round-1 placement
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, seed])
+}
+
+// One node in a Tournament's bracket tree (docs/adr/0002). loserNextMatchId/
+// loserNextMatchSlot are modeled now, unused until double-elimination ships,
+// to avoid a future migration across every existing row.
+model BracketMatch {
+  id           String @id @default(cuid())
+  tournamentId String
+  round        Int // 1-based
+  position     Int // 0-based index within the round
+
+  slot1ParticipantId  String?
+  slot2ParticipantId  String?
+  winnerParticipantId String?
+
+  nextMatchId        String? // where the winner advances to; null = final match
+  nextMatchSlot      Int? // 1 or 2, which slot in nextMatchId
+  loserNextMatchId   String?
+  loserNextMatchSlot Int?
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, round, position])
 }
