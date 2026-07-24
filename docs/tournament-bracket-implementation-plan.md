@@ -55,7 +55,7 @@ model BracketMatch {
 `lib/bracketEngine.js` — pure functions, no Prisma imports, fully unit-testable:
 
 - `generateBracket(participantNames: string[]): { participants, matches }` — participant count must already be a power of 2 (admin pads with literal `"BYE"` entries per ADR-0007; validate and throw if not). Builds round 1 matches pairing consecutive entries, then empty matches for every subsequent round with `nextMatchId`/`nextMatchSlot` computed by standard bracket-tree math.
-- `recordWinner(matches, matchId, winnerParticipantId)`: returns the updated match list — sets `winnerParticipantId` on the target match, and if `nextMatchId` is set, fills the appropriate slot on that match. Pure/immutable; the caller (API route) persists the diff in a transaction and bumps `Tournament.version`.
+- `recordWinner(matches, matchId, winnerParticipantId)`: validates the target match is `ready` (both slots filled, no existing winner) and that `winnerParticipantId` equals one of its two slot participant IDs — throws otherwise, so a stale or malformed request can't corrupt the bracket. Returns the updated match list — sets `winnerParticipantId` on the target match, and if `nextMatchId` is set, fills the appropriate slot on that match. Pure/immutable; the caller (API route) persists the diff in a transaction and bumps `Tournament.version`.
 - `isTournamentComplete(matches)`: true when the single match with `nextMatchId === null` has a `winnerParticipantId`.
 - `matchState(match)`: returns `'empty' | 'ready' | 'decided'` per the `Ready`/`Decided` terms in `CONTEXT.md` — `ready` when both slots are filled and no winner, `decided` when a winner is set.
 
@@ -67,12 +67,15 @@ Each bullet is a self-contained agent task. File boundaries are deliberately dis
 
 **B — Admin API** (`app/api/admin/tournaments/route.js`, `app/api/admin/tournaments/[id]/route.js`)
 - `POST /api/admin/tournaments` — create (name + ordered participant names) → `bracketEngine.generateBracket` → persist.
-- `PATCH /api/admin/tournaments/[id]` — actions: `editParticipant` (name change, any time), `reseed` (swap a slot's participant — only if that match has no winner yet, per ADR-0008), `recordWinner` (calls `bracketEngine.recordWinner`, bumps version, flips `Tournament.status` to `completed` via `isTournamentComplete`), `publish` (draft→live), `reset`/`delete`.
+- `PATCH /api/admin/tournaments/[id]` — actions: `editParticipant` and `reseed` (both only if every match that participant's slot feeds into still has no winner — per ADR-0008 the lock applies to edits and reseeds alike, not just reseeds), `recordWinner` (calls `bracketEngine.recordWinner`, bumps version, flips `Tournament.status` to `completed` via `isTournamentComplete`), `publish` (draft→live), `reset`/`delete`.
+- Every action in this route bumps `Tournament.version` in the same transaction as its mutation — not just `recordWinner`. The SSE stream only re-polls on a version change, so an edit, reseed, publish, or reset that didn't bump it would be invisible to connected viewers until an unrelated later change woke the poll.
 - Auth: `resolveAdminAuth(request)` — the site-wide pattern (`lib/resolveAuth.js`), not the Draft system's per-resource `adminKey` (ADR-0008 doesn't call for a separate key scheme; this is internal admin tooling like `/api/admin/*` elsewhere).
 
 **C — Viewer API + SSE** (`app/api/tournaments/route.js`, `app/api/tournaments/[id]/state/route.js`, `app/api/tournaments/[id]/stream/route.js`, `lib/tournamentState.js`)
 - List route returns only `live`/`completed` tournaments (never `draft`, per ADR-0003/0006), newest first.
+- The `draft` exclusion is enforced in the state builder itself (`lib/tournamentState.js`), not just the list route — both the `state` and `stream` per-ID routes 404 for a `draft` tournament regardless of who requests it, since the ID isn't secret the way a Draft's `adminKey` is.
 - `state`/`stream` routes are a direct port of `app/api/drafts/[id]/stream/route.js`'s pattern: poll `Tournament.version` every 1.5s, push full sanitized state (participants + matches with computed `matchState`) on change. No new transport pattern — reuse, don't reinvent (ADR from the interview's Question 4).
+- Unlike the Draft stream, the tournament stream terminates once it sends `completed` state: no further polling, per ADR-0003. The client does not auto-reconnect on a clean server-initiated close, so an old bracket's page doesn't leave an open connection polling the database forever.
 
 **D — Admin UI** (`app/admin/tournaments/[id]/page.js`, `app/admin/tournaments/[id]/AdminClient.js`, `app/admin/tournaments/page.js` for the create/list screen)
 - Create form (name + textarea/list of participant names, one per line, "BYE" typed like any name).
