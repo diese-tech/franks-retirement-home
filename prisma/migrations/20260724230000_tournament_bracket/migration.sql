@@ -51,3 +51,13 @@ ALTER TABLE "Participant" ADD CONSTRAINT "Participant_tournamentId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "BracketMatch" ADD CONSTRAINT "BracketMatch_tournamentId_fkey" FOREIGN KEY ("tournamentId") REFERENCES "Tournament"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Enable RLS with no policies, matching every other non-public-read table in
+-- this project (docs/adr/0005): default-deny for the anon/authenticated
+-- roles Supabase's Data API exposes. The app reads and writes these tables
+-- exclusively through Prisma's `postgres` role, which has BYPASSRLS, so this
+-- has no effect on application behavior — it only closes the direct-REST-API
+-- surface, including bypassing the viewer API's own draft-status filtering.
+ALTER TABLE "Tournament" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Participant" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "BracketMatch" ENABLE ROW LEVEL SECURITY;
