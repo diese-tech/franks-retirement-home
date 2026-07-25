@@ -58,7 +58,7 @@ See `.env.example` for the exact URL format and `docs/PRISMA_WORKFLOW.md` for th
 | Season | 1 (Season 9, `slug: s9`, status: `upcoming`) |
 | Division | 2 (Hospice `div-s9-hospice`, Rehabilitation `div-s9-rehabilitation`) |
 | Player | 20 |
-| God | 81 |
+| God | 83 |
 | Draft | 1 (sample standalone draft) |
 | **Team** | **10 (4 Hospice + 6 Rehabilitation)** |
 | Match | 0 |
@@ -465,7 +465,7 @@ both auth paths work simultaneously during rollout.
 npm run dev              # Next.js dev server
 npm run build            # Production build (uses fake DB URL in CI)
 npm run lint             # next lint
-npm run test             # vitest run — all unit + API tests (172 tests)
+npm run test             # vitest run — all unit + API tests (456 tests across 29 files as of 2026-07-25; grows over time, don't trust this number, run it)
 npm run test:unit        # vitest run tests/unit
 npm run test:api         # vitest run tests/api
 npm run test:e2e         # playwright test (requires running app)

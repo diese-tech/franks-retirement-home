@@ -3,6 +3,8 @@
 Migration: `20250528000000_frh_db_foundation`
 Branch: `feature/frh-db-foundation`
 
+**Correction (2026-07-25):** this document describes the schema as originally added, when none of it had a UI or API yet. Most of it has since shipped — see the corrected status at the bottom of this document rather than trusting "What Is Intentionally NOT Implemented" / "Recommended Next Implementation Order" below, both of which are now stale.
+
 ---
 
 ## Tables Added
@@ -72,23 +74,16 @@ No real-money gambling. Team-odds fantasy points only. No betting UI in this pha
 
 ---
 
-## What Is Intentionally NOT Implemented
+## Current status (corrected 2026-07-25)
 
-- No admin UI for any of these models
-- No API routes for BulletinPost, EditorialCase, Wallet, or BettingLine
-- No CSV import preview/mapping UI
-- No player claim admin review queue page
-- No automated stat-signal job for EditorialCase
-- No wallet opening / betting logic (schema only)
-- No community reactions or comments on BulletinPost (reserved for next phase)
+**Shipped since this doc was written:**
+- `BulletinPost` — full public page (`/bulletin-board`), admin CRUD (`/api/admin/bulletin`), and community comments/reactions (`/api/bulletin/[id]/comments`, `/api/bulletin/[id]/reactions`) — the "reserved for next phase" comments/reactions gap below is closed.
+- `EditorialCase` (Fraud Watch / Washed Reports) — full public page (`/fraud-watch`), admin CRUD (`/api/admin/editorial-cases`).
+- `Wallet`/`WalletTransaction`/`BettingLine`/`Bet` — full betting flow: public lines viewer (`/knows-ball`), admin line creation (`/api/admin/betting-lines`), player wallet (`/api/wallet/me`) and bet placement (`/api/bets`).
+- Admin editing for Bulletin/Fraud Watch/Betting Lines is **not** in the central `/admin` dashboard — it's an inline "Edit" toggle on each public page itself. This split admin-editing model is tracked as a known usability gap in `docs/production-readiness-audit-2.md`, not something to fix by re-reading this doc.
 
----
-
-## Recommended Next Implementation Order
-
-1. **Profile claim admin queue** — `/admin/claims` page; approve/deny PlayerClaim rows
-2. **CSV import mapper/preview** — upload CSV → map columns → preview normalized rows → import
-3. **Bulletin Board page** — `/bulletin-board` public listing + `/bulletin-board/[slug]` post view + admin modal editing
-4. **Homepage section edit modals** — replace HomepageContent admin editor with per-section modals backed by HomepageSectionConfig + BulletinPost
-5. **Fraud/Washed case workflows** — stat-signal job creates EditorialCase drafts; admin reviews and publishes
-6. **Fantasy points wallet/team odds** — wallet open-on-first-bet logic, BettingLine admin creation, Bet placement UI
+**Still genuinely not built** (this part of the original doc is still accurate):
+- No CSV import preview/mapping UI for `RosterImport`/`RosterImportRow` — schema-only, still.
+- No admin review queue page for `PlayerClaim`.
+- No `HomepageSectionConfig`-backed per-section edit modals — the homepage editor still edits `HomepageContent` as a whole via `EditorToolbar` in `app/HomepageWrapper.js`.
+- No automated nightly stat-signal job creating `EditorialCase` drafts — case creation today is fully manual via the admin CRUD API.

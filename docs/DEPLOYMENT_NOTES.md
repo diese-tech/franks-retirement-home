@@ -293,13 +293,13 @@ The reference-data cache in `lib/referenceData.js` (issue #8) hydrates lazily on
 
 ---
 
-# Polish bucket (#16) — remaining work
+# Polish bucket (#16) — status (corrected 2026-07-25)
 
-Still open. Suggested order:
+1. **GitHub Actions CI** — ✅ Done in `ci.yml`.
+2. **Vitest integration coverage** for concurrency/vault invariants — ✅ Done (`tests/api/pick.test.js`, `tests/unit/usedGodIds.test.js`).
+3. **Structured logging** (`lib/log.js`, `log(event, meta)` on SSE connect/disconnect, admin mutations, rate-limit 429s) — still open. Logging today is ad hoc `console.error`/`console.log` plus `lib/auditLog.js` for business-event auditing specifically, not general request/connection logging.
+4. **Image caching** (`scripts/sync-god-art.mjs`, downloads god icons/art into `public/gods/<slug>/`) — still open, script doesn't exist.
+5. **CSP** — ✅ Done and enforced (not report-only) — see `next.config.js`'s `Content-Security-Policy` header.
+6. **Stricter ESLint** (`eqeqeq`, `no-console` allow-list, `prefer-const`) — ✅ Done in `.eslintrc.json`.
 
-1. **GitHub Actions CI** — catches regressions on every PR. `npm ci`, `next lint`, `prisma generate`, and `prisma migrate deploy` on merge to main. ✅ Done in `ci.yml`.
-2. **Vitest integration coverage** — especially the concurrency invariants from issue #7 and the vault behavior from #15.
-3. **Structured logging** — small `lib/log.js` with `log(event, meta)`. Use it on SSE connect/disconnect, admin mutations, and the rate-limit 429s.
-4. **Image caching** — `scripts/sync-god-art.mjs` to download god icons + wide art into `public/gods/<slug>/`, fall back to smitefire on miss, optional `God.imageSlug` for admin overrides.
-5. **CSP** — start in `Content-Security-Policy-Report-Only` mode, fix what breaks, then enforce.
-6. **Stricter ESLint** — at minimum `eqeqeq`, `no-console: ['warn', { allow: ['warn', 'error'] }]`, `prefer-const`.
+Only items 3 and 4 remain open.

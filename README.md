@@ -9,8 +9,10 @@ The platform now supports:
 - Match scheduling
 - Match-bound drafts
 - Standalone drafts
+- Standalone real-time tournament brackets
 - Human-reviewed OCR stat ingestion
 - Public standings and league pages
+- Community features: bulletin board, fraud watch, Knows Ball betting lines
 - Admin operational tooling
 
 FRH is the canonical source of truth for league operations.
@@ -90,6 +92,10 @@ See:
 | `docs/league-ops-lifecycle.md` | Season lifecycle and operational doctrine |
 | `docs/season-9-ops-reference.md` | S9 ops reference — teams, routes, scripts |
 | `docs/season-9-backlog.md` | Historical S9 planning reference |
+| `docs/tournament-bracket-implementation-plan.md` | Historical — Tournament bracket feature build plan, fully executed |
+| `docs/adr/` | Architecture decision records (numbered, currently 0001–0009, all covering the Tournament feature) |
+| `docs/production-readiness-audit-2.md` | Latest production-readiness + usability audit and scorecard |
+| `docs/production-readiness-implementation-plan.md` | Active plan to close this audit's gaps |
 
 ---
 
@@ -265,8 +271,9 @@ Set all Discord env vars in Vercel > Project Settings > Environment Variables:
 
 - Admin dashboard
 - GodDraft undo/reset/reopen
-- PlayerDraft lifecycle
+- PlayerDraft lifecycle (including individual picks — captains cannot yet self-serve their own pick, a known gap)
 - Match scheduling/editing/deleting
+- Tournament bracket creation and all admin mutations (`/admin/tournaments`)
 
 ---
 
@@ -297,4 +304,4 @@ Season 9 expanded the platform into a full League Ops system with:
 - review queues
 - match lifecycle tooling
 
-Some older docs and issues may still reference earlier ForgeLens worker planning. Current architecture is FRH-native OCR via `lib/gemini.js`.
+OCR extraction has two live paths in production, not one: direct in-app extraction via `lib/gemini.js`, and an external ForgeLens worker that submits results back via the HMAC-verified `app/api/forgelens/callback` route (see `docs/LAUNCH_CHECKLIST.md`'s `FORGELENS_URL`/`FORGELENS_API_KEY`/`FORGELENS_HMAC_SECRET` setup). Some older docs describe the ForgeLens path as fully deprecated/historical — that's inaccurate as of this writing; both paths are active.
