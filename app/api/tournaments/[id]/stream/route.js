@@ -69,13 +69,13 @@ export async function GET(request, { params }) {
             return;
           }
           if (row.version !== lastVersion) {
-            lastVersion = row.version;
             const state = await buildTournamentState(id);
             if (!state) {
               send({ type: 'not_found' });
               stop();
               return;
             }
+            lastVersion = row.version;
             send({ type: 'state', ...state });
             if (state.tournament.status === 'completed') {
               stop();
