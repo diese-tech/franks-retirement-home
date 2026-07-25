@@ -44,8 +44,7 @@ async function setAdminCookie(context) {
   await context.addCookies([{
     name: COOKIE_NAME,
     value: adminCookieValue(),
-    domain: 'localhost',
-    path: '/',
+    url: BASE,
     httpOnly: true,
     sameSite: 'Lax',
   }]);
