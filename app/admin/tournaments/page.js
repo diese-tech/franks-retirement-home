@@ -25,6 +25,12 @@ import PasswordGate from '../PasswordGate';
 
 const STATUS_COLOR = { draft: 'gray', live: 'lime', completed: 'cream' };
 
+// Mirrors app/api/admin/tournaments/route.js's MAX_PARTICIPANTS — kept in
+// sync manually since this is a client bundle and that constant lives in a
+// server route module. The server is still the source of truth; this is
+// only used for the live hint below.
+const MAX_PARTICIPANTS = 128;
+
 // Mirrors lib/bracketEngine.js's generateBracket() validation, reimplemented
 // here (rather than imported) so this client bundle doesn't pull in that
 // module's Node `crypto` import. Only used for a live hint in the create
@@ -72,7 +78,8 @@ export default function TournamentsListPage() {
     .split('\n')
     .map((n) => n.trim())
     .filter((n) => n.length > 0);
-  const participantCountValid = namesEntered.length >= 2 && isPowerOfTwo(namesEntered.length);
+  const participantCountValid =
+    namesEntered.length >= 2 && namesEntered.length <= MAX_PARTICIPANTS && isPowerOfTwo(namesEntered.length);
 
   const create = async () => {
     setCreateErr('');
@@ -186,6 +193,10 @@ export default function TournamentsListPage() {
               participantCountValid ? (
                 <p className="font-mono text-[10px] text-frh-lime mt-1">
                   {namesEntered.length} participants — ready.
+                </p>
+              ) : namesEntered.length > MAX_PARTICIPANTS ? (
+                <p className="font-mono text-[10px] text-red-400 mt-1">
+                  {namesEntered.length} participants — exceeds the {MAX_PARTICIPANTS}-participant maximum. Remove {namesEntered.length - MAX_PARTICIPANTS} to continue.
                 </p>
               ) : (
                 <p className="font-mono text-[10px] text-orange-400 mt-1">
