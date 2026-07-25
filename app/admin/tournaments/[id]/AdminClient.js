@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
@@ -40,6 +40,10 @@ function matchState(match) {
   return 'empty';
 }
 
+function rosterText(participants) {
+  return [...participants].sort((a, b) => a.seed - b.seed).map((p) => p.name).join('\n');
+}
+
 async function api(url, opts) {
   let res;
   try {
@@ -74,10 +78,21 @@ export default function AdminClient({ tournament }) {
   const [participantEdits, setParticipantEdits] = useState({}); // participantId -> { name, seed }
   const [participantBusy, setParticipantBusy] = useState({}); // participantId -> bool
   const [participantErr, setParticipantErr] = useState({}); // participantId -> string
-  const [namesText, setNamesText] = useState(
-    [...participants].sort((a, b) => a.seed - b.seed).map((p) => p.name).join('\n')
-  );
+  const [namesText, setNamesText] = useState(() => rosterText(participants));
+  const [namesTextDirty, setNamesTextDirty] = useState(false);
   const [regenerateBusy, setRegenerateBusy] = useState(false);
+
+  // router.refresh() re-renders this component with fresh `participants` in
+  // place (no remount), so the textarea's own useState initializer only ever
+  // ran once at first mount. Without this, saving a rename/reseed elsewhere
+  // on the page would leave the regenerate box silently showing the
+  // page-load roster — submitting it would quietly undo whatever was just
+  // edited. Only resync while the admin hasn't started editing this box
+  // themselves, so an in-progress edit here is never clobbered.
+  useEffect(() => {
+    if (!namesTextDirty) setNamesText(rosterText(participants));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants]);
 
   const participantById = Object.fromEntries(participants.map((p) => [p.id, p]));
 
@@ -143,6 +158,10 @@ export default function AdminClient({ tournament }) {
       setBanner({ kind: 'error', text: data?.error || 'Could not regenerate this tournament’s participants.' });
       return;
     }
+    // The just-submitted list is now the server's truth — clear dirty so the
+    // next `participants` prop (matching what we just sent) can sync freely,
+    // and so a later edit by someone else in another tab resyncs too.
+    setNamesTextDirty(false);
     router.refresh();
   };
 
@@ -300,7 +319,7 @@ export default function AdminClient({ tournament }) {
                 className="input-field w-full font-mono text-xs"
                 rows={8}
                 value={namesText}
-                onChange={(e) => setNamesText(e.target.value)}
+                onChange={(e) => { setNamesText(e.target.value); setNamesTextDirty(true); }}
                 disabled={regenerateBusy}
                 placeholder={'Team Alpha\nTeam Bravo\nTeam Charlie\nBYE'}
               />
