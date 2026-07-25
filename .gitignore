@@ -6,6 +6,12 @@ node_modules/
 *.db
 *.db-journal
 
+# Playwright run artifacts (tests/e2e/report is the configured HTML
+# reporter output in playwright.config.js; test-results is its default
+# trace/screenshot dir on failure)
+tests/e2e/report/
+test-results/
+
 # Local-only MCP / tooling config (issue #16). Each developer is responsible
 # for their own MCP servers; do not commit project-specific MCP routing.
 .mcp.json
