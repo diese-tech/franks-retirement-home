@@ -4,6 +4,7 @@ import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { recordWinner as engineRecordWinner, isTournamentComplete, matchState } from '@/lib/bracketEngine';
 
 const VALID_ACTIONS = ['editParticipant', 'reseed', 'recordWinner', 'publish', 'reset', 'delete'];
+const MAX_NAME_LENGTH = 100;
 
 // PATCH /api/admin/tournaments/[id] — action-discriminated admin mutations.
 // Every branch bumps Tournament.version by exactly 1 in the same transaction
@@ -76,8 +77,8 @@ async function handleEditParticipant(tournament, body) {
   if (typeof participantId !== 'string' || !participantId) {
     throw badRequest('participantId is required');
   }
-  if (typeof name !== 'string' || !name.trim()) {
-    throw badRequest('name is required');
+  if (typeof name !== 'string' || !name.trim() || name.length > MAX_NAME_LENGTH) {
+    throw badRequest(`name is required and must be ${MAX_NAME_LENGTH} characters or fewer`);
   }
 
   const updated = await prisma.$transaction(async (tx) => {

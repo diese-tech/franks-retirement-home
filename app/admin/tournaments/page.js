@@ -25,6 +25,26 @@ import PasswordGate from '../PasswordGate';
 
 const STATUS_COLOR = { draft: 'gray', live: 'lime', completed: 'cream' };
 
+// Mirrors app/api/admin/tournaments/route.js's MAX_PARTICIPANTS — kept in
+// sync manually since this is a client bundle and that constant lives in a
+// server route module. The server is still the source of truth; this is
+// only used for the live hint below.
+const MAX_PARTICIPANTS = 128;
+
+// Mirrors lib/bracketEngine.js's generateBracket() validation, reimplemented
+// here (rather than imported) so this client bundle doesn't pull in that
+// module's Node `crypto` import. Only used for a live hint in the create
+// form — the server is still the source of truth for this check.
+function isPowerOfTwo(n) {
+  return Number.isInteger(n) && n >= 2 && (n & (n - 1)) === 0;
+}
+
+function nextPowerOfTwo(n) {
+  let p = 2;
+  while (p < n) p *= 2;
+  return p;
+}
+
 export default function TournamentsListPage() {
   const router = useRouter();
   const [tournaments, setTournaments] = useState(null); // null = loading
@@ -54,12 +74,16 @@ export default function TournamentsListPage() {
 
   useEffect(() => { load(); }, []);
 
+  const namesEntered = namesText
+    .split('\n')
+    .map((n) => n.trim())
+    .filter((n) => n.length > 0);
+  const participantCountValid =
+    namesEntered.length >= 2 && namesEntered.length <= MAX_PARTICIPANTS && isPowerOfTwo(namesEntered.length);
+
   const create = async () => {
     setCreateErr('');
-    const participantNames = namesText
-      .split('\n')
-      .map((n) => n.trim())
-      .filter((n) => n.length > 0);
+    const participantNames = namesEntered;
 
     if (!name.trim()) { setCreateErr('Name is required.'); return; }
     if (participantNames.length < 2) { setCreateErr('Enter at least two participant names, one per line.'); return; }
@@ -162,9 +186,28 @@ export default function TournamentsListPage() {
               onChange={(e) => setNamesText(e.target.value)}
               placeholder={'Team Alpha\nTeam Bravo\nTeam Charlie\nBYE'}
             />
+            {namesEntered.length === 1 && (
+              <p className="font-mono text-[10px] text-gray-500 mt-1">Enter at least two participant names.</p>
+            )}
+            {namesEntered.length >= 2 && (
+              participantCountValid ? (
+                <p className="font-mono text-[10px] text-frh-lime mt-1">
+                  {namesEntered.length} participants — ready.
+                </p>
+              ) : namesEntered.length > MAX_PARTICIPANTS ? (
+                <p className="font-mono text-[10px] text-red-400 mt-1">
+                  {namesEntered.length} participants — exceeds the {MAX_PARTICIPANTS}-participant maximum. Remove {namesEntered.length - MAX_PARTICIPANTS} to continue.
+                </p>
+              ) : (
+                <p className="font-mono text-[10px] text-orange-400 mt-1">
+                  {namesEntered.length} participants — not a power of 2. Add {nextPowerOfTwo(namesEntered.length) - namesEntered.length} more
+                  {' '}(e.g. &quot;BYE&quot;) to reach {nextPowerOfTwo(namesEntered.length)}, or remove some.
+                </p>
+              )
+            )}
           </div>
           {createErr && <p className="font-mono text-xs text-red-400">{createErr}</p>}
-          <BrutalButton onClick={create} disabled={busy}>
+          <BrutalButton onClick={create} disabled={busy || !name.trim() || !participantCountValid}>
             {busy ? 'Creating…' : 'Create Tournament'}
           </BrutalButton>
         </div>

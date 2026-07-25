@@ -5,6 +5,9 @@ import { generateBracket } from '@/lib/bracketEngine';
 
 export const dynamic = 'force-dynamic';
 
+const MAX_NAME_LENGTH = 100;
+const MAX_PARTICIPANTS = 128;
+
 // GET /api/admin/tournaments — every Tournament regardless of status (the
 // admin list shows drafts too, unlike the public /tournaments viewer),
 // newest first, mirroring the GET+POST pairing every other admin collection
@@ -40,16 +43,19 @@ export async function POST(request) {
 
   const { name, participantNames } = body;
 
-  if (typeof name !== 'string' || !name.trim()) {
-    return NextResponse.json({ error: 'name is required' }, { status: 400 });
+  if (typeof name !== 'string' || !name.trim() || name.length > MAX_NAME_LENGTH) {
+    return NextResponse.json({ error: `name is required and must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
   if (!Array.isArray(participantNames) || participantNames.length === 0) {
     return NextResponse.json({ error: 'participantNames must be a non-empty array' }, { status: 400 });
   }
+  if (participantNames.length > MAX_PARTICIPANTS) {
+    return NextResponse.json({ error: `Maximum ${MAX_PARTICIPANTS} participants per tournament` }, { status: 400 });
+  }
 
   const cleanedNames = participantNames.map((n) => (typeof n === 'string' ? n.trim() : ''));
-  if (cleanedNames.some((n) => !n)) {
-    return NextResponse.json({ error: 'participantNames must all be non-empty strings' }, { status: 400 });
+  if (cleanedNames.some((n) => !n || n.length > MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `participantNames must all be non-empty strings of ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
 
   let bracket;
