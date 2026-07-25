@@ -155,6 +155,7 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     { key: 'superlatives',  label: 'Superlatives',     count: null },
     { key: 'import',        label: 'Import',           count: null },
     { key: 'gods',          label: 'Gods',             count: gods.length },
+    { key: 'tournaments',   label: 'Tournaments',      count: null },
   ];
 
   return (
@@ -241,6 +242,16 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'superlatives'    && <SuggestedSuperlativesPanel />}
         {tab === 'import'          && <ImportPanel          onRefresh={refreshPlayers} />}
         {tab === 'gods'            && <GodsPanel            gods={gods}   onRefresh={refreshGods} />}
+        {tab === 'tournaments' && (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500 mb-4">
+              Tournament brackets have their own create/list/edit editor, separate from this dashboard.
+            </p>
+            <a href="/admin/tournaments">
+              <BrutalButton variant="primary">Open Tournament Editor →</BrutalButton>
+            </a>
+          </div>
+        )}
       </RetroWindow>
     </div>
   );
