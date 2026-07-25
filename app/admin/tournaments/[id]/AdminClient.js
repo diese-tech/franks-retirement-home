@@ -1,12 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RetroWindow, BrutalButton, PixelBadge } from '@/components/ui';
 
 const STATUS_COLOR = { draft: 'gray', live: 'lime', completed: 'cream' };
 const MATCH_STATE_COLOR = { empty: 'gray', ready: 'blue', decided: 'lime' };
+
+// Mirrors app/api/admin/tournaments/route.js's MAX_PARTICIPANTS — kept in
+// sync manually since this is a client bundle and that constant lives in a
+// server route module (see app/admin/tournaments/page.js's identical note).
+const MAX_PARTICIPANTS = 128;
+
+// Mirrors lib/bracketEngine.js's generateBracket() validation, reimplemented
+// here (rather than imported) so this client bundle doesn't pull in that
+// module's Node `crypto` import — same reasoning as matchState() above and
+// app/admin/tournaments/page.js's identical helpers. Only used for a live
+// hint in the regenerate form below; the server is still the source of
+// truth for this check.
+function isPowerOfTwo(n) {
+  return Number.isInteger(n) && n >= 2 && (n & (n - 1)) === 0;
+}
+
+function nextPowerOfTwo(n) {
+  let p = 2;
+  while (p < n) p *= 2;
+  return p;
+}
 
 // Mirrors lib/bracketEngine.js's matchState() — reimplemented here (instead
 // of imported) so this client bundle doesn't pull in that module's Node
@@ -17,6 +38,10 @@ function matchState(match) {
   if (match.winnerParticipantId) return 'decided';
   if (match.slot1ParticipantId && match.slot2ParticipantId) return 'ready';
   return 'empty';
+}
+
+function rosterText(participants) {
+  return [...participants].sort((a, b) => a.seed - b.seed).map((p) => p.name).join('\n');
 }
 
 async function api(url, opts) {
@@ -53,10 +78,28 @@ export default function AdminClient({ tournament }) {
   const [participantEdits, setParticipantEdits] = useState({}); // participantId -> { name, seed }
   const [participantBusy, setParticipantBusy] = useState({}); // participantId -> bool
   const [participantErr, setParticipantErr] = useState({}); // participantId -> string
+  const [namesText, setNamesText] = useState(() => rosterText(participants));
+  const [namesTextDirty, setNamesTextDirty] = useState(false);
+  const [regenerateBusy, setRegenerateBusy] = useState(false);
+
+  // router.refresh() re-renders this component with fresh `participants` in
+  // place (no remount), so the textarea's own useState initializer only ever
+  // ran once at first mount. Without this, saving a rename/reseed elsewhere
+  // on the page would leave the regenerate box silently showing the
+  // page-load roster — submitting it would quietly undo whatever was just
+  // edited. Only resync while the admin hasn't started editing this box
+  // themselves, so an in-progress edit here is never clobbered.
+  useEffect(() => {
+    if (!namesTextDirty) setNamesText(rosterText(participants));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants]);
 
   const participantById = Object.fromEntries(participants.map((p) => [p.id, p]));
 
-  const editFor = (p) => participantEdits[p.id] ?? { name: p.name, seed: String(p.seed) };
+  // `seed` here isn't a raw seed the admin types — it's the target seed
+  // picked from the "Swap with" dropdown below, so it defaults to '' (no
+  // selection) rather than the participant's own current seed.
+  const editFor = (p) => participantEdits[p.id] ?? { name: p.name, seed: '' };
   const patchEdit = (participantId, patch) => {
     setParticipantEdits((prev) => ({
       ...prev,
@@ -91,6 +134,34 @@ export default function AdminClient({ tournament }) {
       setParticipantErr((e) => ({ ...e, [p.id]: data?.error || 'Could not reseed this participant — a match it feeds into has already been decided.' }));
       return;
     }
+    patchEdit(p.id, { seed: '' });
+    router.refresh();
+  };
+
+  const regenerate = async () => {
+    const participantNames = namesText
+      .split('\n')
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0);
+    if (
+      !confirm(
+        'Regenerate this bracket? This replaces every current participant and rebuilds the whole bracket from scratch — existing seeds and matches will be discarded.'
+      )
+    ) {
+      return;
+    }
+    setRegenerateBusy(true);
+    setBanner(null);
+    const { ok, data } = await patchTournament(id, { action: 'regenerate', participantNames });
+    setRegenerateBusy(false);
+    if (!ok) {
+      setBanner({ kind: 'error', text: data?.error || 'Could not regenerate this tournament’s participants.' });
+      return;
+    }
+    // The just-submitted list is now the server's truth — clear dirty so the
+    // next `participants` prop (matching what we just sent) can sync freely,
+    // and so a later edit by someone else in another tab resyncs too.
+    setNamesTextDirty(false);
     router.refresh();
   };
 
@@ -143,6 +214,13 @@ export default function AdminClient({ tournament }) {
   }
   const roundNumbers = Object.keys(rounds).map(Number).sort((a, b) => a - b);
 
+  const namesEntered = namesText
+    .split('\n')
+    .map((n) => n.trim())
+    .filter((n) => n.length > 0);
+  const participantCountValid =
+    namesEntered.length >= 2 && namesEntered.length <= MAX_PARTICIPANTS && isPowerOfTwo(namesEntered.length);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-3 mb-2">
@@ -193,20 +271,28 @@ export default function AdminClient({ tournament }) {
                       disabled={busy}
                     />
                   </div>
-                  <div className="w-20">
-                    <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Seed</label>
-                    <input
-                      type="number"
+                  <div className="min-w-[10rem]">
+                    <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">Swap with</label>
+                    <select
                       className="input-field w-full"
                       value={edit.seed}
                       onChange={(e) => patchEdit(p.id, { seed: e.target.value })}
                       disabled={busy}
-                    />
+                    >
+                      <option value="">— choose —</option>
+                      {participants
+                        .filter((other) => other.id !== p.id)
+                        .map((other) => (
+                          <option key={other.id} value={other.seed}>
+                            {other.name}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                   <BrutalButton size="sm" variant="secondary" disabled={busy || edit.name.trim() === p.name} onClick={() => saveName(p)}>
                     Save Name
                   </BrutalButton>
-                  <BrutalButton size="sm" variant="secondary" disabled={busy || parseInt(edit.seed, 10) === p.seed} onClick={() => saveSeed(p)}>
+                  <BrutalButton size="sm" variant="secondary" disabled={busy || edit.seed === ''} onClick={() => saveSeed(p)}>
                     Reseed
                   </BrutalButton>
                 </div>
@@ -217,6 +303,52 @@ export default function AdminClient({ tournament }) {
           {participants.length === 0 && <p className="font-mono text-xs text-gray-500">No participants.</p>}
         </div>
       </RetroWindow>
+
+      {status === 'draft' && (
+        <RetroWindow title="REGENERATE PARTICIPANTS" titleBarColor="gray">
+          <p className="font-mono text-[10px] text-gray-500 mb-3">
+            Wholesale-replaces every current participant and rebuilds the bracket from scratch. Only available
+            while this tournament is still a draft.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[10px] font-ui uppercase text-gray-600 mb-1">
+                Participant names (one per line — pad with literal &quot;BYE&quot; entries to reach a power of 2)
+              </label>
+              <textarea
+                className="input-field w-full font-mono text-xs"
+                rows={8}
+                value={namesText}
+                onChange={(e) => { setNamesText(e.target.value); setNamesTextDirty(true); }}
+                disabled={regenerateBusy}
+                placeholder={'Team Alpha\nTeam Bravo\nTeam Charlie\nBYE'}
+              />
+              {namesEntered.length === 1 && (
+                <p className="font-mono text-[10px] text-gray-500 mt-1">Enter at least two participant names.</p>
+              )}
+              {namesEntered.length >= 2 && (
+                participantCountValid ? (
+                  <p className="font-mono text-[10px] text-frh-lime mt-1">
+                    {namesEntered.length} participants — ready.
+                  </p>
+                ) : namesEntered.length > MAX_PARTICIPANTS ? (
+                  <p className="font-mono text-[10px] text-red-400 mt-1">
+                    {namesEntered.length} participants — exceeds the {MAX_PARTICIPANTS}-participant maximum. Remove {namesEntered.length - MAX_PARTICIPANTS} to continue.
+                  </p>
+                ) : (
+                  <p className="font-mono text-[10px] text-orange-400 mt-1">
+                    {namesEntered.length} participants — not a power of 2. Add {nextPowerOfTwo(namesEntered.length) - namesEntered.length} more
+                    {' '}(e.g. &quot;BYE&quot;) to reach {nextPowerOfTwo(namesEntered.length)}, or remove some.
+                  </p>
+                )
+              )}
+            </div>
+            <BrutalButton variant="danger" onClick={regenerate} disabled={regenerateBusy || !participantCountValid}>
+              {regenerateBusy ? 'Regenerating…' : 'Regenerate Bracket'}
+            </BrutalButton>
+          </div>
+        </RetroWindow>
+      )}
 
       <RetroWindow title="BRACKET" titleBarColor="purple">
         <div className="space-y-6">
