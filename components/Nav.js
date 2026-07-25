@@ -9,6 +9,7 @@ const PUBLIC_LINKS = [
   { href: '/',               label: 'Home' },
   { href: '/schedule',       label: 'Schedule' },
   { href: '/standings',      label: 'Standings' },
+  { href: '/tournaments',    label: 'Tournaments' },
   { href: '/roster',         label: 'Roster' },
   { href: '/bulletin-board', label: 'Board' },
   { href: '/fraud-watch',    label: 'Fraud Watch' },
