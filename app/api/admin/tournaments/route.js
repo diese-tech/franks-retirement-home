@@ -3,6 +3,28 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { generateBracket } from '@/lib/bracketEngine';
 
+export const dynamic = 'force-dynamic';
+
+// GET /api/admin/tournaments — every Tournament regardless of status (the
+// admin list shows drafts too, unlike the public /tournaments viewer),
+// newest first, mirroring the GET+POST pairing every other admin collection
+// route in this codebase uses (change-requests, superlatives, etc.).
+export async function GET(request) {
+  const guard = await resolveAdminAuth(request);
+  if (guard) return guard;
+
+  try {
+    const tournaments = await prisma.tournament.findMany({
+      include: { participants: { select: { id: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(tournaments);
+  } catch (err) {
+    console.error('[admin/tournaments GET]', err);
+    return NextResponse.json({ error: 'Failed to load tournaments' }, { status: 500 });
+  }
+}
+
 // POST /api/admin/tournaments — create a Tournament from a name + ordered
 // participant names. Delegates the bracket-tree math to bracketEngine
 // (docs/tournament-bracket-implementation-plan.md, Phase 0) and persists the
