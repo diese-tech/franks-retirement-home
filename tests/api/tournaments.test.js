@@ -128,6 +128,11 @@ function makeFakeDb() {
         applyUpdateData(row, data);
         return clone(row);
       },
+      updateMany: async ({ where, data }) => {
+        const targets = tournaments.filter((t) => matchesWhereClause(t, where));
+        targets.forEach((t) => applyUpdateData(t, data));
+        return { count: targets.length };
+      },
       delete: async ({ where }) => {
         const idx = tournaments.findIndex((t) => t.id === where.id);
         const [row] = tournaments.splice(idx, 1);

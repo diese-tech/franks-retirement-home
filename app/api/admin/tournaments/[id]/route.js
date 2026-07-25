@@ -271,6 +271,20 @@ async function handleRegenerate(tournament, body) {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
+    // Re-check `draft` status as a conditional write, not the stale value
+    // read before this transaction opened: if a publish request commits in
+    // the gap between that read and here, this UPDATE's WHERE clause won't
+    // match (Postgres serializes the two UPDATEs via the row lock either
+    // update takes), so `count` comes back 0 and the destructive rebuild
+    // below never runs against a tournament that just went live.
+    const guard = await tx.tournament.updateMany({
+      where: { id: tournament.id, status: 'draft' },
+      data: { version: { increment: 1 } },
+    });
+    if (guard.count === 0) {
+      throw badRequest('Only a draft tournament can be regenerated');
+    }
+
     await tx.bracketMatch.deleteMany({ where: { tournamentId: tournament.id } });
     await tx.participant.deleteMany({ where: { tournamentId: tournament.id } });
 
@@ -299,10 +313,7 @@ async function handleRegenerate(tournament, body) {
       })),
     });
 
-    return tx.tournament.update({
-      where: { id: tournament.id },
-      data: { version: { increment: 1 } },
-    });
+    return tx.tournament.findUnique({ where: { id: tournament.id } });
   });
 
   return NextResponse.json({ id: updated.id, version: updated.version });
