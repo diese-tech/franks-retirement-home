@@ -179,6 +179,9 @@ async function handleRecordWinner(tournament, body) {
   if (typeof winnerParticipantId !== 'string' || !winnerParticipantId) {
     throw badRequest('winnerParticipantId is required');
   }
+  if (tournament.status !== 'live') {
+    throw badRequest('Winners can only be recorded on a live tournament');
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     const matches = await tx.bracketMatch.findMany({ where: { tournamentId: tournament.id } });
@@ -191,24 +194,24 @@ async function handleRecordWinner(tournament, body) {
       throw badRequest(err.message);
     }
 
-    const changed = nextMatches.filter((m) => {
-      const original = matches.find((om) => om.id === m.id);
-      return (
-        original.winnerParticipantId !== m.winnerParticipantId ||
-        original.slot1ParticipantId !== m.slot1ParticipantId ||
-        original.slot2ParticipantId !== m.slot2ParticipantId
-      );
-    });
+    // Write only the fields that actually differ per match, not the full
+    // slot1/slot2/winner triple from this transaction's read snapshot. Two
+    // sibling matches decided concurrently both cascade into the same
+    // downstream match, each only touching its own slot column — writing
+    // the untouched slot back from a stale snapshot would otherwise let
+    // whichever transaction commits last clobber the other's newly-filled
+    // slot. Prisma issues a plain column SET (no compare-and-swap), so
+    // restricting each update to only the columns this cascade changed is
+    // what keeps the two concurrent single-column writes from colliding.
+    for (const match of nextMatches) {
+      const original = matches.find((om) => om.id === match.id);
+      const data = {};
+      if (original.winnerParticipantId !== match.winnerParticipantId) data.winnerParticipantId = match.winnerParticipantId;
+      if (original.slot1ParticipantId !== match.slot1ParticipantId) data.slot1ParticipantId = match.slot1ParticipantId;
+      if (original.slot2ParticipantId !== match.slot2ParticipantId) data.slot2ParticipantId = match.slot2ParticipantId;
+      if (Object.keys(data).length === 0) continue;
 
-    for (const match of changed) {
-      await tx.bracketMatch.update({
-        where: { id: match.id },
-        data: {
-          winnerParticipantId: match.winnerParticipantId,
-          slot1ParticipantId: match.slot1ParticipantId,
-          slot2ParticipantId: match.slot2ParticipantId,
-        },
-      });
+      await tx.bracketMatch.update({ where: { id: match.id }, data });
     }
 
     const completed = isTournamentComplete(nextMatches);
