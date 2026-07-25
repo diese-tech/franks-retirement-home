@@ -17,6 +17,12 @@ export default function TournamentClient({ tournamentId, initialState }) {
   const closedForGoodRef = useRef(false);
 
   useEffect(() => {
+    // The server already rendered the final, immutable state for an
+    // archived tournament — per ADR-0003 a completed bracket never
+    // changes again, so there's nothing to stream and no reason to make
+    // the server redo the same state lookup on every visit to this page.
+    if (initialState.tournament.status === 'completed') return;
+
     closedForGoodRef.current = false;
     const es = new EventSource(`/api/tournaments/${tournamentId}/stream`);
 
@@ -57,6 +63,10 @@ export default function TournamentClient({ tournamentId, initialState }) {
       closedForGoodRef.current = true;
       es.close();
     };
+    // Only tournamentId identifies which stream to (re)open; initialState
+    // is a one-time server-rendered prop, not something that should ever
+    // reopen the connection on its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
   const { tournament, matches } = state;
