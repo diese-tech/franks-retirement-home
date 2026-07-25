@@ -20,7 +20,16 @@ function matchState(match) {
 }
 
 async function api(url, opts) {
-  const res = await fetch(url, { credentials: 'same-origin', ...opts });
+  let res;
+  try {
+    res = await fetch(url, { credentials: 'same-origin', ...opts });
+  } catch {
+    // Offline or a transient network failure — surface it the same way as
+    // a server error rather than throwing, so every caller's busy flag
+    // still gets cleared in its `finally` and the banner/inline error
+    // actually renders.
+    return { ok: false, status: 0, data: { error: 'Could not reach the server. Check your connection and try again.' } };
+  }
   let data = null;
   try { data = await res.json(); } catch { /* empty or non-JSON body */ }
   return { ok: res.ok, status: res.status, data: data ?? {} };
