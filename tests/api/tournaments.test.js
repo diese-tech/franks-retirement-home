@@ -128,6 +128,11 @@ function makeFakeDb() {
         applyUpdateData(row, data);
         return clone(row);
       },
+      updateMany: async ({ where, data }) => {
+        const targets = tournaments.filter((t) => matchesWhereClause(t, where));
+        targets.forEach((t) => applyUpdateData(t, data));
+        return { count: targets.length };
+      },
       delete: async ({ where }) => {
         const idx = tournaments.findIndex((t) => t.id === where.id);
         const [row] = tournaments.splice(idx, 1);
@@ -150,6 +155,11 @@ function makeFakeDb() {
         participants.push(...data.map((d) => ({ ...d })));
         return { count: data.length };
       },
+      deleteMany: async ({ where } = {}) => {
+        const before = participants.length;
+        participants = participants.filter((p) => !(where ? matchesWhereClause(p, where) : true));
+        return { count: before - participants.length };
+      },
     },
     bracketMatch: {
       findMany: async ({ where } = {}) =>
@@ -167,6 +177,11 @@ function makeFakeDb() {
       createMany: async ({ data }) => {
         matches.push(...data.map((d) => ({ ...d })));
         return { count: data.length };
+      },
+      deleteMany: async ({ where } = {}) => {
+        const before = matches.length;
+        matches = matches.filter((m) => !(where ? matchesWhereClause(m, where) : true));
+        return { count: before - matches.length };
       },
     },
     $transaction: async (fnOrArr) => {
@@ -230,6 +245,13 @@ async function round1Matches(tournamentId) {
 async function finalMatch(tournamentId) {
   const all = await prisma.bracketMatch.findMany({ where: { tournamentId } });
   return all.find((m) => m.nextMatchId === null);
+}
+
+async function regenerate(tournamentId, participantNames) {
+  return adminPatch(
+    makeReq({ action: 'regenerate', participantNames }),
+    { params: { id: tournamentId } }
+  );
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
@@ -419,5 +441,57 @@ describe('editParticipant / reseed lock after a decided match', () => {
       )
     );
     expect(editRes.status).toBe(400);
+  });
+});
+
+// ─── regenerate: draft-only rebuild of participants + bracket ──────────────
+describe('PATCH regenerate', () => {
+  it('rebuilds participants and bracket while draft, and bumps version', async () => {
+    const tournamentId = await createTournament(['Alpha', 'Bravo', 'Charlie', 'Delta']);
+    const before = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+
+    const res = unwrap(
+      await regenerate(tournamentId, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.version).toBe(before.version + 1);
+
+    const participants = await prisma.participant.findMany({ where: { tournamentId } });
+    expect(participants).toHaveLength(8);
+    expect(participants.map((p) => p.name).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
+
+    // 8 participants -> 4 round-1 + 2 round-2 + 1 final = 7 matches total.
+    const matchRows = await prisma.bracketMatch.findMany({ where: { tournamentId } });
+    expect(matchRows).toHaveLength(7);
+  });
+
+  it('rejects regenerate once the tournament is live', async () => {
+    const tournamentId = await createTournament();
+    await publish(tournamentId);
+
+    const res = unwrap(await regenerate(tournamentId, ['A', 'B', 'C', 'D']));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/draft/i);
+  });
+
+  it('rejects regenerate once the tournament is completed', async () => {
+    const tournamentId = await createTournament(['Alpha', 'Bravo']);
+    await publish(tournamentId);
+
+    const [match0] = await round1Matches(tournamentId);
+    const winRes = unwrap(await recordWinner(tournamentId, match0.id, match0.slot1ParticipantId));
+    expect(winRes.status).toBe(200);
+    expect(winRes.body.status).toBe('completed');
+
+    const res = unwrap(await regenerate(tournamentId, ['A', 'B', 'C', 'D']));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/draft/i);
+  });
+
+  it('rejects a non-power-of-2 participantNames array the same way POST does', async () => {
+    const tournamentId = await createTournament();
+
+    const res = unwrap(await regenerate(tournamentId, ['A', 'B', 'C']));
+    expect(res.status).toBe(400);
   });
 });

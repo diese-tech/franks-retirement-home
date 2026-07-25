@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
-import { recordWinner as engineRecordWinner, isTournamentComplete, matchState } from '@/lib/bracketEngine';
+import { generateBracket, recordWinner as engineRecordWinner, isTournamentComplete, matchState } from '@/lib/bracketEngine';
 
-const VALID_ACTIONS = ['editParticipant', 'reseed', 'recordWinner', 'publish', 'reset', 'delete'];
+const VALID_ACTIONS = ['editParticipant', 'reseed', 'recordWinner', 'regenerate', 'publish', 'reset', 'delete'];
 const MAX_NAME_LENGTH = 100;
+// Duplicated from app/api/admin/tournaments/route.js rather than imported —
+// matches how MAX_NAME_LENGTH is already independently defined in both files
+// so the collection route and this [id] route stay decoupled.
+const MAX_PARTICIPANTS = 128;
 
 // PATCH /api/admin/tournaments/[id] — action-discriminated admin mutations.
 // Every branch bumps Tournament.version by exactly 1 in the same transaction
@@ -38,6 +42,7 @@ export async function PATCH(request, { params }) {
     if (action === 'editParticipant') return await handleEditParticipant(tournament, body);
     if (action === 'reseed') return await handleReseed(tournament, body);
     if (action === 'recordWinner') return await handleRecordWinner(tournament, body);
+    if (action === 'regenerate') return await handleRegenerate(tournament, body);
     if (action === 'publish') return await handlePublish(tournament);
     if (action === 'reset') return await handleReset(tournament);
     return await handleDelete(tournament);
@@ -227,6 +232,91 @@ async function handleRecordWinner(tournament, body) {
   });
 
   return NextResponse.json({ id: updated.id, status: updated.status, version: updated.version });
+}
+
+// regenerate: { action: 'regenerate', participantNames: string[] }
+// Only permitted while the tournament is still `draft`. recordWinner already
+// requires `status === 'live'`, so a draft tournament can never have a
+// decided match — there's no historical bracket result to lose, which is
+// what makes wiping and rebuilding the whole bracket here safe (unlike
+// editParticipant/reseed, this skips assertParticipantUnlocked entirely).
+// Validates participantNames identically to POST /api/admin/tournaments,
+// then wipes and recreates every Participant/BracketMatch row for this
+// tournament from a freshly generated bracket, in one transaction.
+async function handleRegenerate(tournament, body) {
+  if (tournament.status !== 'draft') {
+    throw badRequest('Only a draft tournament can be regenerated');
+  }
+
+  const { participantNames } = body;
+  if (!Array.isArray(participantNames) || participantNames.length === 0) {
+    throw badRequest('participantNames must be a non-empty array');
+  }
+  if (participantNames.length > MAX_PARTICIPANTS) {
+    throw badRequest(`Maximum ${MAX_PARTICIPANTS} participants per tournament`);
+  }
+
+  const cleanedNames = participantNames.map((n) => (typeof n === 'string' ? n.trim() : ''));
+  if (cleanedNames.some((n) => !n || n.length > MAX_NAME_LENGTH)) {
+    throw badRequest(`participantNames must all be non-empty strings of ${MAX_NAME_LENGTH} characters or fewer`);
+  }
+
+  let bracket;
+  try {
+    // Power-of-2 validation (pad with literal "BYE" entries per ADR-0007)
+    // happens inside the engine — catch and surface as a 400.
+    bracket = generateBracket(cleanedNames);
+  } catch (err) {
+    throw badRequest(err.message);
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Re-check `draft` status as a conditional write, not the stale value
+    // read before this transaction opened: if a publish request commits in
+    // the gap between that read and here, this UPDATE's WHERE clause won't
+    // match (Postgres serializes the two UPDATEs via the row lock either
+    // update takes), so `count` comes back 0 and the destructive rebuild
+    // below never runs against a tournament that just went live.
+    const guard = await tx.tournament.updateMany({
+      where: { id: tournament.id, status: 'draft' },
+      data: { version: { increment: 1 } },
+    });
+    if (guard.count === 0) {
+      throw badRequest('Only a draft tournament can be regenerated');
+    }
+
+    await tx.bracketMatch.deleteMany({ where: { tournamentId: tournament.id } });
+    await tx.participant.deleteMany({ where: { tournamentId: tournament.id } });
+
+    await tx.participant.createMany({
+      data: bracket.participants.map((p) => ({
+        id: p.id,
+        tournamentId: tournament.id,
+        name: p.name,
+        seed: p.seed,
+      })),
+    });
+
+    await tx.bracketMatch.createMany({
+      data: bracket.matches.map((m) => ({
+        id: m.id,
+        tournamentId: tournament.id,
+        round: m.round,
+        position: m.position,
+        slot1ParticipantId: m.slot1ParticipantId,
+        slot2ParticipantId: m.slot2ParticipantId,
+        winnerParticipantId: m.winnerParticipantId,
+        nextMatchId: m.nextMatchId,
+        nextMatchSlot: m.nextMatchSlot,
+        loserNextMatchId: m.loserNextMatchId,
+        loserNextMatchSlot: m.loserNextMatchSlot,
+      })),
+    });
+
+    return tx.tournament.findUnique({ where: { id: tournament.id } });
+  });
+
+  return NextResponse.json({ id: updated.id, version: updated.version });
 }
 
 // publish: draft -> live only
