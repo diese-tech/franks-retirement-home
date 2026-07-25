@@ -244,6 +244,23 @@ describe('POST /api/admin/tournaments', () => {
     expect(unwrap(res).status).toBe(400);
   });
 
+  it('returns 400 when the tournament name exceeds 100 characters', async () => {
+    const res = await adminCreatePOST(makeReq({ name: 'x'.repeat(101), participantNames: ['A', 'B'] }));
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('returns 400 when a participant name exceeds 100 characters', async () => {
+    const res = await adminCreatePOST(makeReq({ name: 'Bracket', participantNames: ['A', 'x'.repeat(101)] }));
+    expect(unwrap(res).status).toBe(400);
+  });
+
+  it('returns 400 when participantNames exceeds the 128-participant cap', async () => {
+    const res = await adminCreatePOST(
+      makeReq({ name: 'Huge Bracket', participantNames: Array.from({ length: 256 }, (_, i) => `P${i}`) })
+    );
+    expect(unwrap(res).status).toBe(400);
+  });
+
   it('creates a draft tournament with a generated bracket', async () => {
     const tournamentId = await createTournament();
     const matchesRows = await prisma.bracketMatch.findMany({ where: { tournamentId } });
@@ -386,5 +403,21 @@ describe('editParticipant / reseed lock after a decided match', () => {
       )
     );
     expect(editRes.status).toBe(200);
+  });
+
+  it('rejects editParticipant when the new name exceeds 100 characters', async () => {
+    const tournamentId = await createTournament();
+    await publish(tournamentId);
+
+    const [match0] = await round1Matches(tournamentId);
+    const participantId = match0.slot1ParticipantId;
+
+    const editRes = unwrap(
+      await adminPatch(
+        makeReq({ action: 'editParticipant', participantId, name: 'x'.repeat(101) }),
+        { params: { id: tournamentId } }
+      )
+    );
+    expect(editRes.status).toBe(400);
   });
 });
