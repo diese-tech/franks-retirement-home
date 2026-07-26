@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser, hasDiscordPlayerRole, hasDiscordAdminRole } from '@/lib/discordAuth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // POST /api/superlatives/suggest  — player suggests a new superlative.
 // Lands as `suggested` for admin review.
@@ -17,6 +18,12 @@ export async function POST(request) {
       { error: 'Only rostered league members can suggest superlatives.' },
       { status: 403 },
     );
+  }
+
+  // 5 suggestions per 10 minutes per Discord identity.
+  const { allowed } = await checkRateLimit(`superlatives-suggest:${session.discordId}`, 5, 600);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many suggestions. Try again in a few minutes.' }, { status: 429 });
   }
 
   let body;

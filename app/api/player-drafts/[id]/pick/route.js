@@ -4,6 +4,7 @@ import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { buildPlayerDraftFormat, getFirstDraftTurn, getNextDraftTurn, totalPicks } from '@/lib/playerDraftOrder';
 import { logAudit } from '@/lib/auditLog';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,13 @@ export async function POST(req, { params }) {
     const session = getDiscordSessionUser(req);
     if (!session) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
+    }
+
+    // 20 picks per minute per Discord identity (captain path only — the admin
+    // path above is already gated by resolveAdminAuth).
+    const { allowed } = await checkRateLimit(`player-draft-pick:${session.discordId}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Slow down — too many picks.' }, { status: 429 });
     }
 
     // Find this player's TeamMember captain record for the active team in this draft

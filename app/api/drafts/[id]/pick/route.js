@@ -4,7 +4,9 @@ import { resolveRole } from '@/lib/draftAuth';
 import { currentPickTeam, TOTAL_PICKS } from '@/lib/draftOrder';
 import { addUsedGodId, readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
+import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +39,14 @@ export async function POST(request, { params }) {
   const role = auth.role;
   if (role === 'spectator') {
     return NextResponse.json({ error: 'Not authorized to pick' }, { status: 403 });
+  }
+
+  // 20 picks per minute per identity (Discord id when authenticated via Discord,
+  // otherwise the shared captain key).
+  const identity = auth.source === 'discord' ? getDiscordSessionUser(request)?.discordId : key;
+  const { allowed } = await checkRateLimit(`draft-pick:${identity}`, 20, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Slow down — too many picks.' }, { status: 429 });
   }
 
   const god = await prisma.god.findUnique({ where: { id: godId } });

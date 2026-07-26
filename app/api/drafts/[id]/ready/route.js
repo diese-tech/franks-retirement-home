@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
+import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +25,15 @@ export async function POST(request, { params }) {
     if (role !== 'captainA' && role !== 'captainB') {
       return NextResponse.json({ error: 'Only captains can ready up' }, { status: 403 });
     }
+
+    // 20 ready-ups per minute per identity (Discord id when authenticated via
+    // Discord, otherwise the shared captain key).
+    const identity = auth.source === 'discord' ? getDiscordSessionUser(request)?.discordId : body.key;
+    const { allowed } = await checkRateLimit(`draft-ready:${identity}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Slow down — too many requests.' }, { status: 429 });
+    }
+
     if (draft.status !== 'lobby') {
       return NextResponse.json({ error: 'Draft is not in lobby phase' }, { status: 400 });
     }

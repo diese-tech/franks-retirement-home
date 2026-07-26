@@ -3,6 +3,8 @@ import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { currentBanTeam, TOTAL_BANS } from '@/lib/draftOrder';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
+import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +40,14 @@ export async function POST(request, { params }) {
   const role = auth.role;
   if (role === 'spectator') {
     return NextResponse.json({ error: 'Not authorized to ban' }, { status: 403 });
+  }
+
+  // 20 bans per minute per identity (Discord id when authenticated via Discord,
+  // otherwise the shared captain key).
+  const identity = auth.source === 'discord' ? getDiscordSessionUser(request)?.discordId : key;
+  const { allowed } = await checkRateLimit(`draft-ban:${identity}`, 20, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: 'Slow down — too many bans.' }, { status: 429 });
   }
 
   const god = await prisma.god.findUnique({ where: { id: godId } });
