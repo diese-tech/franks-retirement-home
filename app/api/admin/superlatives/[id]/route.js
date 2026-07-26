@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // PATCH /api/admin/superlatives/[id]  — edit, approve a suggestion, or archive
 export async function PATCH(request, { params }) {
@@ -42,7 +43,7 @@ export async function PATCH(request, { params }) {
     const item = await prisma.superlative.update({ where: { id }, data });
     return NextResponse.json(item);
   } catch (err) {
-    console.error('[admin/superlatives PATCH]', err);
+    reportServerError(err, { route: 'admin/superlatives/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update superlative' }, { status: 500 });
   }
 }
@@ -56,7 +57,7 @@ export async function DELETE(request, { params }) {
     await prisma.superlative.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[admin/superlatives DELETE]', err);
+    reportServerError(err, { route: 'admin/superlatives/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete superlative' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,8 @@ export async function GET() {
       select: { id: true, name: true, status: true, version: true, createdAt: true },
     });
     return NextResponse.json(tournaments);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'tournaments GET' });
     return NextResponse.json({ error: 'Failed to fetch tournaments' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buildTournamentState } from '@/lib/tournamentState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,8 @@ export async function GET(request, { params }) {
     const state = await buildTournamentState(id);
     if (!state) return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     return NextResponse.json(state);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'tournaments/[id]/state GET' });
     return NextResponse.json({ error: 'Failed to load tournament state' }, { status: 500 });
   }
 }

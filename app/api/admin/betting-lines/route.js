@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // GET /api/admin/betting-lines?status=open
 export async function GET(request) {
@@ -24,7 +25,7 @@ export async function GET(request) {
     });
     return NextResponse.json(lines);
   } catch (err) {
-    console.error('[admin/betting-lines GET]', err);
+    reportServerError(err, { route: 'admin/betting-lines GET' });
     return NextResponse.json({ error: 'Failed to load lines' }, { status: 500 });
   }
 }
@@ -81,7 +82,7 @@ export async function POST(request) {
     });
     return NextResponse.json(line, { status: 201 });
   } catch (err) {
-    console.error('[admin/betting-lines POST]', err);
+    reportServerError(err, { route: 'admin/betting-lines POST' });
     return NextResponse.json({ error: 'Failed to create line' }, { status: 500 });
   }
 }

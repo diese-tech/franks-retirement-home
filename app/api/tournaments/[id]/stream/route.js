@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { buildTournamentState } from '@/lib/tournamentState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request, { params }) {
   const { id } = await params;
 
-  const initialState = await buildTournamentState(id);
+  let initialState;
+  try {
+    initialState = await buildTournamentState(id);
+  } catch (err) {
+    reportServerError(err, { route: 'tournaments/[id]/stream GET' });
+    return NextResponse.json({ error: 'Failed to load tournament state' }, { status: 500 });
+  }
   if (!initialState) {
     return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
   }
@@ -82,7 +89,8 @@ export async function GET(request, { params }) {
               return;
             }
           }
-        } catch {
+        } catch (err) {
+          reportServerError(err, { route: 'tournaments/[id]/stream poll' });
           // Swallow poll errors — keep the stream alive
         }
         if (!closed) timer = setTimeout(poll, 1500);

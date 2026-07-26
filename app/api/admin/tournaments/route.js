@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { generateBracket } from '@/lib/bracketEngine';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export async function GET(request) {
     });
     return NextResponse.json(tournaments);
   } catch (err) {
-    console.error('[admin/tournaments GET]', err);
+    reportServerError(err, { route: 'admin/tournaments GET' });
     return NextResponse.json({ error: 'Failed to load tournaments' }, { status: 500 });
   }
 }
@@ -103,7 +104,7 @@ export async function POST(request) {
 
     return NextResponse.json({ id: tournament.id }, { status: 201 });
   } catch (err) {
-    console.error('[admin/tournaments POST]', err);
+    reportServerError(err, { route: 'admin/tournaments POST' });
     return NextResponse.json({ error: 'Failed to create tournament' }, { status: 500 });
   }
 }

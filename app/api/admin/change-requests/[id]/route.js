@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +72,7 @@ export async function PATCH(req, { params }) {
         payload: { type: changeRequest.type, teamId: changeRequest.teamId, ...payload },
       });
     } catch (e) {
+      reportServerError(e, { route: 'admin/change-requests/[id] PATCH approve' });
       return NextResponse.json({ error: e.message ?? 'Failed to apply change' }, { status: 400 });
     }
   } else {

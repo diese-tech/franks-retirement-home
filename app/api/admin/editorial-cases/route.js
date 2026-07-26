@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { EDITORIAL_TYPES } from '@/lib/bulletinHelpers';
+import { reportServerError } from '@/lib/apiError';
 
 // GET /api/admin/editorial-cases?type=fraud_watch&status=draft
 export async function GET(request) {
@@ -27,7 +28,7 @@ export async function GET(request) {
     });
     return NextResponse.json(cases);
   } catch (err) {
-    console.error('[admin/editorial-cases GET]', err);
+    reportServerError(err, { route: 'admin/editorial-cases GET' });
     return NextResponse.json({ error: 'Failed to load cases' }, { status: 500 });
   }
 }
@@ -73,7 +74,7 @@ export async function POST(request) {
     });
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
-    console.error('[admin/editorial-cases POST]', err);
+    reportServerError(err, { route: 'admin/editorial-cases POST' });
     return NextResponse.json({ error: 'Failed to create case' }, { status: 500 });
   }
 }
