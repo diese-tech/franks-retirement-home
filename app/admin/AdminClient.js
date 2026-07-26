@@ -111,6 +111,9 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
   const [playerDrafts, setPlayerDrafts] = useState(initialPlayerDrafts);
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [tab, setTab] = useState('drafts');
+  // Which nav category is expanded. Initialized to whichever category
+  // contains the default active tab ('drafts' -> 'draftDay').
+  const [activeCategory, setActiveCategory] = useState('draftDay');
   const [apiError, setApiError] = useState(null);
 
   useEffect(() => {
@@ -144,6 +147,9 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     setSubmissions(Array.isArray(data) ? data : []);
   };
 
+  // Tournaments and Match Report are standalone tools that already live
+  // outside this dashboard (their own pages) — they're rendered below as
+  // plain link-out cards, not as tabs, so they don't consume nav real estate.
   const tabs = [
     { key: 'drafts',        label: 'Drafts',          count: drafts.length },
     { key: 'players',       label: 'Players',          count: players.length },
@@ -155,10 +161,38 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     { key: 'superlatives',  label: 'Superlatives',     count: null },
     { key: 'import',        label: 'Import',           count: null },
     { key: 'gods',          label: 'Gods',             count: gods.length },
-    { key: 'tournaments',   label: 'Tournaments',      count: null },
     { key: 'contentPages',  label: 'Content Pages',    count: null },
-    { key: 'matchReport',   label: 'Match Report',     count: null },
   ];
+  const tabsByKey = Object.fromEntries(tabs.map((t) => [t.key, t]));
+
+  // Grouped navigation: the 11 real panels above are split into 5 logical
+  // categories so the nav isn't a single 13-wide (now 11-wide) scrolling row.
+  const CATEGORIES = [
+    { key: 'draftDay',   label: 'Draft Day',        tabKeys: ['drafts', 'playerDraft'] },
+    { key: 'roster',     label: 'Roster & Teams',    tabKeys: ['players', 'teams', 'gods'] },
+    { key: 'season',     label: 'Season & Schedule', tabKeys: ['matches', 'changeRequests', 'superlatives', 'import'] },
+    { key: 'moderation', label: 'Moderation',        tabKeys: ['review'] },
+    { key: 'content',    label: 'Site Content',      tabKeys: ['contentPages'] },
+  ];
+  const categoryForTab = (tabKey) => CATEGORIES.find((c) => c.tabKeys.includes(tabKey))?.key ?? CATEGORIES[0].key;
+  const categoryCount = (cat) => {
+    const total = cat.tabKeys.reduce((sum, k) => sum + (tabsByKey[k]?.count ?? 0), 0);
+    return total > 0 ? total : null;
+  };
+
+  // Clicking a category expands its sub-tabs; if the currently active tab
+  // isn't in that category, jump to the category's first tab so the panel
+  // shown always matches what's expanded.
+  const selectCategory = (catKey) => {
+    setActiveCategory(catKey);
+    const cat = CATEGORIES.find((c) => c.key === catKey);
+    if (cat && !cat.tabKeys.includes(tab)) setTab(cat.tabKeys[0]);
+  };
+
+  const selectTab = (tabKey) => {
+    setTab(tabKey);
+    setActiveCategory(categoryForTab(tabKey));
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -201,36 +235,71 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
           ))}
         </div>
 
-        <div className="mb-6 overflow-x-auto border-2 border-brand-700 bg-brand-950/50 p-2 shadow-[4px_4px_0_#141414]">
-          <div className="flex min-w-max gap-2">
-            {tabs.map((t, idx) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={[
-                  'group min-h-[44px] px-3 py-2 font-ui text-[11px] uppercase tracking-widest transition-colors border-2 shadow-[2px_2px_0_#141414] flex items-center gap-2',
-                  tab === t.key
-                    ? 'bg-frh-yellow text-frh-ink border-frh-yellow'
-                    : 'bg-brand-800 text-gray-400 border-brand-700 hover:border-frh-yellow hover:text-frh-cream',
-                ].join(' ')}
-              >
-                <span className={[
-                  'font-mono text-[10px] px-1.5 py-0.5 border',
-                  tab === t.key ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-gray-600 group-hover:text-frh-yellow',
-                ].join(' ')}>
-                  {String(idx + 1).padStart(2, '0')}
-                </span>
-                <span>{t.label}</span>
-                {t.count !== null && (
-                  <span className={[
-                    'ml-auto font-mono text-[10px] px-1.5 py-0.5 border',
-                    tab === t.key ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-frh-yellow',
-                  ].join(' ')}>
-                    {t.count}
-                  </span>
-                )}
-              </button>
-            ))}
+        {/*
+          Grouped nav: row 1 is the 5 categories, row 2 is the sub-tabs of
+          whichever category is expanded (defaults to the category holding
+          the active tab). Both rows use flex-wrap (never overflow-x-auto),
+          so this never introduces horizontal scrolling even at 320px wide —
+          it just wraps onto more lines on narrow screens.
+        */}
+        <div className="mb-6 border-2 border-brand-700 bg-brand-950/50 p-2 shadow-[4px_4px_0_#141414]">
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((c) => {
+              const isActiveCat = activeCategory === c.key;
+              const count = categoryCount(c);
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => selectCategory(c.key)}
+                  aria-expanded={isActiveCat}
+                  className={[
+                    'min-h-[44px] px-3 py-2 font-ui text-[11px] uppercase tracking-widest transition-colors border-2 shadow-[2px_2px_0_#141414] flex items-center gap-2',
+                    isActiveCat
+                      ? 'bg-frh-yellow text-frh-ink border-frh-yellow'
+                      : 'bg-brand-800 text-gray-400 border-brand-700 hover:border-frh-yellow hover:text-frh-cream',
+                  ].join(' ')}
+                >
+                  <span>{c.label}</span>
+                  {count !== null && (
+                    <span className={[
+                      'font-mono text-[10px] px-1.5 py-0.5 border',
+                      isActiveCat ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-frh-yellow',
+                    ].join(' ')}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t-2 border-brand-700">
+            {CATEGORIES.find((c) => c.key === activeCategory)?.tabKeys.map((tk) => {
+              const t = tabsByKey[tk];
+              const isActiveTab = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => selectTab(t.key)}
+                  className={[
+                    'min-h-[40px] px-3 py-1.5 font-ui text-[10px] uppercase tracking-widest transition-colors border-2 flex items-center gap-2',
+                    isActiveTab
+                      ? 'bg-frh-yellow text-frh-ink border-frh-yellow'
+                      : 'bg-brand-900/60 text-gray-400 border-brand-700 hover:border-frh-yellow hover:text-frh-cream',
+                  ].join(' ')}
+                >
+                  <span>{t.label}</span>
+                  {t.count !== null && (
+                    <span className={[
+                      'font-mono text-[10px] px-1 border',
+                      isActiveTab ? 'border-frh-ink/50 text-frh-ink' : 'border-brand-700 text-frh-yellow',
+                    ].join(' ')}>
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -244,27 +313,37 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
         {tab === 'superlatives'    && <SuggestedSuperlativesPanel />}
         {tab === 'import'          && <ImportPanel          onRefresh={refreshPlayers} />}
         {tab === 'gods'            && <GodsPanel            gods={gods}   onRefresh={refreshGods} />}
-        {tab === 'tournaments' && (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500 mb-4">
-              Tournament brackets have their own create/list/edit editor, separate from this dashboard.
-            </p>
-            <a href="/admin/tournaments">
-              <BrutalButton variant="primary">Open Tournament Editor →</BrutalButton>
-            </a>
-          </div>
-        )}
         {tab === 'contentPages' && <ContentPagesPanel />}
-        {tab === 'matchReport' && (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500 mb-4">
-              Review OCR-extracted match stats and resolve flagged rows — its own tool, separate from this dashboard.
-            </p>
-            <a href="/admin/match-report">
-              <BrutalButton variant="primary">Open Match Report Review →</BrutalButton>
+
+        {/*
+          Other Admin Tools — Tournaments and Match Report are separate,
+          already-existing standalone admin tools that live outside this
+          dashboard. They're plain link-out cards, not tabs, so they don't
+          take up a category or any tab real estate.
+        */}
+        <div className="mt-8 pt-6 border-t-2 border-brand-700">
+          <h3 className="font-ui text-[10px] uppercase tracking-widest text-gray-600 mb-3">Other Admin Tools</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href="/admin/tournaments"
+              className="block border-2 border-brand-700 bg-brand-950/40 hover:border-frh-yellow/60 transition-all px-3 py-3"
+            >
+              <div className="font-ui text-xs uppercase tracking-widest text-frh-cream mb-1">Tournaments →</div>
+              <p className="text-[11px] text-gray-500">
+                Tournament brackets have their own create/list/edit editor, separate from this dashboard.
+              </p>
+            </a>
+            <a
+              href="/admin/match-report"
+              className="block border-2 border-brand-700 bg-brand-950/40 hover:border-frh-yellow/60 transition-all px-3 py-3"
+            >
+              <div className="font-ui text-xs uppercase tracking-widest text-frh-cream mb-1">Match Report →</div>
+              <p className="text-[11px] text-gray-500">
+                Review OCR-extracted match stats and resolve flagged rows — its own tool, separate from this dashboard.
+              </p>
             </a>
           </div>
-        )}
+        </div>
       </RetroWindow>
     </div>
   );
