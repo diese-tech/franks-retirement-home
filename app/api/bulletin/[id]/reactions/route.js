@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { REACTION_EMOJI } from '@/lib/bulletinHelpers';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ reacted, emoji, counts });
   } catch (err) {
-    console.error('[bulletin reactions POST]', err);
+    reportServerError(err, { route: 'bulletin/[id]/reactions POST' });
     return NextResponse.json({ error: 'Failed to react' }, { status: 500 });
   }
 }

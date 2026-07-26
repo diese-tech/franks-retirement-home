@@ -7,6 +7,7 @@ import {
   buildDiscordSessionCookie,
   buildSetCookieHeader,
 } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function GET(request) {
   try {
     tokens = await exchangeCode(code, redirectUri);
   } catch (err) {
-    console.error('[discord-callback]', err);
+    reportServerError(err, { route: 'auth/discord/callback GET (token exchange)' });
     return NextResponse.json(
       { error: 'Authentication failed. Please try again.' },
       { status: 502 },
@@ -53,7 +54,7 @@ export async function GET(request) {
   try {
     user = await getDiscordUser(tokens.access_token);
   } catch (err) {
-    console.error('[discord-callback]', err);
+    reportServerError(err, { route: 'auth/discord/callback GET (user fetch)' });
     return NextResponse.json(
       { error: 'Authentication failed. Please try again.' },
       { status: 502 },
@@ -65,7 +66,7 @@ export async function GET(request) {
   try {
     member = await getDiscordGuildMember(tokens.access_token, guildId);
   } catch (err) {
-    console.error('[discord-callback]', err);
+    reportServerError(err, { route: 'auth/discord/callback GET (guild member fetch)' });
     return NextResponse.json(
       { error: 'Authentication failed. Please try again.' },
       { status: 502 },
