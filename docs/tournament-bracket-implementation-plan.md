@@ -1,5 +1,7 @@
 # Tournament Bracket — Implementation Plan
 
+**Status: executed (2026-07-25).** Every phase below — Phase 0, Phase 1's five workstreams, and the Phase 2 integration pass — has shipped and merged to `main`, plus a follow-up hardening pass (`docs/production-readiness-audit-2.md`) and two flagged-item follow-ups (a draft-only regenerate action, a reseed-by-name UI). This document is now historical, describing how the feature was built, not open work.
+
 Built from `CONTEXT.md` and ADRs 0001–0003, 0006–0009. Structured as fleet-able workstreams: independent agents can run Phase 1 in parallel once Phase 0 lands, because each workstream owns a disjoint set of files. Phase 0 is a hard blocker — everything else imports its schema and engine.
 
 ## Phase 0 — Schema + bracket engine (sequential, blocks everything else)

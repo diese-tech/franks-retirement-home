@@ -8,7 +8,7 @@ FRH is the source of truth.
 FRH also owns OCR orchestration.
 Gemini is called directly by FRH through `lib/gemini.js`.
 
-The previous standalone ForgeLens worker architecture is deprecated and retained only as historical context.
+**Correction (2026-07-25):** this document previously claimed the ForgeLens worker path was deprecated/historical-only. That's inaccurate — `app/api/forgelens/callback` (HMAC-verified, receives OCR results and creates `ExtractedStatLine` rows) and `app/api/forgelens/jobs` (admin job listing, backing `/admin/match-report`) are live, non-stub routes, and `docs/LAUNCH_CHECKLIST.md` instructs admins to configure `FORGELENS_URL`/`FORGELENS_API_KEY`/`FORGELENS_HMAC_SECRET` for production. **Both OCR paths are active today**: direct in-app Gemini extraction (`lib/gemini.js`, used by the captain-facing upload flow) and the external ForgeLens worker callback (used by the admin-facing `/admin/match-report` review tool). Treat the rest of this document as describing the Gemini path specifically, not the only path — see `docs/forgelens-callback-fixtures.md` for the callback contract, which is accurate and current despite its own similarly-stale framing.
 
 ---
 
@@ -104,10 +104,6 @@ CSV imports enter the same review queue as OCR results.
 
 ---
 
-## Historical Note
+## Historical Note (superseded — see the correction at the top of this document)
 
-Earlier Season 9 planning referenced ForgeLens as an external OCR worker service.
-
-FRH later absorbed OCR responsibilities directly to reduce infrastructure complexity, deployment coordination, callback orchestration, and external service drift.
-
-Any remaining references to ForgeLens in older docs should be treated as historical planning language, not active architecture.
+Earlier Season 9 planning referenced ForgeLens as an external OCR worker service, and at one point FRH planned to absorb OCR responsibilities entirely into `lib/gemini.js` to reduce infrastructure complexity. That plan did not fully materialize: the ForgeLens callback path shipped and is live in production alongside direct Gemini extraction. Do not treat ForgeLens references elsewhere as purely historical without checking `app/api/forgelens/*` first.

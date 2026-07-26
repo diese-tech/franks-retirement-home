@@ -252,6 +252,8 @@ See `docs/PRISMA_WORKFLOW.md` for the complete workflow. The short version:
 
 ## Post-S9-launch additive changes
 
+**Status (2026-07-25): this log was never maintained past initial authoring.** At least four migrations have landed since this doc's 8 numbered steps were all marked complete — `20250528100000_bulletin_community`, `20250528110000_superlatives`, `20260529172000_add_change_requests`, `20260707140000_league_ops_hardening`, and `20260724230000_tournament_bracket` — none logged here. Treat `prisma/migrations/` itself as the actual source of truth for what's shipped; this section is aspirational process documentation that the team didn't keep up, not a gap to backfill retroactively without the original context for each entry.
+
 Future additive changes go here. Each entry should include:
 - The issue/PR number
 - The migration name created by `prisma migrate dev`

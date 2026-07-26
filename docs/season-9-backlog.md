@@ -2,6 +2,8 @@
 
 > Source of truth for the Season 9 League Ops sprint. 32 ordered issues across 9 chunks. Pair this file with `scripts/create-season-9-issues.sh` to bulk-create every issue in GitHub with the correct labels and dependency notes.
 
+**Status (2026-07-25): historical planning document, not a live backlog.** Most items below have since shipped — confirmed built: audit logging (#22, `lib/audit.js`/`lib/auditLog.js`), public Players page (#26, now redirects to `/roster`), CSV export/import for OCR review (#28/#29), full ForgeLens worker integration (#30–#32, contradicting this doc's own "stretch, can land mid-season" framing for it). Confirmed still open: stream/watch awareness (#15, no `/watch` route or stream-URL field built) and captain-side review boundaries (#11, no decision recorded elsewhere). For any item not listed above, check the actual GitHub issue (#34–#65) rather than trusting this document's per-item status — it was not maintained after initial authoring.
+
 ## GitHub issue mapping
 
 The 32 backlog items were created on GitHub as issues **#34 through #65** (in order). Inside this document and inside the GitHub issue bodies, references to other backlog items use the **GitHub issue number**, not the ordinal position.

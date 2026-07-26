@@ -32,7 +32,7 @@ FRH uses **separate staging tables** for pending/unreviewed data, not status fla
 **Staging tables** (admin-only):
 - `MatchSubmission` — captain submissions awaiting review
 - `SubmissionAttachment` — screenshot files attached to submissions
-- `OcrExtraction` — raw OCR output from ForgeLens
+- `OcrExtraction` — raw OCR output, from either direct Gemini extraction or a ForgeLens worker callback (both are live — see the correction below)
 - `ExtractedStatLine` — parsed stat rows pending admin approval
 
 **Why staging tables instead of a status column on a shared table:**
@@ -108,7 +108,7 @@ FRH is the source of truth. Gemini OCR is the extraction layer. Approved `StatLi
 
 OCR regressions (prompt or model changes that alter output) are surfaced by comparing new `ExtractedStatLine` rows against existing approved `StatLine` rows during review. The admin decides whether to supersede or keep existing canonical rows.
 
-**Note:** The original ForgeLens external worker architecture was replaced by FRH's native Gemini integration before Season 9 launched. `GEMINI_API_KEY` is an FRH environment variable. `lib/gemini.js` is the sole caller. The staging table schema (`OcrExtraction`, `ExtractedStatLine`) is unchanged.
+**Correction (2026-07-25):** this note previously claimed ForgeLens was fully replaced by native Gemini integration before Season 9 launched. That's inaccurate — both paths are live in production today: direct Gemini extraction (`lib/gemini.js`, `GEMINI_API_KEY`) for the captain-facing upload flow, and the external ForgeLens worker (`app/api/forgelens/callback`, HMAC-verified) for the admin-facing `/admin/match-report` review tool. Both write into the same staging tables (`OcrExtraction`, `ExtractedStatLine`), which is why the schema itself needed no changes — see `docs/forgelens-worker-architecture.md`'s own correction for the full picture.
 
 ---
 

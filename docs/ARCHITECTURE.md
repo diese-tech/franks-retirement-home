@@ -193,14 +193,19 @@ All write endpoints are guarded by `requireAdmin`.
 |---|---|---|
 | `/schedule` | DB: `Match` rows | Admin Schedule tab |
 | `/standings` | DB: computed from approved `Game.winnerTeamId` | Admin Review Queue approval |
-| `/teams`, `/teams/[id]` | DB: `Team`, `TeamMember` | Admin Teams tab |
-| `/players` | DB: `Player` | Admin Players tab |
+| `/roster` | DB: `Team`, `TeamMember` by active season | Admin Teams tab |
+| `/teams`, `/players` | N/A — pure `redirect()` stubs to `/roster`, kept only for old links | N/A |
+| `/teams/[id]` | DB: `Team`, `TeamMember` | Admin Teams tab |
 | `/matches/[id]` | DB: `Match`, `Game`, `Draft` | Admin Schedule tab |
-| `/draft/[id]` | DB: `Draft` + SSE | Admin Drafts tab |
+| `/draft/[id]`, `/player-draft/[id]` | DB: `Draft`/`PlayerDraft` + SSE | Admin Drafts / Player Draft tabs |
+| `/tournaments`, `/tournaments/[id]` | DB: `Tournament`, `Participant`, `BracketMatch` + SSE | `/admin/tournaments` (own route tree, not an `/admin` tab — see ADR-0006) |
+| `/bulletin-board` | DB: `BulletinPost` (published only) | Inline "Edit" toggle on the page itself, hitting `/api/admin/bulletin` — **not** managed from `/admin` |
+| `/fraud-watch` | DB: `EditorialCase` (published only) | Inline "Edit" toggle on the page itself, hitting `/api/admin/editorial-cases` — **not** managed from `/admin` |
+| `/knows-ball` | DB: `BettingLine` (open lines) | Inline "Edit" toggle on the page itself, hitting `/api/admin/betting-lines` — **not** managed from `/admin` |
 | `/captain` | DB: captain's matches (Discord auth) | N/A -- self-service |
-| `/` (homepage) | DB: live data + `HomepageContent` (editorial) | **Admin Homepage Editor** `/admin/homepage` |
+| `/` (homepage) | DB: live data + `HomepageContent` (editorial) | **Admin Homepage Editor** — `EditorToolbar` in `app/HomepageWrapper.js`, toggled by an "Edit" button visible only to admin sessions (**not** `AdminClient.js`'s `HomepageEditorPanel`, which is dead code — never rendered by any tab) |
 
-The homepage is the only public page with both data-driven content (live matches, standings) and admin-editable editorial content (ticker, headlines, etc.). All other public pages are fully data-driven and managed through the existing admin dashboard tabs.
+The homepage is the only public page with both data-driven content (live matches, standings) and admin-editable editorial content (ticker, headlines, etc.) — via its own in-page toolbar, not a route under `/admin`. Bulletin Board, Fraud Watch, and Knows Ball follow the same in-page-editing pattern rather than the central `/admin` dashboard tabs that Players/Teams/Matches/Gods/Drafts use — two different admin-editing models coexist in this app today (see `docs/production-readiness-audit-2.md`).
 
 ### Homepage section breakdown
 
