@@ -1,4 +1,5 @@
 import { buildPlayerDraftState } from '@/lib/playerDraftState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,10 @@ export async function GET(_req, { params }) {
             // Heartbeat to keep connection alive
             if (!closed) controller.enqueue(encoder.encode(': heartbeat\n\n'));
           }
-        } catch { clearInterval(interval); }
+        } catch (err) {
+          reportServerError(err, { route: 'player-drafts/[id]/stream GET', draftId: params.id });
+          clearInterval(interval);
+        }
       }, 2000);
     },
     cancel() {

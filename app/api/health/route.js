@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,7 @@ export async function GET() {
       latencyMs: Date.now() - startedAt,
     });
   } catch (err) {
+    reportServerError(err, { route: 'health GET' });
     return NextResponse.json(
       {
         ok: false,

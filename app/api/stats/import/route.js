@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,7 +122,8 @@ export async function POST(req) {
       if (existing) results.updated++;
       else results.imported++;
 
-    } catch {
+    } catch (err) {
+      reportServerError(err, { route: 'stats/import POST', gameId, row: rowNum });
       results.errors.push({ row: rowNum, reason: 'Unexpected error processing this row' });
     }
   }

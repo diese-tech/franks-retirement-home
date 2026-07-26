@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -161,7 +162,7 @@ export async function POST(request) {
     );
   } catch (err) {
     const status = err?.httpStatus ?? 500;
-    if (status === 500) console.error('[bets POST]', err);
+    if (status === 500) reportServerError(err, { route: 'bets POST' });
     return NextResponse.json({ error: err.message || 'Failed to place bet' }, { status });
   }
 }

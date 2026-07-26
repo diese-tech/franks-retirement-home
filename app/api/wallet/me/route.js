@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // GET /api/wallet/me  — returns the caller's wallet summary (or unopened state).
 // Does NOT create a wallet; that happens lazily on the first bet.
@@ -39,7 +40,7 @@ export async function GET(request) {
       bets: JSON.parse(JSON.stringify(user.wallet.bets)),
     });
   } catch (err) {
-    console.error('[wallet/me GET]', err);
+    reportServerError(err, { route: 'wallet/me GET' });
     return NextResponse.json({ error: 'Failed to load wallet' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { buildChatPayload, buildDraftState } from '@/lib/draftState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,8 +57,10 @@ export async function GET(request, { params }) {
             const payload = await buildChatPayload(id);
             send({ type: 'chats', ...payload });
           }
-        } catch {
-          // Swallow poll errors — keep the stream alive
+        } catch (err) {
+          // Swallow poll errors — keep the stream alive, but still surface
+          // them to Sentry so a persistently broken poll doesn't go unnoticed.
+          reportServerError(err, { route: 'drafts/[id]/stream GET', draftId: id });
         }
         if (!closed) setTimeout(poll, 1500);
       };
