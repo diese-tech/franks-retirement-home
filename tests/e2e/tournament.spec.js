@@ -96,9 +96,26 @@ test.describe('Tournament bracket — admin creates/advances, viewer follows liv
       await viewerPage.goto(`/tournaments/${tournamentId}`);
       await expect(viewerPage.getByText('live', { exact: true })).toBeVisible();
 
+      // hasText's string form does a case-insensitive substring match, and
+      // BracketTree.js's roundLabel() returns 'Semifinals' for the
+      // second-to-last round — which contains the substring "final"
+      // ("semi-final-s") — so a plain 'Final' filter matches both columns
+      // once each has a winner to show, and picking the wrong one caused
+      // the strict-mode violation below.
+      //
+      // A trailing \bFinal\b word-boundary regex doesn't fix this: hasText
+      // matches against the column's fully concatenated text with no
+      // separator inserted between sibling elements, so "Final" (the round
+      // label <p>) and "Team Alpha" (the next sibling) end up back-to-back
+      // as "FinalTeam Alpha" with no character between 'l' and 'T' — no
+      // boundary, so \b right after "Final" never matches once a winner's
+      // name is showing. The round label is always the first text in the
+      // column though (it's the first child in BracketTree.js's JSX), so
+      // anchoring at the start of the string reliably picks the one column
+      // whose label is literally "Final" and not "Semifinals".
       const finalColumn = viewerPage.locator(
         'div.flex.flex-col.justify-around.gap-6.shrink-0',
-        { hasText: 'Final' }
+        { hasText: /^Final/ }
       );
 
       // ─── Admin: round 1, match 1 — Alpha beats Bravo ───────────────────

@@ -40,14 +40,26 @@ test('invalid draft ID shows a controlled not-found or error state', async ({ pa
   }
 });
 
-test('public nav links are present on homepage', async ({ page }) => {
-  await page.goto('/');
-  // Current nav: Home, Schedule, Standings, Roster, Board, Fraud Watch, Knows Ball
-  // /teams and /players were removed — they now redirect to /roster
-  for (const route of ['/schedule', '/standings', '/roster']) {
-    const link = page.locator(`a[href="${route}"]`).first();
-    await expect(link).toBeVisible();
-  }
+test.describe('public nav links are present on homepage', () => {
+  // This checks the desktop nav bar (.frh-menubar__items) specifically, which
+  // app/globals.css hides below 768px in favor of the hamburger + drawer —
+  // force a desktop-sized viewport so this doesn't depend on the running
+  // project's default (mobile-chrome's default viewport is well under
+  // 768px, which previously made the desktop-only links invisible and
+  // failed this test even though the site was working correctly). The
+  // hamburger/drawer's own visibility and tap-target size are covered by
+  // tests/e2e/mobile.spec.js.
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('links are visible', async ({ page }) => {
+    await page.goto('/');
+    // Current nav: Home, Schedule, Standings, Roster, Board, Fraud Watch, Knows Ball
+    // /teams and /players were removed — they now redirect to /roster
+    for (const route of ['/schedule', '/standings', '/roster']) {
+      const link = page.locator(`a[href="${route}"]`).first();
+      await expect(link).toBeVisible();
+    }
+  });
 });
 
 test('empty schedule page renders without crashing', async ({ page }) => {

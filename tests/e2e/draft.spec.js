@@ -169,14 +169,28 @@ test.describe('Admin undo flow', () => {
 
     const { id, adminKey } = created;
 
+    // A freshly created draft starts in 'pending' and only reaches
+    // 'banning' after both teams are fully drafted, the lobby opens, and
+    // both captains ready up — none of which this test needs to exercise.
+    // POST /api/drafts's status-update path only validates team size when
+    // transitioning *to* 'lobby' (see app/api/drafts/route.js), so an admin
+    // can jump straight from 'pending' to 'banning' to set up this test.
+    const transitionRes = await request.post(`${BASE}/api/drafts`, {
+      data: { id, status: 'banning' },
+      headers: { Cookie: adminCookieHeader() },
+    });
+    if (!transitionRes.ok()) {
+      await deleteDraft(request, id);
+      test.skip(true, 'Could not transition draft to banning phase — skipping');
+    }
+
     // Get the state to find a god id we can use
     const stateRes = await request.get(`${BASE}/api/drafts/${id}/state`);
     const state = await stateRes.json();
 
-    // Only proceed if draft is in banning phase and gods are available
-    if (state.draft.status !== 'banning' || !state.gods?.length) {
+    if (!state.gods?.length) {
       await deleteDraft(request, id);
-      test.skip(true, 'Draft not in banning phase — skipping undo test');
+      test.skip(true, 'No gods available — skipping undo test');
     }
 
     const godId = state.gods[0]?.id;

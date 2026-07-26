@@ -95,6 +95,14 @@ test.describe('Homepage editor - admin user', () => {
   });
 
   test('preview button opens draft in a public preview mode', async ({ page, context }) => {
+    // The editor toolbar's Preview button is `hidden sm:inline-flex`
+    // (app/HomepageWrapper.js) — intentionally desktop-only, unlike
+    // Save/Publish/Reset which stay visible on mobile. Force a desktop
+    // viewport so this test doesn't depend on the running project's
+    // default (mobile-chrome's default viewport is under Tailwind's `sm`
+    // breakpoint, which previously made the button permanently hidden and
+    // timed out this test even though the app was behaving as designed).
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     await page.locator('[data-testid="homepage-edit-toggle"]').click();
 
