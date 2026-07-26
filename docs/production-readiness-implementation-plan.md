@@ -19,13 +19,13 @@ This is intentionally scoped to the 3 routes with zero error handling today, not
 
 Apply the existing `lib/rateLimit.js` (`checkRateLimit`, already Upstash-backed with in-memory fallback — same import/usage pattern as `app/api/bulletin/submit/route.js` or `app/api/admin-auth/route.js`) to these six routes. These are the highest-risk gaps: reachable by a captain-key or any logged-in Discord user, not gated by full admin auth, and currently unthrottled. Pick sane limits matching this codebase's existing conventions for similarly-sensitive actions (check `admin-auth`'s and `bulletin/submit`'s configured windows/limits as a reference point rather than inventing new numbers).
 
-## Workstream 3 — Enable RLS on the 38 legacy tables (database)
+## Workstream 3 — Enable RLS on the 39 legacy tables (database)
 
 **Files:** new Prisma migration; `docs/adr/0005-rls-already-enabled-known-gaps.md` (follow-up correction)
 
-Same pattern already used for `Tournament`/`Participant`/`BracketMatch` in `prisma/migrations/20260724230000_tournament_bracket/migration.sql`: `ALTER TABLE "<name>" ENABLE ROW LEVEL SECURITY;` with **no policies**, for every one of the 38 pre-existing `public` tables currently flagged by Supabase's advisor lint. This is safe specifically because Prisma's `postgres` role has `rolbypassrls = true` (confirmed directly against the real project in ADR-0005's correction) — enabling RLS with no policies only closes the direct-PostgREST-API surface and has zero effect on the app's own behavior.
+Same pattern already used for `Tournament`/`Participant`/`BracketMatch` in `prisma/migrations/20260724230000_tournament_bracket/migration.sql`: `ALTER TABLE "<name>" ENABLE ROW LEVEL SECURITY;` with **no policies**, for every one of the 39 pre-existing `public` tables currently flagged by Supabase's advisor lint. This is safe specifically because Prisma's `postgres` role has `rolbypassrls = true` (confirmed directly against the real project in ADR-0005's correction) — enabling RLS with no policies only closes the direct-PostgREST-API surface and has zero effect on the app's own behavior.
 
-- Enumerate the actual 38 table names (query Supabase's advisors/information_schema for the live list — don't hand-copy from the ADR text, confirm against the real project `vxfakbgrmiqrstigjlug` directly).
+- Enumerate the actual 39 table names (query Supabase's advisors/information_schema for the live list — don't hand-copy from the ADR text, confirm against the real project `vxfakbgrmiqrstigjlug` directly).
 - Write the migration, verify via `prisma migrate diff --from-empty --to-schema-datamodel` the same way Phase 0's tournament migration was verified (no live DB in the sandbox to run interactively).
 - Update ADR-0005 with a final correction: RLS is now enabled (no policies) on all tables in `public`, closing the gap the ADR has tracked since its last correction.
 
@@ -58,7 +58,7 @@ Either way, this job should not block `build`/`migrate` — it's additive covera
 
 ## Explicitly flagged, not touched this pass
 
-- **Captain self-service PlayerDraft picks.** The single biggest captain-facing usability gap (captains can't pick for themselves; an admin has to do it). Not a hardening-sized change — it touches pick-order/timer logic that currently assumes an admin driver, plus new auth wiring and UI. Simpler alternative worth considering first: let a captain *view* live pick order/timer state without an admin present (read-only self-service), as a smaller intermediate step before full self-pick.
+- ~~Captain self-service PlayerDraft picks~~ — **retracted.** `POST /api/player-drafts/[id]/pick` already supports a Discord-authenticated captain making their own team's pick (restricted to their own team, admin fallback preserved) — this was never actually a gap; an earlier version of the audit was wrong. What's genuinely still admin-only is `PlayerDraft` lifecycle management (create, set pick order, complete), which is a smaller scope than "captains can't pick for themselves" implied — not prioritized in this pass, but not the same size of gap either.
 - **Broad Sentry instrumentation across all ~80 API routes.** Workstream 1 fixes the 3 routes with zero error handling; systematically wiring `reportServerError` into every remaining route's existing catch blocks is real, valuable follow-up work, just too large to bundle into this pass.
 - **`nextGame` disconnected from match-bound drafts** (`docs/season-9-ops-reference.md`'s own description: low-impact UI confusion, not a functional break). Worth a look in a future pass; not prioritized here.
 - **The two-mental-model admin split isn't being unified**, only made discoverable (Workstream 5). Actually moving Bulletin/Fraud Watch/Betting-Line editing into `/admin` proper (instead of linking out to the edit-in-place pages) is a bigger architectural call the product owner should make deliberately, not something to default into as a side effect of a hardening pass.

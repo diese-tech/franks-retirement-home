@@ -264,6 +264,7 @@ Set all Discord env vars in Vercel > Project Settings > Environment Variables:
 - Match result report/confirm/dispute
 - Match submissions / screenshot upload
 - GodDraft ready, ban, pick
+- PlayerDraft pick submission (restricted to the captain's own team; draft creation/order/completion remain admin-only)
 - Reschedule request creation and response
 - OCR extraction upload
 
@@ -271,7 +272,7 @@ Set all Discord env vars in Vercel > Project Settings > Environment Variables:
 
 - Admin dashboard
 - GodDraft undo/reset/reopen
-- PlayerDraft lifecycle (including individual picks — captains cannot yet self-serve their own pick, a known gap)
+- PlayerDraft lifecycle: creation, pick order, completion (individual pick *submission* already supports Discord-authenticated captains — see "Routes Supporting Discord OAuth" below)
 - Match scheduling/editing/deleting
 - Tournament bracket creation and all admin mutations (`/admin/tournaments`)
 

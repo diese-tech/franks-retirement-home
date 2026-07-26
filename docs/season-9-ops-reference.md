@@ -278,15 +278,11 @@ No automation exists.~~
 dropdown.~~
 **Resolution:** Match auto-completes when the winning threshold is reached.
 
-### MEDIUM — PlayerDraft picks are admin-only
+### ~~MEDIUM — PlayerDraft picks are admin-only~~ RESOLVED (corrected 2026-07-25)
 
-**Symptom:** `POST /api/player-drafts/[id]/pick` is guarded by `requireAdmin`.
-Captains cannot self-serve picks during the snake draft. Admin must manually
-enter every pick on behalf of each team.
-**Note:** This is an intentional design decision for S9. Captains communicate
-picks verbally or via Discord; admin operates the board. Captain self-service
-requires adding `captainAKey`/`captainBKey` to `PlayerDraft` (schema change)
-and building a captain-facing pick UI.
+~~**Symptom:** `POST /api/player-drafts/[id]/pick` is guarded by `requireAdmin`.
+Captains cannot self-serve picks during the snake draft.~~
+**Correction:** this was already stale when last checked — `POST /api/player-drafts/[id]/pick` accepts either an admin session or a Discord-authenticated captain (via `getDiscordSessionUser` + a `TeamMember`/`isCaptain` lookup scoped to the caller's own team), no `captainAKey`/`captainBKey` schema change was needed. What remains admin-only is `PlayerDraft` *lifecycle* management — creating a draft, setting its pick order, and completing it (`app/api/player-drafts/route.js`, `[id]/route.js`, `[id]/order/route.js`, `[id]/complete/route.js`) — a narrower gap than "captains can't pick for themselves."
 
 ### LOW — `nextGame` action is disconnected from match-bound drafts
 
@@ -309,7 +305,7 @@ Ordered by impact-to-effort.
 | 2 | Auto-create draft rooms when match goes `live` | Small-Medium | Removes "Open Draft" manual step per game |
 | 3 | Auto-create Game 2/3 draft on game completion | Medium | BO3/BO5 between-game continuity |
 | 4 | Auto-complete match when series winner reached | Small | Standings accuracy, removes manual admin step |
-| 5 | PlayerDraft captain self-service | Large | Full captain self-service for player draft |
+| ~~5~~ | ~~PlayerDraft captain self-service~~ | ~~Large~~ | **Done** — pick submission already supports it (see §5 correction above); only lifecycle management (create/order/complete) remains admin-only |
 
 ---
 
