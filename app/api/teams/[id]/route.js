@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ export async function GET(_req, { params }) {
     if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     return NextResponse.json(team);
   } catch (e) {
+    reportServerError(e, { route: 'teams/[id] GET' });
     return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });
   }
 }
@@ -50,6 +52,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(team);
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    reportServerError(e, { route: 'teams/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update team' }, { status: 500 });
   }
 }
@@ -63,6 +66,7 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    reportServerError(e, { route: 'teams/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete team' }, { status: 500 });
   }
 }

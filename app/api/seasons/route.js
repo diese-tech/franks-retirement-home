@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { SEASON_STATUSES } from '@/lib/constants';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export async function GET() {
     });
     return NextResponse.json(seasons);
   } catch (e) {
+    reportServerError(e, { route: 'seasons GET' });
     return NextResponse.json({ error: 'Failed to fetch seasons' }, { status: 500 });
   }
 }
@@ -42,6 +44,7 @@ export async function POST(req) {
     if (e.code === 'P2002') {
       return NextResponse.json({ error: 'Season slug already exists' }, { status: 409 });
     }
+    reportServerError(e, { route: 'seasons POST' });
     return NextResponse.json({ error: 'Failed to create season' }, { status: 500 });
   }
 }

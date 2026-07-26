@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export async function GET(req) {
     });
     return NextResponse.json(divisions);
   } catch (e) {
+    reportServerError(e, { route: 'divisions GET' });
     return NextResponse.json({ error: 'Failed to fetch divisions' }, { status: 500 });
   }
 }
@@ -41,6 +43,7 @@ export async function POST(req) {
     if (e.code === 'P2002') {
       return NextResponse.json({ error: 'Division name already exists for this season' }, { status: 409 });
     }
+    reportServerError(e, { route: 'divisions POST' });
     return NextResponse.json({ error: 'Failed to create division' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { GOD_ROLES, GOD_CLASSES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidateGods } from '@/lib/referenceData';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,8 @@ export async function GET(request) {
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(gods);
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'gods GET' });
     return NextResponse.json({ error: 'Failed to fetch gods' }, { status: 500 });
   }
 }
@@ -57,7 +59,8 @@ export async function POST(request) {
     const god = await prisma.god.create({ data: { name: name.trim(), role, godClass } });
     invalidateGods();
     return NextResponse.json(god, { status: 201 });
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'gods POST' });
     return NextResponse.json({ error: 'Failed to save god' }, { status: 500 });
   }
 }
@@ -92,7 +95,8 @@ export async function DELETE(request) {
     await prisma.god.delete({ where: { id } });
     invalidateGods();
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'gods DELETE' });
     return NextResponse.json({ error: 'Failed to delete god' }, { status: 500 });
   }
 }

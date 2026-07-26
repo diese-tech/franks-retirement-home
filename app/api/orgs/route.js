@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ export async function GET() {
     });
     return NextResponse.json(orgs);
   } catch (e) {
+    reportServerError(e, { route: 'orgs GET' });
     return NextResponse.json({ error: 'Failed to fetch orgs' }, { status: 500 });
   }
 }
@@ -33,6 +35,7 @@ export async function POST(req) {
     const org = await prisma.org.create({ data: { name, tag, logoInitials, accentColor } });
     return NextResponse.json(org, { status: 201 });
   } catch (e) {
+    reportServerError(e, { route: 'orgs POST' });
     return NextResponse.json({ error: 'Failed to create org' }, { status: 500 });
   }
 }
