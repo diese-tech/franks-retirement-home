@@ -13,6 +13,26 @@
  * http://localhost:3000).  In CI the server is started externally.
  */
 import { test, expect } from '@playwright/test';
+import { createHmac } from 'node:crypto';
+
+// POST /api/drafts is gated by resolveAdminAuth -- mints a signed
+// frh_discord_session cookie the same way tests/e2e/draft.spec.js and
+// tests/e2e/tournament.spec.js do, rather than driving real Discord OAuth.
+// Without this, draft creation 401s and the god-draft-room tests below
+// silently skip instead of actually running.
+function adminCookieHeader() {
+  const secret = process.env.DISCORD_SESSION_SECRET || 'dev-only-discord-insecure-secret';
+  const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID || 'admin-role-id';
+  const payload = JSON.stringify({
+    discordId: 'mobile-e2e-admin',
+    username: 'MobileE2EAdmin',
+    roles: [adminRoleId],
+    exp: Date.now() + 24 * 60 * 60 * 1000,
+  });
+  const encoded = Buffer.from(payload, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const sig = createHmac('sha256', secret).update(encoded).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `frh_discord_session=${encoded}.${sig}`;
+}
 
 const MOBILE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
@@ -126,6 +146,7 @@ test.describe('Mobile — god draft room', () => {
     try {
       const res = await request.post(`${BASE}/api/drafts`, {
         data: { name: 'Mobile E2E Test Draft' },
+        headers: { Cookie: adminCookieHeader() },
       });
       if (res.ok()) {
         const data = await res.json();
@@ -136,7 +157,8 @@ test.describe('Mobile — god draft room', () => {
 
   test.afterAll(async ({ request }) => {
     if (draftId) {
-      await request.delete(`${BASE}/api/drafts/${draftId}`).catch(() => {});
+      // ?id=<id>, not a path segment -- matches app/api/drafts/route.js's DELETE.
+      await request.delete(`${BASE}/api/drafts?id=${draftId}`, { headers: { Cookie: adminCookieHeader() } }).catch(() => {});
     }
   });
 
