@@ -47,6 +47,11 @@ export async function GET(request, { params }) {
     start(controller) {
       let timer = null;
       let lastVersion = initialState.tournament.version;
+      // Poll runs every 1.5s per connected viewer for as long as the
+      // tournament stays open; report a sustained outage to Sentry once per
+      // failure streak instead of on every tick, or a brief blip fans out
+      // into one event per viewer per poll interval.
+      let pollFailureReported = false;
 
       const send = (obj) => {
         if (closed) return;
@@ -89,8 +94,12 @@ export async function GET(request, { params }) {
               return;
             }
           }
+          pollFailureReported = false;
         } catch (err) {
-          reportServerError(err, { route: 'tournaments/[id]/stream poll' });
+          if (!pollFailureReported) {
+            reportServerError(err, { route: 'tournaments/[id]/stream poll' });
+            pollFailureReported = true;
+          }
           // Swallow poll errors — keep the stream alive
         }
         if (!closed) timer = setTimeout(poll, 1500);
