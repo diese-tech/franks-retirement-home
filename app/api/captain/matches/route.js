@@ -5,6 +5,7 @@ import {
   hasDiscordCaptainRole,
   resolveTeamFromRoles,
 } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,33 +24,38 @@ export async function GET(request) {
     return NextResponse.json({ error: 'No team role found' }, { status: 403 });
   }
 
-  const matches = await prisma.match.findMany({
-    where: {
-      OR: [
-        { homeTeamId: teamId },
-        { awayTeamId: teamId },
-      ],
-    },
-    include: {
-      season: true,
-      division: true,
-      homeTeam: { select: { id: true, name: true, tag: true } },
-      awayTeam: { select: { id: true, name: true, tag: true } },
-      games: {
-        orderBy: { gameNumber: 'asc' },
-        include: {
-          draft: { select: { id: true, status: true } },
+  try {
+    const matches = await prisma.match.findMany({
+      where: {
+        OR: [
+          { homeTeamId: teamId },
+          { awayTeamId: teamId },
+        ],
+      },
+      include: {
+        season: true,
+        division: true,
+        homeTeam: { select: { id: true, name: true, tag: true } },
+        awayTeam: { select: { id: true, name: true, tag: true } },
+        games: {
+          orderBy: { gameNumber: 'asc' },
+          include: {
+            draft: { select: { id: true, status: true } },
+          },
         },
       },
-    },
-    orderBy: { scheduledAt: 'desc' },
-    take: 20,
-  });
+      orderBy: { scheduledAt: 'desc' },
+      take: 20,
+    });
 
-  const result = matches.map((match) => ({
-    ...match,
-    captainSide: match.homeTeamId === teamId ? 'home' : 'away',
-  }));
+    const result = matches.map((match) => ({
+      ...match,
+      captainSide: match.homeTeamId === teamId ? 'home' : 'away',
+    }));
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (err) {
+    reportServerError(err, { route: 'captain/matches GET' });
+    return NextResponse.json({ error: 'Failed to load matches' }, { status: 500 });
+  }
 }

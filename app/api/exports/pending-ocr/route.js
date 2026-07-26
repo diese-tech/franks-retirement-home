@@ -1,5 +1,7 @@
+import { NextResponse } from 'next/server';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import prisma from '@/lib/db';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,15 +21,21 @@ export async function GET(req) {
   const authError = await resolveAdminAuth(req);
   if (authError) return authError;
 
-  const rows = await prisma.extractedStatLine.findMany({
-    where: { status: 'pending' },
-    include: {
-      extraction: { select: { id: true, gameId: true, confidence: true, requestedAt: true } },
-      player: { select: { name: true } },
-      god: { select: { name: true } },
-    },
-    orderBy: { extraction: { requestedAt: 'asc' } },
-  });
+  let rows;
+  try {
+    rows = await prisma.extractedStatLine.findMany({
+      where: { status: 'pending' },
+      include: {
+        extraction: { select: { id: true, gameId: true, confidence: true, requestedAt: true } },
+        player: { select: { name: true } },
+        god: { select: { name: true } },
+      },
+      orderBy: { extraction: { requestedAt: 'asc' } },
+    });
+  } catch (err) {
+    reportServerError(err, { route: 'exports/pending-ocr GET' });
+    return NextResponse.json({ error: 'Failed to load pending OCR rows' }, { status: 500 });
+  }
 
   const headers = [
     'STATUS', 'ExtractionId', 'GameId', 'Confidence', 'ExtractedAt',

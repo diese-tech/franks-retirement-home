@@ -25,6 +25,9 @@ export async function POST(req) {
   if (!gameId || !Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: 'gameId and non-empty rows array are required' }, { status: 400 });
   }
+  if (rows.length > 500) {
+    return NextResponse.json({ error: 'Maximum 500 rows per import' }, { status: 400 });
+  }
 
   // Fetch game + match context for team resolution
   const game = await prisma.game.findUnique({
