@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import {
   getDiscordSessionUser,
   hasDiscordAdminRole,
+  hasDiscordCaptainRole,
+  hasDiscordPlayerRole,
   resolveTeamFromRoles,
   resolveDivisionFromRoles,
 } from '@/lib/discordAuth';
@@ -20,6 +22,8 @@ export async function GET(request) {
     discordId: session.discordId,
     username: session.username,
     isAdmin: hasDiscordAdminRole(session.roles),
+    isCaptain: hasDiscordCaptainRole(session.roles),
+    isPlayer: hasDiscordPlayerRole(session.roles),
     teamId: resolveTeamFromRoles(session.roles),
     divisionId: resolveDivisionFromRoles(session.roles),
   });

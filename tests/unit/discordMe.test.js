@@ -11,6 +11,8 @@ vi.mock('next/server', () => ({
 vi.mock('@/lib/discordAuth', () => ({
   getDiscordSessionUser: vi.fn(),
   hasDiscordAdminRole: vi.fn(),
+  hasDiscordCaptainRole: vi.fn(),
+  hasDiscordPlayerRole: vi.fn(),
   resolveTeamFromRoles: vi.fn(),
   resolveDivisionFromRoles: vi.fn(),
 }));
@@ -18,6 +20,8 @@ vi.mock('@/lib/discordAuth', () => ({
 const {
   getDiscordSessionUser,
   hasDiscordAdminRole,
+  hasDiscordCaptainRole,
+  hasDiscordPlayerRole,
   resolveTeamFromRoles,
   resolveDivisionFromRoles,
 } = await import('@/lib/discordAuth');
@@ -39,6 +43,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   getDiscordSessionUser.mockReturnValue(null);
   hasDiscordAdminRole.mockReturnValue(false);
+  hasDiscordCaptainRole.mockReturnValue(false);
+  hasDiscordPlayerRole.mockReturnValue(false);
   resolveTeamFromRoles.mockReturnValue(null);
   resolveDivisionFromRoles.mockReturnValue(null);
 });
@@ -59,6 +65,8 @@ describe('GET /api/auth/discord/me', () => {
       roles: ['hospice-captain-role', 'team-role'],
     });
     hasDiscordAdminRole.mockReturnValue(false);
+    hasDiscordCaptainRole.mockReturnValue(true);
+    hasDiscordPlayerRole.mockReturnValue(false);
     resolveTeamFromRoles.mockReturnValue('team-galactic-stingers');
     resolveDivisionFromRoles.mockReturnValue('div-s9-hospice');
 
@@ -68,8 +76,28 @@ describe('GET /api/auth/discord/me', () => {
     expect(body.discordId).toBe('user-1');
     expect(body.username).toBe('HospiceCaptain');
     expect(body.isAdmin).toBe(false);
+    expect(body.isCaptain).toBe(true);
+    expect(body.isPlayer).toBe(false);
     expect(body.teamId).toBe('team-galactic-stingers');
     expect(body.divisionId).toBe('div-s9-hospice');
+  });
+
+  it('returns isPlayer true and isCaptain false for a plain player', async () => {
+    getDiscordSessionUser.mockReturnValue({
+      discordId: 'user-4',
+      username: 'PlainPlayer',
+      roles: ['scooter-role'],
+    });
+    hasDiscordAdminRole.mockReturnValue(false);
+    hasDiscordCaptainRole.mockReturnValue(false);
+    hasDiscordPlayerRole.mockReturnValue(true);
+    resolveTeamFromRoles.mockReturnValue('team-galactic-stingers');
+    resolveDivisionFromRoles.mockReturnValue('div-s9-hospice');
+
+    const res = await GET(makeReq());
+    const body = unwrap(res).body;
+    expect(body.isCaptain).toBe(false);
+    expect(body.isPlayer).toBe(true);
   });
 
   it('returns divisionId for a Rehabilitation captain', async () => {
