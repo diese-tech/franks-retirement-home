@@ -89,7 +89,7 @@ export default function Nav() {
 
   // Build nav links based on auth state
   const navLinks = [...PUBLIC_LINKS];
-  if (authState && authState.teamId) {
+  if (authState && authState.isCaptain) {
     navLinks.push({ href: '/captain', label: 'Captain' });
   }
   if (authState && authState.isAdmin) {

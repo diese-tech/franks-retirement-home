@@ -276,7 +276,29 @@ export default function CaptainDashboardClient() {
     );
   }
 
-  // Authenticated but no team
+  // Authenticated but not a captain - explicit gate rather than a confusing
+  // empty dashboard (a player or spectator landing here directly should get
+  // a clear message, not silence).
+  if (!authState.isCaptain) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16">
+        <RetroWindow title="CAPTAIN DASHBOARD" titleBarColor="orange">
+          <div className="text-center space-y-4 py-4">
+            <p className="font-mono text-sm text-frh-text">
+              You&apos;re not currently registered as a team captain.
+            </p>
+            <p className="font-mono text-[10px] text-frh-text-muted">
+              This dashboard is only available to team captains. If you think this is a mistake,
+              make sure you have the Captain role in the FRH Discord server.
+            </p>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
+
+  // Authenticated captain but no team resolved - edge case (captain role
+  // present but no matching team role in Discord).
   if (!authState.teamId) {
     return (
       <div className="max-w-md mx-auto px-4 py-16">

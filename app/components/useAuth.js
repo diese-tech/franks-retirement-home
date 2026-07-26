@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
  * Returns { authState, loading } where authState is:
  *   null (still loading) →
  *   { anonymous: true } if logged out, or
- *   { discordId, username, isAdmin, teamId } if logged in.
+ *   { discordId, username, isAdmin, isCaptain, isPlayer, teamId, divisionId } if logged in.
  */
 export default function useAuth() {
   const [authState, setAuthState] = useState(null);

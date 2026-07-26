@@ -58,7 +58,7 @@ describe('Nav component', () => {
   });
 
   it('shows Captain link and username when captain is logged in', async () => {
-    mockFetchResponse({ username: 'TestCaptain', teamId: 'team-1', isAdmin: false });
+    mockFetchResponse({ username: 'TestCaptain', teamId: 'team-1', isCaptain: true, isAdmin: false });
     renderNav();
     await waitFor(() => {
       expect(screen.getByText('TestCaptain')).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('Nav component', () => {
   });
 
   it('shows Admin link when admin is logged in without team', async () => {
-    mockFetchResponse({ username: 'AdminUser', teamId: null, isAdmin: true });
+    mockFetchResponse({ username: 'AdminUser', teamId: null, isCaptain: false, isAdmin: true });
     renderNav();
     await waitFor(() => {
       expect(screen.getByText('AdminUser')).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('Nav component', () => {
   });
 
   it('shows both Captain and Admin links when user is captain and admin', async () => {
-    mockFetchResponse({ username: 'CaptainAdmin', teamId: 'team-1', isAdmin: true });
+    mockFetchResponse({ username: 'CaptainAdmin', teamId: 'team-1', isCaptain: true, isAdmin: true });
     renderNav();
     await waitFor(() => {
       expect(screen.getByText('CaptainAdmin')).toBeInTheDocument();
