@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import prisma from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { clampStat, MAX_KDA, MAX_AMOUNT } from '@/lib/statBounds';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,45 +69,50 @@ export async function POST(req) {
   }
 
   if (status === 'completed' || status === 'needs_review') {
-    await prisma.$transaction(async (tx) => {
-      await tx.ocrExtraction.update({
-        where: { id: jobId },
-        data: {
-          status,
-          confidence: confidence ?? null,
-          parserVersion: parserVersion ?? null,
-          rawModelOutput: rawModelOutput ?? null,
-          warnings: warnings ?? [],
-          completedAt: new Date(),
-        },
-      });
-
-      // Create one ExtractedStatLine per row in the ForgeLens response
-      for (const row of rows) {
-        await tx.extractedStatLine.create({
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.ocrExtraction.update({
+          where: { id: jobId },
           data: {
-            extractionId: jobId,
-            ignRaw: row.ign ?? '',
-            teamRaw: row.team ?? null,
-            roleRaw: row.role ?? null,
-            godRaw: row.god ?? null,
-            kills: clampStat(row.kills, MAX_KDA),
-            deaths: clampStat(row.deaths, MAX_KDA),
-            assists: clampStat(row.assists, MAX_KDA),
-            damageDealt: clampStat(row.damageDealt, MAX_AMOUNT),
-            damageMitigated: clampStat(row.damageMitigated, MAX_AMOUNT),
-            healing: clampStat(row.healing, MAX_AMOUNT),
-            goldEarned: clampStat(row.goldEarned, MAX_AMOUNT),
-            structureDamage: clampStat(row.structureDamage, MAX_AMOUNT),
-            confidence: row.confidence ?? null,
-            status: 'pending',
+            status,
+            confidence: confidence ?? null,
+            parserVersion: parserVersion ?? null,
+            rawModelOutput: rawModelOutput ?? null,
+            warnings: warnings ?? [],
+            completedAt: new Date(),
           },
         });
-      }
-    });
 
-    // Attempt auto-resolution of player and god names via aliases + exact match
-    await autoResolveExtractedRows(jobId);
+        // Create one ExtractedStatLine per row in the ForgeLens response
+        for (const row of rows) {
+          await tx.extractedStatLine.create({
+            data: {
+              extractionId: jobId,
+              ignRaw: row.ign ?? '',
+              teamRaw: row.team ?? null,
+              roleRaw: row.role ?? null,
+              godRaw: row.god ?? null,
+              kills: clampStat(row.kills, MAX_KDA),
+              deaths: clampStat(row.deaths, MAX_KDA),
+              assists: clampStat(row.assists, MAX_KDA),
+              damageDealt: clampStat(row.damageDealt, MAX_AMOUNT),
+              damageMitigated: clampStat(row.damageMitigated, MAX_AMOUNT),
+              healing: clampStat(row.healing, MAX_AMOUNT),
+              goldEarned: clampStat(row.goldEarned, MAX_AMOUNT),
+              structureDamage: clampStat(row.structureDamage, MAX_AMOUNT),
+              confidence: row.confidence ?? null,
+              status: 'pending',
+            },
+          });
+        }
+      });
+
+      // Attempt auto-resolution of player and god names via aliases + exact match
+      await autoResolveExtractedRows(jobId);
+    } catch (err) {
+      reportServerError(err, { route: 'forgelens/callback POST', jobId });
+      return NextResponse.json({ error: 'Failed to process ForgeLens callback' }, { status: 500 });
+    }
 
     logAudit('OcrExtraction', jobId, `callback_${status}`, { payload: { confidence, rowCount: rows.length } });
     return NextResponse.json({ ok: true });
