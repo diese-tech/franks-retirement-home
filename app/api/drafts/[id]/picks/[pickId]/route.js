@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,7 +99,8 @@ export async function PATCH(req, { params }) {
     });
 
     return NextResponse.json(updated);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/picks/[pickId] PATCH' });
     return NextResponse.json({ error: 'Failed to update pick' }, { status: 500 });
   }
 }

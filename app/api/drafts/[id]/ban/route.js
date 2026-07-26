@@ -5,6 +5,7 @@ import { currentBanTeam, TOTAL_BANS } from '@/lib/draftOrder';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,6 +135,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e?.code === 'P2002') return NextResponse.json({ error: 'God already banned' }, { status: 409 });
+    reportServerError(e, { route: 'drafts/[id]/ban POST' });
     return NextResponse.json({ error: 'Failed to submit ban' }, { status: 500 });
   }
 }
@@ -194,7 +196,8 @@ export async function DELETE(request, { params }) {
     ]);
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/ban DELETE' });
     return NextResponse.json({ error: 'Failed to undo ban' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,8 @@ export async function POST(request, { params }) {
     await syncDraftLobbyState(id);
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/swap POST' });
     return NextResponse.json({ error: 'Failed to swap player' }, { status: 500 });
   }
 }
