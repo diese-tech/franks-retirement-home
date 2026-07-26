@@ -17,6 +17,11 @@ vi.mock('@/lib/discordAuth', () => ({
   resolveDivisionFromRoles: vi.fn(),
 }));
 
+vi.mock('@/lib/adminSession', () => ({
+  readSessionCookie: vi.fn(),
+  verifySessionToken: vi.fn(),
+}));
+
 const {
   getDiscordSessionUser,
   hasDiscordAdminRole,
@@ -25,6 +30,7 @@ const {
   resolveTeamFromRoles,
   resolveDivisionFromRoles,
 } = await import('@/lib/discordAuth');
+const { readSessionCookie, verifySessionToken } = await import('@/lib/adminSession');
 const { GET } = await import('@/app/api/auth/discord/me/route');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,6 +53,8 @@ beforeEach(() => {
   hasDiscordPlayerRole.mockReturnValue(false);
   resolveTeamFromRoles.mockReturnValue(null);
   resolveDivisionFromRoles.mockReturnValue(null);
+  readSessionCookie.mockReturnValue(null);
+  verifySessionToken.mockReturnValue({ valid: false });
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -145,5 +153,36 @@ describe('GET /api/auth/discord/me', () => {
     expect(unwrap(res).status).toBe(200);
     expect('divisionId' in unwrap(res).body).toBe(true);
     expect(unwrap(res).body.divisionId).toBeNull();
+  });
+
+  it('returns isAdmin: true for a valid password session with no Discord session at all', async () => {
+    getDiscordSessionUser.mockReturnValue(null);
+    readSessionCookie.mockReturnValue('some-token');
+    verifySessionToken.mockReturnValue({ valid: true });
+
+    const res = await GET(makeReq());
+    expect(unwrap(res).status).toBe(200);
+    const body = unwrap(res).body;
+    expect(body.isAdmin).toBe(true);
+    expect(body.isCaptain).toBe(false);
+    expect(body.isPlayer).toBe(false);
+    expect(body.discordId).toBeNull();
+  });
+
+  it('ORs a valid password session into isAdmin for a non-admin Discord user', async () => {
+    getDiscordSessionUser.mockReturnValue({
+      discordId: 'user-5',
+      username: 'CaptainWithPasswordAdmin',
+      roles: ['hospice-captain-role'],
+    });
+    hasDiscordAdminRole.mockReturnValue(false);
+    hasDiscordCaptainRole.mockReturnValue(true);
+    readSessionCookie.mockReturnValue('some-token');
+    verifySessionToken.mockReturnValue({ valid: true });
+
+    const res = await GET(makeReq());
+    const body = unwrap(res).body;
+    expect(body.isAdmin).toBe(true);
+    expect(body.isCaptain).toBe(true);
   });
 });
