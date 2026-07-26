@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
+import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,12 @@ export async function POST(request, { params }) {
     const role = resolveRole(key, draft);
     if (role === 'spectator') {
       return NextResponse.json({ error: 'Not authorized to swap players' }, { status: 403 });
+    }
+
+    // 20 swaps per minute per identity (the shared captain/admin key).
+    const { allowed } = await checkRateLimit(`draft-swap:${hashIdentity(key)}`, 20, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Slow down — too many requests.' }, { status: 429 });
     }
 
     const allowedStatuses = role === 'admin' ? ['pending', 'lobby'] : ['lobby'];
