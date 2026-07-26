@@ -85,14 +85,11 @@ describe('POST /api/drafts/[id]/chat', () => {
 
   it('truncates messages longer than the max length', async () => {
     const longMessage = 'a'.repeat(600);
-    let capturedMessage;
-    prisma.$transaction.mockImplementation((ops) => {
-      capturedMessage = ops;
-      return Promise.resolve([]);
-    });
     const res = await POST(reqWithHeaders({ message: longMessage }), PARAMS);
     expect(unwrap(res).status).toBe(200);
-    expect(capturedMessage).toBeDefined();
+    expect(prisma.draftChat.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ message: 'a'.repeat(500) }) })
+    );
   });
 
   it('returns 404 when draft does not exist', async () => {

@@ -4,6 +4,7 @@ import { getDiscordSessionUser, resolveTeamFromRoles } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
 import { notifyChangeRequest } from '@/lib/discordWebhook';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export async function GET(req) {
     });
     return NextResponse.json(requests);
   } catch (err) {
-    console.error('[captain/change-requests GET]', err);
+    reportServerError(err, { route: 'captain/change-requests GET' });
     return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
   }
 }
@@ -76,7 +77,7 @@ export async function POST(req) {
       },
     });
   } catch (err) {
-    console.error('[captain/change-requests POST]', err);
+    reportServerError(err, { route: 'captain/change-requests POST' });
     return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
   }
 

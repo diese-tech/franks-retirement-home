@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { PUBLIC_DRAFT_SELECT } from '@/lib/draftSelect';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,8 @@ export async function GET(request) {
       select: PUBLIC_DRAFT_SELECT,
     });
     return NextResponse.json(drafts);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts GET' });
     return NextResponse.json({ error: 'Failed to fetch drafts' }, { status: 500 });
   }
 }
@@ -89,7 +91,8 @@ export async function POST(request) {
       },
     });
     return NextResponse.json(draft, { status: 201 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts POST' });
     return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 });
   }
 }
@@ -104,7 +107,8 @@ export async function DELETE(request) {
   try {
     await prisma.draft.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts DELETE' });
     return NextResponse.json({ error: 'Failed to delete draft' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { teamsAreLoaded } from '@/lib/draftLifecycle';
 import { readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,7 +131,8 @@ export async function POST(request, { params }) {
     }
 
     return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/admin POST' });
     return NextResponse.json({ error: 'Failed to run admin action' }, { status: 500 });
   }
 }

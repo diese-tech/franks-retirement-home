@@ -20,7 +20,29 @@ vi.mock('@/lib/draftState', () => ({
   buildDraftState: vi.fn(),
 }));
 
+// ─── Mocks for buildDraftState's own dependencies ────────────────────────────
+// Only needed for the "real sanitizer" test below, which un-mocks
+// buildDraftState itself to prove the key-stripping logic actually works,
+// rather than trusting a hand-fed already-sanitized fixture.
+vi.mock('@/lib/db', () => ({
+  default: {
+    draft: { findUnique: vi.fn() },
+    draftPick: { findMany: vi.fn() },
+    draftBan: { findMany: vi.fn() },
+    draftChat: { findMany: vi.fn() },
+    game: { findUnique: vi.fn() },
+  },
+}));
+vi.mock('@/lib/referenceData', () => ({
+  getPlayers: vi.fn(() => []),
+  getGods: vi.fn(() => []),
+}));
+vi.mock('@/lib/usedGodIds', () => ({
+  getEffectiveVaultedGodIds: vi.fn(() => []),
+}));
+
 const { buildDraftState } = await import('@/lib/draftState');
+const { default: prisma } = await import('@/lib/db');
 const { GET } = await import('@/app/api/drafts/[id]/state/route.js');
 
 const DRAFT_ID = 'draft-state-1';
@@ -53,20 +75,29 @@ describe('GET /api/drafts/[id]/state', () => {
   });
 
   it('never leaks adminKey/captainAKey/captainBKey in the public state response', async () => {
-    // Defense in depth: even though buildDraftState is expected to strip keys,
-    // this route-level test guards against a future regression where the
-    // route itself (or a future refactor) starts spreading raw draft fields.
-    const state = {
-      draft: { id: DRAFT_ID, status: 'lobby', usedGodIds: [] },
-      picks: [],
-      bans: [],
-      chats: [],
-      players: [],
-      gods: [],
-    };
-    buildDraftState.mockResolvedValue(state);
+    // Exercises the real buildDraftState (not the mocked stand-in used by the
+    // other tests in this file) so this actually catches a regression in the
+    // sanitizer itself, rather than trusting an already-sanitized fixture.
+    const { buildDraftState: realBuildDraftState } = await vi.importActual('@/lib/draftState');
+    buildDraftState.mockImplementation(realBuildDraftState);
+
+    prisma.draft.findUnique.mockResolvedValue({
+      id: DRAFT_ID,
+      status: 'lobby',
+      gameId: null,
+      adminKey: 'super-secret-admin-key',
+      captainAKey: 'super-secret-captain-a-key',
+      captainBKey: 'super-secret-captain-b-key',
+    });
+    prisma.draftPick.findMany.mockResolvedValue([]);
+    prisma.draftBan.findMany.mockResolvedValue([]);
+    prisma.draftChat.findMany.mockResolvedValue([]);
+
     const res = await GET({}, PARAMS);
     const serialized = JSON.stringify(unwrap(res).body);
+    expect(serialized).not.toMatch(/super-secret-admin-key/);
+    expect(serialized).not.toMatch(/super-secret-captain-a-key/);
+    expect(serialized).not.toMatch(/super-secret-captain-b-key/);
     expect(serialized).not.toMatch(/adminKey/i);
     expect(serialized).not.toMatch(/captainAKey/i);
     expect(serialized).not.toMatch(/captainBKey/i);
