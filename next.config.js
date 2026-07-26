@@ -11,6 +11,19 @@ const nextConfig = {
       },
     ],
   },
+  // Plain "moved" redirects for these two legacy paths — handled here
+  // instead of via redirect() in a page.js, because App Router's
+  // redirect() only emits a real HTTP 3xx for RSC/client-side navigations;
+  // a hard/full-document request (curl, a fresh tab, an e2e page.goto)
+  // gets served a 200 with a client-side <meta http-equiv="refresh">
+  // fallback instead, which real users experience as a ~1s flash before
+  // the page changes. next.config.js redirects() are matched by Next's
+  // routing layer before any page renders, so they always produce a true
+  // 307 for every kind of request.
+  redirects: async () => [
+    { source: '/players', destination: '/roster', permanent: false },
+    { source: '/teams', destination: '/roster', permanent: false },
+  ],
   headers: async () => [
     {
       source: '/:path*',
