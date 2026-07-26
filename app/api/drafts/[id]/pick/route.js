@@ -6,7 +6,7 @@ import { addUsedGodId, readUsedGodIds, removeUsedGodId } from '@/lib/usedGodIds'
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
-import { checkRateLimit } from '@/lib/rateLimit';
+import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,8 +42,9 @@ export async function POST(request, { params }) {
   }
 
   // 20 picks per minute per identity (Discord id when authenticated via Discord,
-  // otherwise the shared captain key).
-  const identity = auth.source === 'discord' ? getDiscordSessionUser(request)?.discordId : key;
+  // otherwise a hash of the shared captain key -- never the raw key itself,
+  // since the identifier is persisted as literal Redis key material).
+  const identity = auth.source === 'discord' ? getDiscordSessionUser(request)?.discordId : hashIdentity(key);
   const { allowed } = await checkRateLimit(`draft-pick:${identity}`, 20, 60);
   if (!allowed) {
     return NextResponse.json({ error: 'Slow down — too many picks.' }, { status: 429 });

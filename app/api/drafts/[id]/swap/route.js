@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole } from '@/lib/draftAuth';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
-import { checkRateLimit } from '@/lib/rateLimit';
+import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
     }
 
     // 20 swaps per minute per identity (the shared captain/admin key).
-    const { allowed } = await checkRateLimit(`draft-swap:${key}`, 20, 60);
+    const { allowed } = await checkRateLimit(`draft-swap:${hashIdentity(key)}`, 20, 60);
     if (!allowed) {
       return NextResponse.json({ error: 'Slow down — too many requests.' }, { status: 429 });
     }
