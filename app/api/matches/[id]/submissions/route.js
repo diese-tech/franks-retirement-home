@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { checkMatchWindow } from '@/lib/matchWindow';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,8 @@ export async function GET(req, { params }) {
       },
     });
     return NextResponse.json(submissions);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/submissions GET' });
     return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 });
   }
 }
@@ -106,7 +108,8 @@ export async function POST(req, { params }) {
     });
 
     return NextResponse.json(submission, { status: 201 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/submissions POST' });
     return NextResponse.json({ error: 'Failed to create submission' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 import { invalidateAllStandings } from '@/lib/standings';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,8 @@ export async function GET(req, { params }) {
     });
     if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(submission);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'submissions/[id] GET' });
     return NextResponse.json({ error: 'Failed to fetch submission' }, { status: 500 });
   }
 }
@@ -137,7 +139,8 @@ export async function PATCH(req, { params }) {
     });
     invalidateAllStandings();
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'submissions/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update submission' }, { status: 500 });
   }
 }

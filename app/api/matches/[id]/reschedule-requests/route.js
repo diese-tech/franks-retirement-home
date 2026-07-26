@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth, resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ export async function GET(req, { params }) {
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(requests);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/reschedule-requests GET' });
     return NextResponse.json({ error: 'Failed to fetch reschedule requests' }, { status: 500 });
   }
 }
@@ -100,7 +102,8 @@ export async function POST(req, { params }) {
     });
 
     return NextResponse.json(request, { status: 201 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/reschedule-requests POST' });
     return NextResponse.json({ error: 'Failed to create reschedule request' }, { status: 500 });
   }
 }

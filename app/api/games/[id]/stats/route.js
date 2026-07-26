@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,8 @@ export async function GET(_req, { params }) {
       },
     });
     return NextResponse.json(stats);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'games/[id]/stats GET' });
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
   }
 }
@@ -76,7 +78,8 @@ export async function POST(req, { params }) {
     });
     logAudit('StatLine', stat.id, 'upserted', { payload: { gameId: params.id, playerId } });
     return NextResponse.json(stat, { status: 201 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'games/[id]/stats POST' });
     return NextResponse.json({ error: 'Failed to save stat line' }, { status: 500 });
   }
 }
@@ -95,7 +98,8 @@ export async function DELETE(req, { params }) {
       where: { gameId_playerId: { gameId: params.id, playerId } },
     });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'games/[id]/stats DELETE' });
     return NextResponse.json({ error: 'Failed to delete stat line' }, { status: 500 });
   }
 }

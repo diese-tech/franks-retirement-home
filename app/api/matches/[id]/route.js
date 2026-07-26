@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { MATCH_STATUSES } from '@/lib/constants';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,8 @@ export async function GET(_req, { params }) {
     // Strip captain keys from public response
     const { homeTeamCaptainKey: _a, awayTeamCaptainKey: _b, ...safe } = match;
     return NextResponse.json(safe);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id] GET' });
     return NextResponse.json({ error: 'Failed to fetch match' }, { status: 500 });
   }
 }
@@ -91,6 +93,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(match);
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    reportServerError(e, { route: 'matches/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update match' }, { status: 500 });
   }
 }
@@ -104,6 +107,7 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    reportServerError(e, { route: 'matches/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete match' }, { status: 500 });
   }
 }

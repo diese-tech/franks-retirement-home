@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,8 @@ export async function GET(_req, { params }) {
       },
     });
     return NextResponse.json(games);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/games GET' });
     return NextResponse.json({ error: 'Failed to fetch games' }, { status: 500 });
   }
 }
@@ -44,6 +46,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(game);
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+    reportServerError(e, { route: 'matches/[id]/games PATCH' });
     return NextResponse.json({ error: 'Failed to update game' }, { status: 500 });
   }
 }

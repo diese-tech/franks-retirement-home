@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ export async function GET(req) {
       },
     });
     return NextResponse.json(submissions);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'submissions GET' });
     return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 });
   }
 }
