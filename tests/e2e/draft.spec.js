@@ -9,20 +9,46 @@
  * API and clean up after themselves where possible.
  */
 import { test, expect } from '@playwright/test';
+import { createHmac } from 'node:crypto';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// POST /api/drafts is gated by resolveAdminAuth (site-wide Discord admin
+// role or the legacy password session) -- mirrors tests/e2e/tournament.spec.js's
+// approach of minting a signed frh_discord_session cookie rather than driving
+// real Discord OAuth. Without this, createDraft 401s and every test in this
+// file that depends on a real draft existing silently skips instead of
+// actually running.
+function adminCookieHeader() {
+  const secret = process.env.DISCORD_SESSION_SECRET || 'dev-only-discord-insecure-secret';
+  const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID || 'admin-role-id';
+  const payload = JSON.stringify({
+    discordId: 'draft-e2e-admin',
+    username: 'DraftE2EAdmin',
+    roles: [adminRoleId],
+    exp: Date.now() + 24 * 60 * 60 * 1000,
+  });
+  const encoded = Buffer.from(payload, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const sig = createHmac('sha256', secret).update(encoded).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `frh_discord_session=${encoded}.${sig}`;
+}
+
 async function createDraft(request, name = 'E2E Test Draft') {
   const res = await request.post(`${BASE}/api/drafts`, {
     data: { name },
+    headers: { Cookie: adminCookieHeader() },
   });
   if (!res.ok()) return null;
   return res.json();
 }
 
+// DELETE /api/drafts expects ?id=<id> (see app/api/drafts/route.js), not a
+// path segment -- this previously targeted a URL no route matches, so
+// cleanup silently 404'd regardless of auth.
 async function deleteDraft(request, id) {
-  await request.delete(`${BASE}/api/drafts/${id}`).catch(() => {});
+  await request.delete(`${BASE}/api/drafts?id=${id}`, { headers: { Cookie: adminCookieHeader() } }).catch(() => {});
 }
 
 // ─── Spectator tests ─────────────────────────────────────────────────────────

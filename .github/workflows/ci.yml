@@ -54,3 +54,110 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+  # Additive e2e coverage (Workstream 4, docs/production-readiness-implementation-plan.md).
+  # Deliberately NOT wired into `needs:` for `build` or `migrate`, and does not
+  # gate either of them — this job provisions its own ephemeral database and
+  # is allowed to fail outright (see `continue-on-error` below) without
+  # affecting the rest of the workflow or blocking a merge. It exists purely
+  # to give the 5 Playwright specs under tests/e2e/**, which never ran in CI
+  # before, an automatic path to run against a real Postgres-backed app.
+  playwright:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: frh_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      # Ephemeral, job-local Postgres — not the pooled Supabase connection
+      # `build`/`migrate` use against production. No pooler in front of it,
+      # so DATABASE_URL and DIRECT_URL are the same value here.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/frh_e2e"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/frh_e2e"
+      # `next start` forces NODE_ENV=production, which makes both
+      # lib/adminSession.js's and lib/discordAuth.js's secret getters *throw*
+      # instead of silently using their dev-only fallback. These are fixed,
+      # CI-only values — not real secrets, and not used anywhere else.
+      ADMIN_SESSION_SECRET: "ci-e2e-admin-session-secret-value"
+      DISCORD_SESSION_SECRET: "ci-e2e-discord-session-secret-value"
+      # tests/e2e/tournament.spec.js and tests/e2e/homepageEditor.spec.js mint
+      # their own signed frh_discord_session cookie instead of driving real
+      # Discord OAuth, and fall back to this same literal value when the env
+      # var is unset. Set explicitly here so the app's hasDiscordAdminRole()
+      # check (lib/discordAuth.js) agrees with what the specs put in the
+      # cookie's roles array.
+      DISCORD_ADMIN_ROLE_ID: "admin-role-id"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      NEXT_PUBLIC_ORIGIN: "http://localhost:3000"
+      PLAYWRIGHT_BASE_URL: "http://localhost:3000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Apply migrations to the ephemeral e2e database
+        run: npx prisma migrate deploy
+
+      - name: Seed reference data (gods, teams, orgs, etc.)
+        run: npm run db:seed
+
+      # playwright.config.js only defines 'chromium' and 'mobile-chrome'
+      # projects (the latter is Pixel 5 *emulation* on the same Chromium
+      # engine, not a separate browser binary) — no firefox/webkit needed.
+      - name: Install Playwright's Chromium browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the app
+        run: npm run build
+
+      # playwright.config.js's webServer block is defined only for non-CI
+      # runs ("In CI the app must already be running") — so CI is expected to
+      # start and manage the server itself, which is what this step and the
+      # next one do, instead of relying on Playwright's own server lifecycle.
+      - name: Start the app in the background
+        run: nohup npm run start > next-start.log 2>&1 &
+
+      - name: Wait for the app to become reachable
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "App is up."
+              exit 0
+            fi
+            echo "Waiting for app... ($i/30)"
+            sleep 2
+          done
+          echo "App did not become reachable in time." >&2
+          cat next-start.log || true
+          exit 1
+
+      - name: Run Playwright e2e specs
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/report/
+          retention-days: 14
