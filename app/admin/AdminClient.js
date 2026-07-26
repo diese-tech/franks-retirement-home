@@ -156,6 +156,8 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
     { key: 'import',        label: 'Import',           count: null },
     { key: 'gods',          label: 'Gods',             count: gods.length },
     { key: 'tournaments',   label: 'Tournaments',      count: null },
+    { key: 'contentPages',  label: 'Content Pages',    count: null },
+    { key: 'matchReport',   label: 'Match Report',     count: null },
   ];
 
   return (
@@ -249,6 +251,17 @@ export default function AdminClient({ initialPlayers, initialGods, initialDrafts
             </p>
             <a href="/admin/tournaments">
               <BrutalButton variant="primary">Open Tournament Editor →</BrutalButton>
+            </a>
+          </div>
+        )}
+        {tab === 'contentPages' && <ContentPagesPanel />}
+        {tab === 'matchReport' && (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500 mb-4">
+              Review OCR-extracted match stats and resolve flagged rows — its own tool, separate from this dashboard.
+            </p>
+            <a href="/admin/match-report">
+              <BrutalButton variant="primary">Open Match Report Review →</BrutalButton>
             </a>
           </div>
         )}
@@ -2288,114 +2301,37 @@ function GodsPanel({ gods, onRefresh }) {
   );
 }
 
+// ─── Content Pages Panel ─────────────────────────────────────────────────────
+// Bulletin Board, Fraud Watch, and Knows Ball are edited inline on their own
+// live public pages via an admin-only "Edit" toggle, not from this dashboard.
+// This panel exists purely so an admin exploring /admin can discover that.
 
-// ─── Homepage Editor Panel ────────────────────────────────────────────────────
-// Lightweight panel that lives inside the admin dashboard and links out to
-// the full-screen homepage editor at /admin/homepage.
-
-// eslint-disable-next-line no-unused-vars
-function HomepageEditorPanel() {
-  const [status, setStatus] = useState(null); // null | { hasDraft, hasPublished, publishedAt, savedAt }
-  const [loading, setLoading] = useState(false);
-  const { confirm, modal: confirmModal } = useConfirm();
-
-  const loadStatus = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/homepage-content');
-      const data = await res.json();
-      if (res.ok) {
-        setStatus({
-          hasDraft:    !!data.draft,
-          hasPublished: !!data.published,
-          publishedAt: data.published?.publishedAt ?? null,
-          savedAt:     data.draft?.savedAt ?? null,
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPublished = async () => {
-    const ok = await confirm({ title: 'Revert Homepage', message: 'Revert the public homepage to hardcoded defaults? This deletes the published row permanently.', confirmLabel: 'Revert', variant: 'danger' });
-    if (!ok) return;
-    await fetch('/api/admin/homepage-content?target=published', { method: 'DELETE' });
-    await loadStatus();
-  };
-
-  const fmtTime = (iso) => {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleString(); } catch { return iso; }
-  };
+function ContentPagesPanel() {
+  const pages = [
+    { label: 'Bulletin Board', href: '/bulletin-board', note: 'Posts, reactions, and comments — use the "Edit" toggle on the live page to manage them.' },
+    { label: 'Fraud Watch',    href: '/fraud-watch',    note: 'Fraud Watch cases — use the "Edit Case" toggle on the live page to manage them.' },
+    { label: 'Knows Ball',     href: '/knows-ball',     note: 'Betting lines — use the admin "Edit" toggle on the live page to manage them.' },
+  ];
 
   return (
-    <>
-      {confirmModal}
-      <RetroWindow title="HOMEPAGE EDITOR">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-        <div>
-          <h2 className="font-ui text-sm uppercase tracking-widest text-frh-yellow mb-1">Homepage Editorial Content</h2>
-          <p className="text-xs text-gray-500 max-w-lg">
-            Edit the public homepage ticker, headlines, bulletin board, fraud watch, match of the week,
-            rivalries, knows ball, washed reports, social cards, and Discord invite link.
-            Changes are saved as a draft and only go live when you publish.
-          </p>
-        </div>
-        <a href="/admin/homepage" target="_blank" rel="noopener noreferrer">
-          <BrutalButton variant="primary">Open Homepage Editor ↗</BrutalButton>
-        </a>
-      </div>
-
-      <div className="border-2 border-brand-700 p-4 mb-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-ui text-xs uppercase tracking-widest text-gray-400">Content Status</h3>
-          <BrutalButton onClick={loadStatus} disabled={loading} variant="secondary" size="sm">
-            {loading ? 'Checking…' : 'Check Status'}
-          </BrutalButton>
-        </div>
-
-        {status ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <PixelBadge label={status.hasDraft ? 'Draft exists' : 'No draft'} color={status.hasDraft ? 'lime' : 'cream'} />
-              {status.hasDraft && (
-                <span className="font-mono text-[10px] text-gray-500">Last saved: {fmtTime(status.savedAt)}</span>
-              )}
+    <RetroWindow title="CONTENT PAGES">
+      <p className="text-xs text-gray-500 max-w-lg mb-4">
+        These pages aren&rsquo;t managed from tabs here — they&rsquo;re edited in place on the live site by an
+        admin-only &ldquo;Edit&rdquo; toggle on the page itself.
+      </p>
+      <div className="space-y-3">
+        {pages.map((p) => (
+          <div key={p.href} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-2 border-brand-700 bg-brand-900/30 px-4 py-3">
+            <div>
+              <div className="font-ui text-xs uppercase tracking-widest text-frh-cream">{p.label}</div>
+              <p className="text-[11px] text-gray-500 mt-0.5">{p.note}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <PixelBadge label={status.hasPublished ? 'Published' : 'Not published (showing defaults)'} color={status.hasPublished ? 'lime' : 'orange'} />
-              {status.hasPublished && (
-                <span className="font-mono text-[10px] text-gray-500">Published: {fmtTime(status.publishedAt)}</span>
-              )}
-            </div>
-            {status.hasPublished && (
-              <BrutalButton onClick={handleResetPublished} variant="danger" size="sm" className="mt-2">
-                Revert Public to Defaults
-              </BrutalButton>
-            )}
+            <a href={p.href} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <BrutalButton variant="secondary" size="sm">Open {p.label} ↗</BrutalButton>
+            </a>
           </div>
-        ) : (
-          <p className="text-xs text-gray-600">Click &ldquo;Check Status&rdquo; to see current draft/publish state.</p>
-        )}
-      </div>
-
-      <div className="border-2 border-brand-700/40 p-3 bg-brand-900/20">
-        <h3 className="font-ui text-[10px] uppercase tracking-widest text-gray-500 mb-2">Editable Sections</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
-          {[
-            'Ticker (FRH Wire)', 'Headlines & Lead Story', 'Bulletin Board',
-            'Fraud Watch', 'Match of the Week', 'Rivalry Posters',
-            'Knows Ball', 'Washed Reports', 'Social Cards',
-            'Discord CTA URL', 'Washed% stat',
-          ].map(s => (
-            <div key={s} className="flex items-center gap-1.5 text-[11px] text-gray-400">
-              <span style={{ color: '#ffd400' }}>★</span> {s}
-            </div>
-          ))}
-        </div>
+        ))}
       </div>
     </RetroWindow>
-    </>
   );
 }
