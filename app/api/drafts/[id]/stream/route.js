@@ -20,6 +20,11 @@ export async function GET(request, { params }) {
   let closed = false;
   let lastVersion = -1;
   let lastChatsVersion = -1;
+  // Poll runs every 1.5s per connected viewer for as long as the draft stays
+  // open; report a sustained outage to Sentry once per failure streak
+  // instead of on every tick, or a brief blip fans out into one event per
+  // viewer per poll interval.
+  let pollFailureReported = false;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -57,10 +62,16 @@ export async function GET(request, { params }) {
             const payload = await buildChatPayload(id);
             send({ type: 'chats', ...payload });
           }
+          pollFailureReported = false;
         } catch (err) {
           // Swallow poll errors — keep the stream alive, but still surface
           // them to Sentry so a persistently broken poll doesn't go unnoticed.
-          reportServerError(err, { route: 'drafts/[id]/stream GET', draftId: id });
+          // Report only the first failure in a streak so a sustained outage
+          // doesn't fan out into one event per viewer per 1.5s tick.
+          if (!pollFailureReported) {
+            reportServerError(err, { route: 'drafts/[id]/stream GET', draftId: id });
+            pollFailureReported = true;
+          }
         }
         if (!closed) setTimeout(poll, 1500);
       };
