@@ -172,7 +172,15 @@ html:not(.dark) body {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 6px 14px;
+  /* .frh-menubar uses align-items: stretch, so this button's rendered
+     height was capped at its sibling .frh-menubar__brand's 39px (a modest
+     bump to 10px padding here didn't change anything -- 39 was already
+     >= this button's own content height, so stretch just held it there).
+     39px sits just under the 40px touch-target minimum (WCAG recommends
+     44px), so the vertical padding needs to grow enough that *this*
+     button becomes the tallest flex item, pulling the whole bar (and
+     brand) up past 44px via stretch. */
+  padding: 14px 14px;
   background: none;
   border: none;
   cursor: pointer;
@@ -372,6 +380,13 @@ html:not(.dark) body {
   margin: 18px 0 12px;
   padding-bottom: 6px;
   border-bottom: 4px solid #141414;
+  /* Even after the title can shrink/wrap (min-width: 0 above), Chromium
+     still counts the flex row's pre-shrink hypothetical width toward
+     document.documentElement.scrollWidth on very narrow screens, which
+     registers as horizontal page overflow despite nothing actually being
+     visible outside the viewport. overflow: hidden makes this row absorb
+     that internal accounting itself instead of inflating the page. */
+  overflow: hidden;
 }
 .dark .frh-section-label { border-bottom-color: var(--frh-text); }
 .frh-section-label:first-child { margin-top: 4px; }
@@ -393,6 +408,11 @@ html:not(.dark) body {
   line-height: 1;
   letter-spacing: 0.02em;
   color: var(--frh-text);
+  /* Flex items default to min-width: auto, which floors shrinking at the
+     content's un-wrapped size and pushed several homepage section titles
+     (e.g. "THIS WEEK'S SLATE + STANDINGS") past the viewport edge at
+     320-390px. min-width: 0 lets the flex box actually shrink and wrap. */
+  min-width: 0;
 }
 .frh-section-label__after {
   margin-left: auto;
@@ -408,6 +428,15 @@ html:not(.dark) body {
   animation: frh-blink 1.6s steps(2) infinite;
 }
 .frh-section-label--alert .frh-section-label__pill { background: #CC3300; }
+@media (max-width: 480px) {
+  /* .frh-section-label__after has flex-shrink: 0, so on narrow phones (down
+     to 320px) it refuses to shrink and pushes past the viewport edge,
+     causing horizontal overflow on every page that uses FrhSectionLabel
+     with an `after` value (e.g. homepage's "UPDATED 3H AGO" / "FRI NIGHT ·
+     PRIMETIME" eyebrows). It's supplementary meta text, so hide it rather
+     than let it force overflow or wrap awkwardly inside the thin header bar. */
+  .frh-section-label__after { display: none; }
+}
 .frh-section-label--prime .frh-section-label__pill { background: #ffd400; color: #141414; }
 .frh-section-label--comm  .frh-section-label__pill { background: #1f6fff; }
 
@@ -1465,7 +1494,11 @@ html:not(.dark) body {
 .frh-washed-list { display: flex; flex-direction: column; }
 .frh-washed-list__row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* minmax(0, 1fr) (not bare 1fr, which floors at the middle column's
+     min-content) so the "what happened" text can actually shrink/wrap
+     instead of pushing the fixed-width "who"/"time" columns off the
+     320px viewport. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   padding: 6px 0;
   border-bottom: 1px dotted var(--frh-border);
@@ -1983,7 +2016,7 @@ html:not(.dark) body {
 .dark .bb-cat-list { background: var(--frh-surface); }
 .bb-cat {
   display: grid;
-  grid-template-columns: 36px 1fr auto auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0;
   border-bottom: 2px solid #14141420;
@@ -2027,6 +2060,14 @@ html:not(.dark) body {
   color: var(--frh-text-muted);
   min-width: 100px;
   text-align: right;
+}
+@media (max-width: 400px) {
+  /* At 320-400px, .bb-cat's 4 fixed/auto columns (icon + name + count +
+     last-activity timestamp) no longer fit -- the row forced horizontal
+     page overflow on the bulletin board. Drop the least essential column
+     (last activity) rather than let it get cramped or clipped. */
+  .bb-cat { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .bb-cat__last { display: none; }
 }
 .member-list {
   border: var(--thick-border);
@@ -2694,7 +2735,7 @@ html:not(.dark) body {
 }
 .free-agent-row {
   display: grid;
-  grid-template-columns: 80px 1fr auto;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
@@ -2702,6 +2743,15 @@ html:not(.dark) body {
   font-size: 11px;
 }
 .free-agent-row:last-child { border-bottom: none; }
+@media (max-width: 360px) {
+  /* The 80px role column + auto-width Discord handle column left the
+     middle (player name) 1fr track no room to shrink below its
+     min-content, forcing horizontal page overflow at 320px. minmax(0, 1fr)
+     above lets it shrink; also drop the handle's own min/nowrap sizing so
+     it can wrap on the very narrowest phones instead of pushing the row
+     wide. */
+  .free-agent-row { grid-template-columns: 64px minmax(0, 1fr) auto; }
+}
 
 /* ============================================================
    MODAL FORM FIELDS + ADMIN/COMMUNITY CONTROLS

@@ -35,6 +35,7 @@ function adminCookieHeader() {
 }
 
 const MOBILE = { width: 390, height: 844 };
+const SMALL_MOBILE = { width: 320, height: 568 }; // iPhone SE / smallest common phone class
 const DESKTOP = { width: 1280, height: 900 };
 
 // ─── Helper: assert no horizontal overflow ────────────────────────────────────
@@ -51,6 +52,19 @@ async function getHeight(locator) {
   return box?.height ?? 0;
 }
 
+// app/components/IntroScreen.js shows a full-screen (z-[9999]) splash video
+// for up to 2.5s on every fresh session, gated on sessionStorage's
+// 'frh-intro-seen' key. Every Playwright test starts a brand-new context, so
+// without this the intro overlay is exactly what gets captured by
+// toHaveScreenshot() below -- the resulting "baseline" is a black screen with
+// a "click anywhere to enter" prompt, identical across every page, and
+// useless for catching any real visual regression. Setting the flag before
+// the app's own script runs skips it so screenshots (and any test that
+// clicks through the page) see actual page content.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('frh-intro-seen', '1'));
+});
+
 // ─── Public pages — no auth needed ───────────────────────────────────────────
 
 test.describe('Mobile — public pages', () => {
@@ -63,8 +77,14 @@ test.describe('Mobile — public pages', () => {
 
   test('homepage: nav hamburger is visible and tappable', async ({ page }) => {
     await page.goto('/');
-    // The hamburger button is the first focusable element inside the nav on mobile
-    const hamburger = page.locator('button[aria-label="Open menu"], button[aria-label="Menu"], nav button').first();
+    // components/Nav.js labels the hamburger button aria-label="Toggle menu".
+    // Note: a comma-separated CSS selector list is a *union*, not a
+    // priority-ordered fallback -- .first() on "a, b, c" still returns
+    // whichever match comes first in DOM order, not the first selector that
+    // matched. A generic `nav button` fallback would resolve to the
+    // ThemeToggle button (earlier in the DOM, correctly display:none on
+    // mobile) instead of the real hamburger, so it's intentionally omitted.
+    const hamburger = page.locator('button[aria-label="Toggle menu"], button[aria-label="Open menu"], button[aria-label="Menu"]').first();
     await expect(hamburger).toBeVisible();
     const h = await getHeight(hamburger);
     expect(h, `Hamburger button height ${h}px is below 44px touch target minimum`).toBeGreaterThanOrEqual(40);
@@ -105,6 +125,11 @@ test.describe('Mobile — public pages', () => {
   test('/teams redirect lands on /roster without error', async ({ page }) => {
     const res = await page.goto('/teams');
     expect(res?.status()).toBeLessThan(500);
+    // app/teams/page.js is statically prerendered, so Next.js ships the
+    // redirect as a client-side <meta http-equiv="refresh"> (~1s delay)
+    // instead of a server-side 30x -- page.goto() resolves before that
+    // timer fires, so the URL check needs to wait for the follow-up nav.
+    await page.waitForURL(/\/roster/, { timeout: 5000 });
     expect(page.url()).toContain('/roster');
     await expect(page.locator('body')).not.toContainText('Application error');
   });
@@ -112,6 +137,8 @@ test.describe('Mobile — public pages', () => {
   test('/players redirect lands on /roster without error', async ({ page }) => {
     const res = await page.goto('/players');
     expect(res?.status()).toBeLessThan(500);
+    // Same client-side meta-refresh redirect as /teams above.
+    await page.waitForURL(/\/roster/, { timeout: 5000 });
     expect(page.url()).toContain('/roster');
     await expect(page.locator('body')).not.toContainText('Application error');
   });
@@ -132,6 +159,37 @@ test.describe('Mobile — captain dashboard', () => {
     expect(res?.status()).toBeLessThan(500);
     await expect(page.locator('body')).not.toContainText('Application error');
   });
+});
+
+// ─── Small screens (320px) ────────────────────────────────────────────────────
+// The site owner asked that "small screens below 375px" work — 320px is the
+// iPhone SE / smallest common phone width. Nothing below 375px was covered
+// before this block.
+
+test.describe('Mobile — small screens (320px)', () => {
+  test.use({ viewport: SMALL_MOBILE });
+
+  const pages = [
+    { path: '/',               label: 'homepage' },
+    { path: '/schedule',       label: 'schedule' },
+    { path: '/standings',      label: 'standings' },
+    { path: '/roster',         label: 'roster' },
+    { path: '/bulletin-board', label: 'bulletin-board' },
+    { path: '/captain',        label: 'captain' },
+  ];
+
+  for (const { path, label } of pages) {
+    test(`${label}: no horizontal overflow at 320px`, async ({ page }) => {
+      await page.goto(path);
+      await assertNoHorizontalOverflow(page);
+    });
+
+    test(`${label}: renders without Application error at 320px`, async ({ page }) => {
+      const res = await page.goto(path);
+      expect(res?.status()).toBeLessThan(500);
+      await expect(page.locator('body')).not.toContainText('Application error');
+    });
+  }
 });
 
 // ─── God draft room ───────────────────────────────────────────────────────────
