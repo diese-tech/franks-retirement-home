@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,7 +176,8 @@ async function handleAdminDecision(req, rescheduleRequest, action, adminNote) {
     });
 
     return NextResponse.json(updated);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/reschedule-requests/[reqId] PATCH (admin decision)' });
     return NextResponse.json({ error: 'Failed to process admin decision' }, { status: 500 });
   }
 }
