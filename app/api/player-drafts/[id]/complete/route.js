@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildPlayerDraftFormat, totalPicks } from '@/lib/playerDraftOrder';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +85,8 @@ export async function POST(req, { params }) {
     });
 
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'player-drafts/[id]/complete POST' });
     return NextResponse.json({ error: 'Failed to complete draft' }, { status: 500 });
   }
 }

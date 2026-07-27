@@ -5,6 +5,7 @@ import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { buildPlayerDraftFormat, getFirstDraftTurn, getNextDraftTurn, totalPicks } from '@/lib/playerDraftOrder';
 import { logAudit } from '@/lib/auditLog';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,7 @@ export async function POST(req, { params }) {
     if (e.code === 'P2002') {
       return NextResponse.json({ error: 'That pick was already recorded' }, { status: 409 });
     }
+    reportServerError(e, { route: 'player-drafts/[id]/pick POST' });
     return NextResponse.json({ error: 'Failed to record pick' }, { status: 500 });
   }
 }

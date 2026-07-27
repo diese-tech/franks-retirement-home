@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,8 @@ export async function PATCH(req, { params }) {
       data: { currentOrder, version: { increment: 1 } },
     });
     return NextResponse.json(updated);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'player-drafts/[id]/order PATCH' });
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }

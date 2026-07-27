@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,8 @@ export async function GET(req) {
       },
     });
     return NextResponse.json(drafts.map(({ adminKey: _ak, ...d }) => d));
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'player-drafts GET' });
     return NextResponse.json({ error: 'Failed to fetch player drafts' }, { status: 500 });
   }
 }
@@ -63,6 +65,7 @@ export async function POST(req) {
     if (e.code === 'P2003') {
       return NextResponse.json({ error: 'Invalid seasonId or divisionId' }, { status: 400 });
     }
+    reportServerError(e, { route: 'player-drafts POST' });
     return NextResponse.json({ error: 'Failed to create player draft' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveRole, SENDER_INFO } from '@/lib/draftAuth';
 import { clientIp, consume } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,8 @@ export async function POST(request, { params }) {
     ]);
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/chat POST' });
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }

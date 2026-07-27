@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { DRAFT_STATUSES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,8 @@ export async function GET(request) {
       take: limit,
     });
     return NextResponse.json(drafts);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/admin GET' });
     return NextResponse.json({ error: 'Failed to fetch drafts' }, { status: 500 });
   }
 }

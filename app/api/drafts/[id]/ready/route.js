@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +68,8 @@ export async function POST(request, { params }) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/ready POST' });
     return NextResponse.json({ error: 'Failed to process ready' }, { status: 500 });
   }
 }

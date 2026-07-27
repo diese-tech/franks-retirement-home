@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buildDraftState } from '@/lib/draftState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,8 @@ export async function GET(request, { params }) {
     const state = await buildDraftState(id);
     if (!state) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
     return NextResponse.json(state);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/state GET' });
     return NextResponse.json({ error: 'Failed to load draft state' }, { status: 500 });
   }
 }

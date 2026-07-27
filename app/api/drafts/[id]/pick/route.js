@@ -7,6 +7,7 @@ import { resolveDraftCaptainAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { logAudit } from '@/lib/auditLog';
 import { checkRateLimit, hashIdentity } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e?.code === 'P2002') return NextResponse.json({ error: 'That god is already in this draft' }, { status: 409 });
+    reportServerError(e, { route: 'drafts/[id]/pick POST' });
     return NextResponse.json({ error: 'Failed to submit pick' }, { status: 500 });
   }
 }
@@ -222,7 +224,8 @@ export async function DELETE(request, { params }) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'drafts/[id]/pick DELETE' });
     return NextResponse.json({ error: 'Failed to undo pick' }, { status: 500 });
   }
 }

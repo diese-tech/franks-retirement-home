@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { TEAMS } from '@/lib/constants';
 import { syncDraftLobbyState } from '@/lib/draftLifecycle';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,8 @@ export async function GET(request) {
       orderBy: { pickOrder: 'asc' },
     });
     return NextResponse.json(picks);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'draft-picks GET' });
     return NextResponse.json({ error: 'Failed to fetch draft picks' }, { status: 500 });
   }
 }
@@ -126,6 +128,7 @@ export async function POST(request) {
     return NextResponse.json(pick, { status: 201 });
   } catch (e) {
     if (e.code === 'P2002') return NextResponse.json({ error: 'Player already drafted' }, { status: 409 });
+    reportServerError(e, { route: 'draft-picks POST' });
     return NextResponse.json({ error: 'Failed to save draft pick' }, { status: 500 });
   }
 }
@@ -157,7 +160,8 @@ export async function DELETE(request) {
     }
 
     return NextResponse.json({ error: 'id or draftId+clear required' }, { status: 400 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'draft-picks DELETE' });
     return NextResponse.json({ error: 'Failed to delete draft pick' }, { status: 500 });
   }
 }

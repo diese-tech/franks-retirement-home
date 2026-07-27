@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildPlayerDraftState } from '@/lib/playerDraftState';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +119,8 @@ export async function PATCH(req, { params }) {
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'player-drafts/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update draft' }, { status: 500 });
   }
 }
@@ -132,6 +134,7 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    reportServerError(e, { route: 'player-drafts/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
