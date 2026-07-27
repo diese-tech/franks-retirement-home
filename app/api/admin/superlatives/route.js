@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // GET /api/admin/superlatives?status=suggested  — admin listing (all statuses)
 export async function GET(request) {
@@ -18,7 +19,7 @@ export async function GET(request) {
     });
     return NextResponse.json(items);
   } catch (err) {
-    console.error('[admin/superlatives GET]', err);
+    reportServerError(err, { route: 'admin/superlatives GET' });
     return NextResponse.json({ error: 'Failed to load superlatives' }, { status: 500 });
   }
 }
@@ -53,7 +54,7 @@ export async function POST(request) {
     });
     return NextResponse.json(item, { status: 201 });
   } catch (err) {
-    console.error('[admin/superlatives POST]', err);
+    reportServerError(err, { route: 'admin/superlatives POST' });
     return NextResponse.json({ error: 'Failed to create superlative' }, { status: 500 });
   }
 }

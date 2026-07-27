@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export async function GET(req) {
     });
     return NextResponse.json(requests);
   } catch (err) {
-    console.error('[admin/change-requests GET]', err);
+    reportServerError(err, { route: 'admin/change-requests GET' });
     return NextResponse.json({ error: 'Change requests unavailable. Run database migrations.' }, { status: 503 });
   }
 }

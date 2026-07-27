@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { BULLETIN_TYPES } from '@/lib/bulletinHelpers';
+import { reportServerError } from '@/lib/apiError';
 
 // PATCH /api/admin/bulletin/[id]  — update a post (slug is immutable)
 export async function PATCH(request, { params }) {
@@ -53,7 +54,7 @@ export async function PATCH(request, { params }) {
     const post = await prisma.bulletinPost.update({ where: { id }, data });
     return NextResponse.json(post);
   } catch (err) {
-    console.error('[admin/bulletin PATCH]', err);
+    reportServerError(err, { route: 'admin/bulletin/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
   }
 }
@@ -67,7 +68,7 @@ export async function DELETE(request, { params }) {
     await prisma.bulletinPost.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[admin/bulletin DELETE]', err);
+    reportServerError(err, { route: 'admin/bulletin/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
   }
 }

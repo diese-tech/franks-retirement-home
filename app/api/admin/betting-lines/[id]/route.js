@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
+import { reportServerError } from '@/lib/apiError';
 
 const VALID_STATUSES = ['open', 'locked', 'settled', 'void'];
 
@@ -88,7 +89,7 @@ export async function PATCH(request, { params }) {
     return NextResponse.json(line);
   } catch (err) {
     const status = err?.httpStatus ?? 500;
-    if (status === 500) console.error('[admin/betting-lines PATCH]', err);
+    if (status === 500) reportServerError(err, { route: 'admin/betting-lines/[id] PATCH' });
     return NextResponse.json({ error: status === 500 ? 'Failed to update line' : err.message }, { status });
   }
 }
@@ -122,7 +123,7 @@ export async function DELETE(request, { params }) {
     await prisma.bettingLine.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[admin/betting-lines DELETE]', err);
+    reportServerError(err, { route: 'admin/betting-lines/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete line' }, { status: 500 });
   }
 }

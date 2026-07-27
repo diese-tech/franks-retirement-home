@@ -6,6 +6,7 @@ import {
   BULLETIN_TYPES,
   createBulletinPostWithUniqueSlug,
 } from '@/lib/bulletinHelpers';
+import { reportServerError } from '@/lib/apiError';
 
 // GET /api/admin/bulletin?status=draft  — admin listing (all statuses)
 export async function GET(request) {
@@ -26,7 +27,7 @@ export async function GET(request) {
     });
     return NextResponse.json(posts);
   } catch (err) {
-    console.error('[admin/bulletin GET]', err);
+    reportServerError(err, { route: 'admin/bulletin GET' });
     return NextResponse.json({ error: 'Failed to load posts' }, { status: 500 });
   }
 }
@@ -73,7 +74,7 @@ export async function POST(request) {
     });
     return NextResponse.json(post, { status: 201 });
   } catch (err) {
-    console.error('[admin/bulletin POST]', err);
+    reportServerError(err, { route: 'admin/bulletin POST' });
     return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
   }
 }

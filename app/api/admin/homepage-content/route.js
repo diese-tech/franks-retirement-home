@@ -4,6 +4,7 @@ import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { HOMEPAGE_DEFAULTS } from '@/lib/homepageDefaults';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { consume, clientIp } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,7 +105,7 @@ export async function GET(request) {
     ]);
     return NextResponse.json({ draft, published });
   } catch (err) {
-    console.error('[homepage-content GET]', err);
+    reportServerError(err, { route: 'admin/homepage-content GET' });
     return NextResponse.json({ error: 'Failed to load homepage content' }, { status: 500 });
   }
 }
@@ -167,7 +168,7 @@ export async function POST(request) {
     });
     return NextResponse.json({ ok: true, published });
   } catch (err) {
-    console.error('[homepage-content POST]', err);
+    reportServerError(err, { route: 'admin/homepage-content POST' });
     return NextResponse.json({ error: 'Failed to save homepage content' }, { status: 500 });
   }
 }
@@ -199,7 +200,7 @@ export async function DELETE(request) {
     await prisma.homepageContent.deleteMany({ where: { status: { in: statuses } } });
     return NextResponse.json({ ok: true, deleted: statuses });
   } catch (err) {
-    console.error('[homepage-content DELETE]', err);
+    reportServerError(err, { route: 'admin/homepage-content DELETE' });
     return NextResponse.json({ error: 'Failed to delete homepage content' }, { status: 500 });
   }
 }

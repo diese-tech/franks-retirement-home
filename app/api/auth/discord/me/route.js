@@ -8,6 +8,7 @@ import {
   resolveDivisionFromRoles,
 } from '@/lib/discordAuth';
 import { readSessionCookie, verifySessionToken } from '@/lib/adminSession';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,31 +27,36 @@ function hasValidPasswordSession(request) {
 }
 
 export async function GET(request) {
-  const session = getDiscordSessionUser(request);
-  const passwordAdmin = hasValidPasswordSession(request);
+  try {
+    const session = getDiscordSessionUser(request);
+    const passwordAdmin = hasValidPasswordSession(request);
 
-  if (!session) {
-    if (!passwordAdmin) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (!session) {
+      if (!passwordAdmin) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      }
+      return NextResponse.json({
+        discordId: null,
+        username: null,
+        isAdmin: true,
+        isCaptain: false,
+        isPlayer: false,
+        teamId: null,
+        divisionId: null,
+      });
     }
-    return NextResponse.json({
-      discordId: null,
-      username: null,
-      isAdmin: true,
-      isCaptain: false,
-      isPlayer: false,
-      teamId: null,
-      divisionId: null,
-    });
-  }
 
-  return NextResponse.json({
-    discordId: session.discordId,
-    username: session.username,
-    isAdmin: hasDiscordAdminRole(session.roles) || passwordAdmin,
-    isCaptain: hasDiscordCaptainRole(session.roles),
-    isPlayer: hasDiscordPlayerRole(session.roles),
-    teamId: resolveTeamFromRoles(session.roles),
-    divisionId: resolveDivisionFromRoles(session.roles),
-  });
+    return NextResponse.json({
+      discordId: session.discordId,
+      username: session.username,
+      isAdmin: hasDiscordAdminRole(session.roles) || passwordAdmin,
+      isCaptain: hasDiscordCaptainRole(session.roles),
+      isPlayer: hasDiscordPlayerRole(session.roles),
+      teamId: resolveTeamFromRoles(session.roles),
+      divisionId: resolveDivisionFromRoles(session.roles),
+    });
+  } catch (err) {
+    reportServerError(err, { route: 'auth/discord/me GET' });
+    return NextResponse.json({ error: 'Failed to resolve session' }, { status: 500 });
+  }
 }

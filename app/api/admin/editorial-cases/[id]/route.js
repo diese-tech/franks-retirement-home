@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // PATCH /api/admin/editorial-cases/[id]
 export async function PATCH(request, { params }) {
@@ -45,7 +46,7 @@ export async function PATCH(request, { params }) {
     const updated = await prisma.editorialCase.update({ where: { id }, data });
     return NextResponse.json(updated);
   } catch (err) {
-    console.error('[admin/editorial-cases PATCH]', err);
+    reportServerError(err, { route: 'admin/editorial-cases/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update case' }, { status: 500 });
   }
 }
@@ -59,7 +60,7 @@ export async function DELETE(request, { params }) {
     await prisma.editorialCase.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[admin/editorial-cases DELETE]', err);
+    reportServerError(err, { route: 'admin/editorial-cases/[id] DELETE' });
     return NextResponse.json({ error: 'Failed to delete case' }, { status: 500 });
   }
 }

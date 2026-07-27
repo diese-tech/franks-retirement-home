@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { generateBracket, recordWinner as engineRecordWinner, isTournamentComplete, matchState } from '@/lib/bracketEngine';
+import { reportServerError } from '@/lib/apiError';
 
 const VALID_ACTIONS = ['editParticipant', 'reseed', 'recordWinner', 'regenerate', 'publish', 'reset', 'delete'];
 const MAX_NAME_LENGTH = 100;
@@ -48,7 +49,7 @@ export async function PATCH(request, { params }) {
     return await handleDelete(tournament);
   } catch (err) {
     const status = err?.httpStatus ?? 500;
-    if (status === 500) console.error('[admin/tournaments PATCH]', err);
+    if (status === 500) reportServerError(err, { route: 'admin/tournaments/[id] PATCH' });
     return NextResponse.json({ error: status === 500 ? 'Failed to update tournament' : err.message }, { status });
   }
 }
