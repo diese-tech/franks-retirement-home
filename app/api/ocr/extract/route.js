@@ -7,6 +7,7 @@ import { checkMatchWindow } from '@/lib/matchWindow';
 import { resolveMatchCaptainAuth } from '@/lib/resolveAuth';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import { clampStat, MAX_KDA, MAX_AMOUNT } from '@/lib/statBounds';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,7 @@ export async function POST(req) {
   try {
     geminiResult = await extractSmite2Details(imageBase64, mimeType);
   } catch (err) {
+    reportServerError(err, { route: 'ocr/extract POST', gameId, extractionId: extraction.id });
     await prisma.ocrExtraction.update({
       where: { id: extraction.id },
       data: { status: 'failed', errorMessage: err.message, completedAt: new Date() },

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,60 +51,65 @@ export async function POST(req, { params }) {
     }, { status: 400 });
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const row of includedRows) {
-      // Determine teamId from the side stored in ExtractedStatLine
-      const extractedRow = await tx.extractedStatLine.findUnique({ where: { id: row.id } });
-      const teamId = extractedRow?.teamRaw === 'order' ? orderTeamId : chaosTeamId;
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const row of includedRows) {
+        // Determine teamId from the side stored in ExtractedStatLine
+        const extractedRow = await tx.extractedStatLine.findUnique({ where: { id: row.id } });
+        const teamId = extractedRow?.teamRaw === 'order' ? orderTeamId : chaosTeamId;
 
-      await tx.statLine.upsert({
-        where: { gameId_playerId: { gameId: extraction.gameId, playerId: row.resolvedPlayerId } },
-        create: {
-          gameId: extraction.gameId,
-          playerId: row.resolvedPlayerId,
-          teamId,
-          godId: row.resolvedGodId ?? null,
-          kills: row.kills ?? 0,
-          deaths: row.deaths ?? 0,
-          assists: row.assists ?? 0,
-          damage: row.damage ?? 0,
-          damageMitigated: row.damageMitigated ?? 0,
-          healing: row.healing ?? 0,
-          structureDamage: row.structureDamage ?? 0,
-        },
-        update: {
-          teamId,
-          godId: row.resolvedGodId ?? null,
-          kills: row.kills ?? 0,
-          deaths: row.deaths ?? 0,
-          assists: row.assists ?? 0,
-          damage: row.damage ?? 0,
-          damageMitigated: row.damageMitigated ?? 0,
-          healing: row.healing ?? 0,
-          structureDamage: row.structureDamage ?? 0,
-        },
+        await tx.statLine.upsert({
+          where: { gameId_playerId: { gameId: extraction.gameId, playerId: row.resolvedPlayerId } },
+          create: {
+            gameId: extraction.gameId,
+            playerId: row.resolvedPlayerId,
+            teamId,
+            godId: row.resolvedGodId ?? null,
+            kills: row.kills ?? 0,
+            deaths: row.deaths ?? 0,
+            assists: row.assists ?? 0,
+            damage: row.damage ?? 0,
+            damageMitigated: row.damageMitigated ?? 0,
+            healing: row.healing ?? 0,
+            structureDamage: row.structureDamage ?? 0,
+          },
+          update: {
+            teamId,
+            godId: row.resolvedGodId ?? null,
+            kills: row.kills ?? 0,
+            deaths: row.deaths ?? 0,
+            assists: row.assists ?? 0,
+            damage: row.damage ?? 0,
+            damageMitigated: row.damageMitigated ?? 0,
+            healing: row.healing ?? 0,
+            structureDamage: row.structureDamage ?? 0,
+          },
+        });
+
+        await tx.extractedStatLine.update({
+          where: { id: row.id },
+          data: { status: 'approved', resolvedPlayerId: row.resolvedPlayerId, resolvedGodId: row.resolvedGodId ?? null },
+        });
+      }
+
+      // Reject excluded rows
+      const excludedIds = rows.filter(r => r.include === false).map(r => r.id);
+      if (excludedIds.length > 0) {
+        await tx.extractedStatLine.updateMany({
+          where: { id: { in: excludedIds } },
+          data: { status: 'rejected', rejectionReason: 'excluded by admin' },
+        });
+      }
+
+      await tx.game.update({
+        where: { id: extraction.gameId },
+        data: { winnerTeamId },
       });
-
-      await tx.extractedStatLine.update({
-        where: { id: row.id },
-        data: { status: 'approved', resolvedPlayerId: row.resolvedPlayerId, resolvedGodId: row.resolvedGodId ?? null },
-      });
-    }
-
-    // Reject excluded rows
-    const excludedIds = rows.filter(r => r.include === false).map(r => r.id);
-    if (excludedIds.length > 0) {
-      await tx.extractedStatLine.updateMany({
-        where: { id: { in: excludedIds } },
-        data: { status: 'rejected', rejectionReason: 'excluded by admin' },
-      });
-    }
-
-    await tx.game.update({
-      where: { id: extraction.gameId },
-      data: { winnerTeamId },
     });
-  });
+  } catch (err) {
+    reportServerError(err, { route: 'ocr/[id]/submit POST', extractionId: params.id });
+    return NextResponse.json({ error: 'Failed to submit OCR extraction' }, { status: 500 });
+  }
 
   logAudit('OcrExtraction', params.id, 'submitted', {
     payload: { gameId: extraction.gameId, rowsApproved: includedRows.length, winnerTeamId },

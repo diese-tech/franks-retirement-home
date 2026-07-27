@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,8 +85,9 @@ export async function POST(req) {
         where: { id: extraction.id },
         data: { status: 'processing' },
       });
-    } catch {
+    } catch (err) {
       // ForgeLens unreachable — job stays 'pending', admin can retry later
+      reportServerError(err, { route: 'forgelens/jobs POST', jobId: extraction.id });
     }
   }
 

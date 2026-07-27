@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/audit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,10 @@ export async function POST(req) {
   if (!game) return NextResponse.json({ error: 'Game not found' }, { status: 404 });
 
   const results = { imported: 0, updated: 0, errors: [] };
+  // Collected rather than reported per-row: a systemic failure (e.g. a
+  // dropped DB connection) would otherwise hit this catch for every
+  // remaining row and emit up to 500 Sentry events/log lines for one import.
+  const unexpectedRowErrors = [];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -121,9 +126,21 @@ export async function POST(req) {
       if (existing) results.updated++;
       else results.imported++;
 
-    } catch {
+    } catch (err) {
+      unexpectedRowErrors.push({ rowNum, err });
       results.errors.push({ row: rowNum, reason: 'Unexpected error processing this row' });
     }
+  }
+
+  if (unexpectedRowErrors.length > 0) {
+    const { rowNum: firstRowNum, err: firstErr } = unexpectedRowErrors[0];
+    reportServerError(firstErr, {
+      route: 'stats/import POST',
+      gameId,
+      firstFailedRow: firstRowNum,
+      unexpectedRowErrorCount: unexpectedRowErrors.length,
+      totalRows: rows.length,
+    });
   }
 
   logAudit('StatLine', gameId, 'bulk_import', { payload: { imported: results.imported, updated: results.updated, errors: results.errors.length } });
