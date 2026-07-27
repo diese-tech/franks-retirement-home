@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export async function GET(_req, { params }) {
     });
     return NextResponse.json(members);
   } catch (e) {
+    reportServerError(e, { route: 'teams/[id]/members GET' });
     return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 });
   }
 }
@@ -48,6 +50,7 @@ export async function POST(req, { params }) {
     if (e.code === 'P2002') {
       return NextResponse.json({ error: 'Player is already a member of this team' }, { status: 409 });
     }
+    reportServerError(e, { route: 'teams/[id]/members POST' });
     return NextResponse.json({ error: 'Failed to add team member' }, { status: 500 });
   }
 }

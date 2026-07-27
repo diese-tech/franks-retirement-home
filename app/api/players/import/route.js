@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { PLAYER_ROLES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,8 @@ export async function POST(request) {
         });
         results.imported++;
       }
-    } catch {
+    } catch (e) {
+      reportServerError(e, { route: 'players/import POST' });
       results.errors.push({ row, reason: 'Database error' });
     }
   }

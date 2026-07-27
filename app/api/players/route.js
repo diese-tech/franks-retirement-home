@@ -4,6 +4,7 @@ import { PLAYER_ROLES } from '@/lib/constants';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { invalidatePlayers } from '@/lib/referenceData';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,8 @@ export async function GET(request) {
     const res = NextResponse.json(players);
     res.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     return res;
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'players GET' });
     return NextResponse.json({ error: 'Failed to fetch players' }, { status: 500 });
   }
 }
@@ -71,7 +73,8 @@ export async function POST(request) {
     invalidatePlayers();
     logAudit({ entity: 'Player', entityId: player.id, action: 'player_created', adminId: 'admin', payload: { name: data.name, role: data.role } });
     return NextResponse.json(player, { status: 201 });
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'players POST' });
     return NextResponse.json({ error: 'Failed to save player' }, { status: 500 });
   }
 }
@@ -97,7 +100,8 @@ export async function DELETE(request) {
     await prisma.player.delete({ where: { id } });
     invalidatePlayers();
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'players DELETE' });
     return NextResponse.json({ error: 'Failed to delete player' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(member);
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    reportServerError(e, { route: 'teams/[id]/members/[memberId] PATCH' });
     return NextResponse.json({ error: 'Failed to update member' }, { status: 500 });
   }
 }
@@ -38,6 +40,7 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    reportServerError(e, { route: 'teams/[id]/members/[memberId] DELETE' });
     return NextResponse.json({ error: 'Failed to remove member' }, { status: 500 });
   }
 }

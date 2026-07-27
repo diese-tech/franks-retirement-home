@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { SEASON_STATUSES } from '@/lib/constants';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(season);
   } catch (e) {
     if (e.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    console.error('[seasons PATCH]', e);
+    reportServerError(e, { route: 'seasons/[id] PATCH' });
     return NextResponse.json({ error: 'Failed to update season' }, { status: 500 });
   }
 }

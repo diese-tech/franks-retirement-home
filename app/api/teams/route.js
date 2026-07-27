@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,7 @@ export async function GET(req) {
     res.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     return res;
   } catch (e) {
+    reportServerError(e, { route: 'teams GET' });
     return NextResponse.json({ error: 'Failed to fetch teams' }, { status: 500 });
   }
 }
@@ -61,6 +63,7 @@ export async function POST(req) {
     logAudit({ entity: 'Team', entityId: team.id, action: 'team_created', adminId: 'admin', payload: { name, tag } });
     return NextResponse.json(team, { status: 201 });
   } catch (e) {
+    reportServerError(e, { route: 'teams POST' });
     return NextResponse.json({ error: 'Failed to create team' }, { status: 500 });
   }
 }

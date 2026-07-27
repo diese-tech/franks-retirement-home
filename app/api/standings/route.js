@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { computeStandings } from '@/lib/standings';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,8 @@ export async function GET(req) {
     const res = NextResponse.json(standings);
     res.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
     return res;
-  } catch {
+  } catch (e) {
+    reportServerError(e, { route: 'standings GET' });
     return NextResponse.json({ error: 'Failed to compute standings' }, { status: 500 });
   }
 }
