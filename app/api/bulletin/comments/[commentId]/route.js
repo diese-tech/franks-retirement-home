@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser, hasDiscordAdminRole } from '@/lib/discordAuth';
+import { reportServerError } from '@/lib/apiError';
 
 // DELETE /api/bulletin/comments/[commentId]  — own comment or admin
 export async function DELETE(request, { params }) {
@@ -26,7 +27,7 @@ export async function DELETE(request, { params }) {
     await prisma.bulletinComment.delete({ where: { id: commentId } });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[bulletin comment DELETE]', err);
+    reportServerError(err, { route: 'bulletin/comments/[commentId] DELETE' });
     return NextResponse.json({ error: 'Failed to delete comment' }, { status: 500 });
   }
 }

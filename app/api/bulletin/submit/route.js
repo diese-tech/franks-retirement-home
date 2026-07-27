@@ -5,6 +5,7 @@ import {
   createBulletinPostWithUniqueSlug,
 } from '@/lib/bulletinHelpers';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export async function POST(request) {
       { status: 201 },
     );
   } catch (err) {
-    console.error('[bulletin submit POST]', err);
+    reportServerError(err, { route: 'bulletin/submit POST' });
     return NextResponse.json({ error: 'Failed to submit post' }, { status: 500 });
   }
 }

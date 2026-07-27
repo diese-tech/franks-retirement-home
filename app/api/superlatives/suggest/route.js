@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser, hasDiscordPlayerRole, hasDiscordAdminRole } from '@/lib/discordAuth';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 // POST /api/superlatives/suggest  — player suggests a new superlative.
 // Lands as `suggested` for admin review.
@@ -51,7 +52,7 @@ export async function POST(request) {
       { status: 201 },
     );
   } catch (err) {
-    console.error('[superlatives/suggest POST]', err);
+    reportServerError(err, { route: 'superlatives/suggest POST' });
     return NextResponse.json({ error: 'Failed to submit suggestion' }, { status: 500 });
   }
 }

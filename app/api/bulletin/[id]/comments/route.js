@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getDiscordSessionUser } from '@/lib/discordAuth';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function GET(request, { params }) {
       })),
     });
   } catch (err) {
-    console.error('[bulletin comments GET]', err);
+    reportServerError(err, { route: 'bulletin/[id]/comments GET' });
     return NextResponse.json({ error: 'Failed to load comments' }, { status: 500 });
   }
 }
@@ -88,7 +89,7 @@ export async function POST(request, { params }) {
       { status: 201 },
     );
   } catch (err) {
-    console.error('[bulletin comments POST]', err);
+    reportServerError(err, { route: 'bulletin/[id]/comments POST' });
     return NextResponse.json({ error: 'Failed to add comment' }, { status: 500 });
   }
 }
