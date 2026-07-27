@@ -43,10 +43,17 @@ vi.mock('@/lib/usedGodIds', () => ({
   removeUsedGodId: vi.fn((arr, id) => arr.filter((g) => g !== id)),
 }));
 
+// ─── Mock @/lib/rateLimit ────────────────────────────────────────────────────
+vi.mock('@/lib/rateLimit', () => ({
+  checkRateLimit: vi.fn(),
+  hashIdentity: vi.fn((v) => `hashed:${v}`),
+}));
+
 const { default: prisma } = await import('@/lib/db');
 const { resolveRole } = await import('@/lib/draftAuth');
 const { currentPickTeam } = await import('@/lib/draftOrder');
 const { readUsedGodIds } = await import('@/lib/usedGodIds');
+const { checkRateLimit } = await import('@/lib/rateLimit');
 const { POST, DELETE } = await import('@/app/api/drafts/[id]/pick/route.js');
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -99,6 +106,7 @@ beforeEach(() => {
   // Safe defaults so tests that don't need to override these still work
   currentPickTeam.mockReturnValue('A');
   readUsedGodIds.mockReturnValue([]);
+  checkRateLimit.mockResolvedValue({ allowed: true });
   // Default transaction: pass-through (tests override as needed)
   prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
 });
@@ -133,6 +141,14 @@ describe('POST /api/drafts/[id]/pick', () => {
     resolveRole.mockReturnValue('spectator');
     const res = await POST(makeReq({ key: 'bad', godId: 'zeus' }), PARAMS);
     expect(unwrap(res).status).toBe(403);
+  });
+
+  it('returns 429 when rate limited, keyed on a hash of the captain key not the raw key', async () => {
+    resolveRole.mockReturnValue('captainA');
+    checkRateLimit.mockResolvedValue({ allowed: false });
+    const res = await POST(makeReq({ key: 'cap-a-key', godId: 'zeus' }), PARAMS);
+    expect(unwrap(res).status).toBe(429);
+    expect(checkRateLimit).toHaveBeenCalledWith('draft-pick:hashed:cap-a-key', 20, 60);
   });
 
   it('returns 400 when draft is not in picking phase', async () => {

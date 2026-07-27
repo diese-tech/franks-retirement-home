@@ -106,3 +106,19 @@ describe('POST /api/forgelens/callback signature verification', () => {
     expect(status).toBe(404); // proceeds without signature in dev/test
   });
 });
+
+describe('POST /api/forgelens/callback transaction error handling', () => {
+  const COMPLETED_BODY = { jobId: 'job-2', status: 'completed', confidence: 0.9, rows: [] };
+
+  it('returns a clean 500 instead of throwing when the $transaction rejects', async () => {
+    process.env.FORGELENS_HMAC_SECRET = SECRET;
+    prisma.ocrExtraction.findUnique.mockResolvedValue({ id: 'job-2', status: 'pending' });
+    prisma.$transaction.mockRejectedValue(new Error('DB connection lost'));
+    const res = await POST(
+      makeCallbackReq(COMPLETED_BODY, { signature: sign(COMPLETED_BODY) })
+    );
+    const { status, body } = unwrap(res);
+    expect(status).toBe(500);
+    expect(body.error).toMatch(/failed to process/i);
+  });
+});
