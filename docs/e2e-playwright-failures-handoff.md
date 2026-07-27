@@ -1,11 +1,12 @@
 # E2E (Playwright) CI Failure Investigation — Handoff
 
 **Date:** 2026-07-26
-**Status:** All findings below were independently confirmed fixed by PR #167
-("Add 320px mobile coverage, fix real overflow bugs, commit visual
+**Status:** 5 of 6 findings below were independently confirmed fixed by
+PR #167 ("Add 320px mobile coverage, fix real overflow bugs, commit visual
 baselines") after this investigation was written but before it was
-committed. This doc is kept as a record of root causes, not a to-do list —
-see [Outcome](#outcome) at the bottom for what's actually still open.
+committed. This doc is kept mainly as a record of root causes, not a
+to-do list — but one item (#6) is only partly explained by that PR and
+still needs a follow-up look; see [Outcome](#outcome) at the bottom.
 
 ## Why this exists
 
@@ -89,7 +90,7 @@ This job's first-ever CI run had no `tests/e2e/mobile.spec.js-snapshots/*.png`
 baselines committed. Needed a one-time `--update-snapshots` run with the
 result committed.
 
-### 6. `homepageEditor.spec.js` mobile-chrome click timeouts — inconclusive locally
+### 6. `homepageEditor.spec.js` mobile-chrome click timeouts — inconclusive locally, and NOT fully explained by PR #167 either
 
 3 tests (`admin can enter editor mode`, `save button calls API`, `preview
 button opens draft`) hung 30s clicking `[data-testid="homepage-edit-toggle"]`
@@ -97,10 +98,33 @@ on `mobile-chrome` only. Local repro was unreliable (see Chromium-version
 caveat above) and didn't match CI's exact failure pattern, so this was
 left flagged rather than diagnosed with confidence.
 
+**Correction, caught in review (thanks, Codex):** an earlier version of
+this doc claimed PR #167 fixed all three of these the same way it fixed
+`nav.spec.js` (item 3) — by pinning a desktop viewport, because the
+Preview *toolbar* button is `hidden sm:inline-flex`. That's only true for
+`preview button opens draft`; PR #167's actual diff for
+`tests/e2e/homepageEditor.spec.js` is 8 lines, all inside that one test.
+`admin can enter editor mode` and `save button calls API` — which time out
+on the *floating* `homepage-edit-toggle` button, a different element with
+no such CSS — were not touched at all. Re-ran all four `mobile-chrome`
+tests in this describe block locally against current `main` (PR #167
+included): all four still fail identically for me, including "preview
+button" with its viewport fix applied and even the simplest one (`admin
+sees edit toggle on homepage`, no click at all) — which is inconsistent
+with PR #167's own claimed "142/142, 0 failed" and means my local
+Chromium substitute genuinely can't be trusted for this describe block
+(most likely something in `context.addCookies({ domain: 'localhost', ... })`
+— the cookie style this file uses, unlike `tournament.spec.js`'s
+`addCookies({ url: BASE, ... })` — not being honored the same way by the
+older Chromium build in this sandbox). **Net: root cause for
+`admin can enter editor mode` and `save button calls API` on
+`mobile-chrome` is still open** — needs a look with the actual pinned CI
+browser, not this sandbox.
+
 ## Outcome
 
-Every item above (real bug and test bugs alike) was independently found
-and fixed by **PR #167** (`a78b0be`, merged to `main`), including:
+Items 1–5 above were independently found and fixed by **PR #167**
+(`a78b0be`, merged to `main`):
 - `next.config.js` `redirects()` for `/teams` and `/players` (a cleaner
   fix than patching the tests — routing-layer redirects always emit a
   real 307, sidestepping the static-page limitation entirely).
@@ -109,13 +133,16 @@ and fixed by **PR #167** (`a78b0be`, merged to `main`), including:
 - The bracket locator anchored to `/^Final/` (not just `'Final'`) to stop
   matching "Semifinals".
 - Visual snapshot baselines generated and committed for both projects.
-- Item 6 (`homepageEditor.spec.js` mobile clicks) turned out to be the
-  same class of bug as item 3: the Preview button is
-  `hidden sm:inline-flex` by design, so that one test also needed pinning
-  to a desktop viewport. PR #167's own verification: **142/142 e2e tests
-  passing, 0 failed, 0 skipped.**
+- `homepageEditor.spec.js`'s `preview button opens draft` test, specifically
+  (same viewport-pinning fix as `nav.spec.js`).
 
-**Nothing from this investigation needs further action on the e2e side.**
+Item 6 is only partly resolved — see the correction above. PR #167's
+commit message claims a full **142/142, 0 failed, 0 skipped** run, which
+would mean `admin can enter editor mode` and `save button calls API` pass
+too, but neither the diff nor my own (admittedly untrustworthy-for-this-
+cluster) local reproduction explains why. Whoever picks this up next
+should verify against the real pinned CI browser before treating it as
+closed.
 
 ## What's actually left: PR #165 has a merge conflict
 
