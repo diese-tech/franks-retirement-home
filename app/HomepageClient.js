@@ -1125,7 +1125,16 @@ export default function HomepageClient({
         {/* ── Section 4: Bulletin Board + Fraud Watch ───── */}
         <Section field="Bulletin">
           <FrhSectionLabel kind="comm" pill="COMMUNITY" title="BULLETIN BOARD + FRAUD WATCH" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 4 }}>
+          {/* minmax()'s lower bound is a hard floor -- at exactly 320px
+              viewport width (minus page padding, ~292px available) a fixed
+              320px minimum can never fit, forcing horizontal page overflow.
+              min(320px, 100%) caps the floor at the container's own width so
+              the track can still shrink to fit small screens. overflow:
+              hidden works around a separate Chromium quirk where a flex/grid
+              container's scrollWidth still reflects its children's
+              pre-shrink hypothetical size (seen at 768px on this row's
+              nested flex headers) even though nothing is visibly clipped. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 4, overflow: 'hidden' }}>
             <FrhBulletinForum
               items={content.bulletin}
               {...listHandlers('bulletin', { tag: 'PSA', user: 'Admin', title: 'New post', replies: 0, hot: false })}
@@ -1159,7 +1168,7 @@ export default function HomepageClient({
         </Section>
 
         {/* ── Section 7: Knows Ball + Washed Reports ──────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 4, overflow: 'hidden' }}>
           <Section field="KnowsBall">
             <FrhKnowsBallPanel
               items={content.knowsBall}
@@ -1184,7 +1193,7 @@ export default function HomepageClient({
 
         {/* ── Section 9: Upcoming Slate + Standings ──────── */}
         <FrhSectionLabel kind="default" pill="SCHEDULE" title="THIS WEEK'S SLATE + STANDINGS" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 4, overflow: 'hidden' }}>
           <FrhPanel title="THIS WEEK'S SLATE" accent="blue" status={['Full schedule at /schedule']}>
             {upcomingMatches?.length > 0 ? (
               <div className="frh-slate">
