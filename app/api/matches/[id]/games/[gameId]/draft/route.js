@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
+import { reportServerError } from '@/lib/apiError';
 
 // POST /api/matches/[id]/games/[gameId]/draft
 // Admin action: create (or return existing) match-bound Draft for a specific game.
@@ -19,6 +20,7 @@ export async function POST(req, { params }) {
     if (err.message.includes('not found')) {
       return NextResponse.json({ error: err.message }, { status: 404 });
     }
+    reportServerError(err, { route: 'matches/[id]/games/[gameId]/draft POST' });
     return NextResponse.json({ error: 'Failed to create draft' }, { status: 500 });
   }
 }

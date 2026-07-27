@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/db';
 import { resolveAdminAuth } from '@/lib/resolveAuth';
 import { buildDraftForGame } from '@/lib/matchDraftProvisioning';
+import { reportServerError } from '@/lib/apiError';
 
 const FORMAT_GAME_COUNTS = { BO1: 1, BO3: 3, BO5: 5 };
 
@@ -35,7 +36,8 @@ export async function GET(req) {
     });
     // Strip captain keys from public responses
     return NextResponse.json(matches.map(({ homeTeamCaptainKey: _a, awayTeamCaptainKey: _b, ...m }) => m));
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches GET' });
     return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 });
   }
 }
@@ -142,6 +144,7 @@ export async function POST(req) {
     if (e.code === 'P2002') {
       return NextResponse.json({ error: 'A match for this home/away pairing already exists in this week' }, { status: 409 });
     }
+    reportServerError(e, { route: 'matches POST' });
     return NextResponse.json({ error: 'Failed to create match' }, { status: 500 });
   }
 }

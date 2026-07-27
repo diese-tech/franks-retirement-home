@@ -6,6 +6,7 @@ import { invalidateAllStandings } from '@/lib/standings';
 import { resolveMatchCaptainAuth, resolveAdminAuth } from '@/lib/resolveAuth';
 import { captainLog } from '@/lib/captainLog';
 import { logAudit } from '@/lib/auditLog';
+import { reportServerError } from '@/lib/apiError';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,7 +144,8 @@ export async function POST(req, { params }) {
     captainLog('captain_result_reported', { matchId, gameId, captainSide, winnerTeamId, source: auth.source });
     logAudit({ entity: 'Game', entityId: gameId, action: 'result_reported', payload: { winnerTeamId, matchId } });
     return NextResponse.json(updated, { status: 201 });
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/games/[gameId]/result POST' });
     return NextResponse.json({ error: 'Failed to report result' }, { status: 500 });
   }
 }
@@ -234,7 +236,8 @@ export async function PATCH(req, { params }) {
     // action === 'confirm'
     captainLog('captain_result_confirmed', { matchId, gameId, captainSide, source: auth.source });
     return await confirmResult(match, game, game.reportedWinnerTeamId, confirmingTeamId);
-  } catch {
+  } catch (err) {
+    reportServerError(err, { route: 'matches/[id]/games/[gameId]/result PATCH' });
     return NextResponse.json({ error: 'Failed to update result' }, { status: 500 });
   }
 }
