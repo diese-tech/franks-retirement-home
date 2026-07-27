@@ -25,6 +25,17 @@ vi.mock('@/lib/playerDraftState', () => ({
   buildPlayerDraftState: vi.fn(async () => null),
 }));
 
+// ─── Mock @/lib/discordAuth ───────────────────────────────────────────────────
+vi.mock('@/lib/discordAuth', () => ({
+  getDiscordSessionUser: vi.fn(() => null),
+  hasDiscordAdminRole: vi.fn(() => false),
+}));
+
+// ─── Mock @/lib/rateLimit ────────────────────────────────────────────────────
+vi.mock('@/lib/rateLimit', () => ({
+  checkRateLimit: vi.fn(),
+}));
+
 // ─── Mock @/lib/db ───────────────────────────────────────────────────────────
 vi.mock('@/lib/db', () => {
   const prisma = {
@@ -39,6 +50,8 @@ vi.mock('@/lib/db', () => {
 
 const { default: prisma } = await import('@/lib/db');
 const { requireAdmin } = await import('@/lib/adminSession');
+const { getDiscordSessionUser } = await import('@/lib/discordAuth');
+const { checkRateLimit } = await import('@/lib/rateLimit');
 const { POST: pickPOST } = await import('@/app/api/player-drafts/[id]/pick/route.js');
 const { POST: completePOST } = await import('@/app/api/player-drafts/[id]/complete/route.js');
 const { PATCH: draftPATCH } = await import('@/app/api/player-drafts/[id]/route.js');
@@ -68,6 +81,8 @@ const MOCK_PLAYER = { id: 'player-1', name: 'Zapman', role: 'Carry', division: '
 beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockReturnValue(null); // authorized
+  getDiscordSessionUser.mockReturnValue(null);
+  checkRateLimit.mockResolvedValue({ allowed: true });
   // Default: player is not already a team member (no pre-assigned/captain block)
   prisma.teamMember.findFirst.mockResolvedValue(null);
 });
@@ -91,6 +106,23 @@ describe('POST /api/player-drafts/[id]/pick', () => {
     prisma.playerDraft.findUnique.mockResolvedValue(null);
     const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'p1' }), PARAMS);
     expect(unwrap(res).status).toBe(404);
+  });
+
+  it('returns 401 when not admin and no Discord session', async () => {
+    requireAdmin.mockReturnValue({ _status: 401 }); // not admin
+    getDiscordSessionUser.mockReturnValue(null);
+    const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'p1' }), PARAMS);
+    expect(unwrap(res).status).toBe(401);
+  });
+
+  it('returns 429 when a Discord captain is rate limited, before any draft lookup', async () => {
+    requireAdmin.mockReturnValue({ _status: 401 }); // not admin
+    getDiscordSessionUser.mockReturnValue({ discordId: 'discord-captain-1' });
+    checkRateLimit.mockResolvedValue({ allowed: false });
+    const res = await pickPOST(makeReq({ teamId: 'T1', playerId: 'p1' }), PARAMS);
+    expect(unwrap(res).status).toBe(429);
+    expect(checkRateLimit).toHaveBeenCalledWith('player-draft-pick:discord-captain-1', 20, 60);
+    expect(prisma.playerDraft.findUnique).not.toHaveBeenCalled();
   });
 
   it('returns 400 when draft is not active', async () => {

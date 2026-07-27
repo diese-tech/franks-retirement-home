@@ -45,9 +45,16 @@ vi.mock('@/lib/draftOrder', () => ({
   TOTAL_PICKS: 10,
 }));
 
+// ─── Mock @/lib/rateLimit ────────────────────────────────────────────────────
+vi.mock('@/lib/rateLimit', () => ({
+  checkRateLimit: vi.fn(),
+  hashIdentity: vi.fn((v) => `hashed:${v}`),
+}));
+
 const { default: prisma } = await import('@/lib/db');
 const { resolveRole } = await import('@/lib/draftAuth');
 const { currentBanTeam } = await import('@/lib/draftOrder');
+const { checkRateLimit } = await import('@/lib/rateLimit');
 const { POST, DELETE } = await import('@/app/api/drafts/[id]/ban/route.js');
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -82,6 +89,7 @@ beforeEach(() => {
   // Default: outer findUnique returns the mock draft (for role resolution)
   prisma.draft.findUnique.mockResolvedValue(MOCK_DRAFT);
   prisma.god = { findUnique: vi.fn().mockResolvedValue(MOCK_GOD) };
+  checkRateLimit.mockResolvedValue({ allowed: true });
 });
 
 // ─── POST tests ──────────────────────────────────────────────────────────────
@@ -115,6 +123,14 @@ describe('POST /api/drafts/[id]/ban', () => {
     resolveRole.mockReturnValue('spectator');
     const res = await POST(makeReq({ key: 'bad-key', godId: 'zeus' }), PARAMS);
     expect(unwrap(res).status).toBe(403);
+  });
+
+  it('returns 429 when rate limited, keyed on a hash of the captain key not the raw key', async () => {
+    resolveRole.mockReturnValue('captainA');
+    checkRateLimit.mockResolvedValue({ allowed: false });
+    const res = await POST(makeReq({ key: 'cap-a-key', godId: 'zeus' }), PARAMS);
+    expect(unwrap(res).status).toBe(429);
+    expect(checkRateLimit).toHaveBeenCalledWith('draft-ban:hashed:cap-a-key', 20, 60);
   });
 
   it('returns 400 when draft is not in banning phase', async () => {
