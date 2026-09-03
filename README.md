@@ -1,308 +1,125 @@
-# Frank's Retirement Home — Smite 2 League Ops Platform
+# Frank's Retirement Home
 
-FRH is a League Ops platform for competitive Smite 2 communities.
+**Frank's Retirement Home (FRH)** is a league-operations platform for competitive **SMITE 2** communities.
 
-The platform now supports:
+It combines season and roster management, scheduling, drafting, human-reviewed stat ingestion, standings, tournament tools, public league pages, and admin workflows in one application.
+
+> **Status:** Active production-oriented development. FRH is the canonical source of truth for its league operations and is deployed as a full web platform rather than a standalone draft-room experiment.
+
+## What FRH Does
+
+### League operations
 
 - Persistent seasons and divisions
-- Teams and roster management
-- Match scheduling
-- Match-bound drafts
-- Standalone drafts
-- Standalone real-time tournament brackets
-- Human-reviewed OCR stat ingestion
-- Public standings and league pages
-- Community features: bulletin board, fraud watch, Knows Ball betting lines
+- Team and roster management
+- Match scheduling and result workflows
+- Standings and public league pages
 - Admin operational tooling
+- Discord OAuth for captain/admin identity where configured
 
-FRH is the canonical source of truth for league operations.
+### Drafting
 
----
+FRH contains two intentionally separate draft systems:
 
-## Current Product Priorities
+- **GodDraft** — per-game god pick/ban flow
+- **PlayerDraft** — seasonal roster drafting
 
-1. League Ops reliability
-2. Match-bound draft integrity
-3. Human-reviewed OCR ingestion
-4. Review queue correctness
-5. Standings accuracy
-6. Public league UX
-7. Standalone draft preservation
+See [`docs/draft-architecture.md`](docs/draft-architecture.md) for the authoritative boundaries and invariants.
 
----
+### Stats and evidence
 
-## Architecture Summary
+- Human-reviewed OCR/stat ingestion
+- Review queue for staging extracted data before publication
+- Direct Gemini-based extraction plus supported ForgeLens callback integration
+- Public routes separated from unapproved staging data
+- Match submission designed to remain usable even when OCR fails
+
+### Tournament and community features
+
+- Standalone real-time tournament brackets
+- Bulletin/community surfaces
+- Fraud-watch workflows
+- Community prediction/points features where enabled
+
+## Architecture
 
 | Layer | Responsibility |
-|---|---|
-| FRH | Canonical source of truth |
-| Prisma + Supabase | Primary persistence layer |
-| Gemini (`lib/gemini.js`) | OCR extraction |
-| Review Queue | Human approval boundary |
-| CSV/Excel | Operational export/import layer |
-| Standalone Drafts | Scrims/testing fallback |
+| --- | --- |
+| FRH application | Canonical league operations and public/admin UI |
+| Prisma + Supabase PostgreSQL | Primary persistence |
+| Gemini Vision | OCR extraction support |
+| Review queue | Human approval boundary |
+| CSV/Excel | Operational import/export |
+| Vercel | Application hosting |
 
----
+FRH treats extracted OCR data as **staging**, not automatic truth. Human review remains the approval boundary before stats become canonical.
 
-## Draft Systems
+## Quick Start
 
-FRH contains two separate draft systems:
-
-| System | Purpose |
-|---|---|
-| GodDraft | Per-game god pick/ban flow |
-| PlayerDraft | Seasonal roster drafting |
-
-See `docs/draft-architecture.md` for canonical behavior.
-
----
-
-## OCR + Review Queue
-
-OCR extraction is performed directly by FRH through `lib/gemini.js`.
-
-Important rules:
-
-- OCR results are never canonical automatically.
-- Human review is mandatory.
-- Public routes never read staging tables.
-- Match submissions must continue functioning even if OCR fails.
-
-See:
-
-- `docs/review-queue-policy.md`
-- `docs/forgelens-worker-architecture.md`
-
----
-
-## League Ops Policies
-
-| Document | Purpose |
-|---|---|
-| `docs/SETUP.md` | Fresh environment setup guide -- start here |
-| `docs/LAUNCH_CHECKLIST.md` | Launch-day operational checklist and known caveats |
-| `docs/PRISMA_WORKFLOW.md` | Prisma migration policy and workflow reference |
-| `docs/ARCHITECTURE.md` | System architecture -- shared components, admin mirror pattern |
-| `docs/DEPLOYMENT_NOTES.md` | Production deployment workflow and operational steps |
-| `docs/RECOVERY.md` | Production recovery procedures -- P2021, failed migrations, re-seed |
-| `docs/review-queue-policy.md` | Human approval rules + staging boundaries |
-| `docs/forgelens-worker-architecture.md` | Native Gemini OCR architecture |
-| `docs/season-9-migration-runbook.md` | Migration sequencing + operational safeguards |
-| `docs/draft-architecture.md` | Draft system boundaries + invariants |
-| `docs/league-ops-lifecycle.md` | Season lifecycle and operational doctrine |
-| `docs/season-9-ops-reference.md` | S9 ops reference — teams, routes, scripts |
-| `docs/season-9-backlog.md` | Historical S9 planning reference |
-| `docs/tournament-bracket-implementation-plan.md` | Historical — Tournament bracket feature build plan, fully executed |
-| `docs/adr/` | Architecture decision records (numbered, currently 0001–0009, all covering the Tournament feature) |
-| `docs/production-readiness-audit-2.md` | Latest production-readiness + usability audit and scorecard |
-| `docs/production-readiness-implementation-plan.md` | Active plan to close this audit's gaps |
-
----
-
-## Security Notes
-
-- Public draft APIs must never expose admin/captain keys.
-- Review queue actions remain admin-only.
-- OCR data remains staging-only until approval.
-
----
-
-## Development
+### Local development
 
 ```bash
 npm install
-npm run db:reset   # resets DB, applies migrations, seeds mock data
+npm run db:reset
 npm run dev
 ```
 
-See `docs/SETUP.md` for a full environment setup guide including Supabase project creation, connection string configuration, and Discord OAuth setup.
+For a fresh environment, Supabase setup, connection strings, Discord OAuth, and deployment prerequisites, start with [`docs/SETUP.md`](docs/SETUP.md).
 
----
+## Production and Database Safety
 
-## Production Operations
+FRH uses Prisma against Supabase PostgreSQL. Shared/production schema changes should follow the repository's migration policy rather than ad-hoc `db push` workflows.
 
-### Quick diagnosis: P2021 "table does not exist"
-
-If production throws a `P2021` error, the database is missing one or more expected tables. Common causes:
-
-1. Migrations were not deployed after a code push.
-2. Environment variables point to the wrong Supabase project.
-3. The database was wiped or recreated without re-running migrations.
-
-**Immediate steps:**
+Useful operational checks include:
 
 ```bash
-# 1. Check migration status
-npx prisma migrate status
-
-# 2. Verify environment configuration
 npm run verify:env
-
-# 3. Verify database connectivity and table existence
 node scripts/verify-db.mjs
-
-# 4. If migrations are pending, deploy them
-npx prisma migrate deploy
+npx prisma migrate status
 ```
 
-### Verify DB connectivity
+For migration policy and recovery procedures, use:
 
-Run `node scripts/verify-db.mjs` to connect to the database and count rows in critical tables. If all tables return errors, the connection string is wrong. If specific tables are missing, migrations are incomplete.
+- [`docs/PRISMA_WORKFLOW.md`](docs/PRISMA_WORKFLOW.md)
+- [`docs/RECOVERY.md`](docs/RECOVERY.md)
+- [`docs/DEPLOYMENT_NOTES.md`](docs/DEPLOYMENT_NOTES.md)
 
-### Verify environment configuration
+Do not use the README as the authoritative recovery runbook; production procedures belong in those documents so they can evolve without overwhelming the project front page.
 
-```bash
-npm run verify:env
-```
+## Documentation
 
-This runs `scripts/verify-env.mjs` and checks that `DATABASE_URL`, `DIRECT_URL`, and other critical variables are set correctly, use the right ports, and reference the same Supabase project.
+Start here:
 
-### Run migrations against production
+- [`docs/SETUP.md`](docs/SETUP.md) — fresh environment setup
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system architecture
+- [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) — launch and operational verification
+- [`docs/PRISMA_WORKFLOW.md`](docs/PRISMA_WORKFLOW.md) — database migration policy
+- [`docs/RECOVERY.md`](docs/RECOVERY.md) — recovery procedures
+- [`docs/draft-architecture.md`](docs/draft-architecture.md) — draft system boundaries
+- [`docs/review-queue-policy.md`](docs/review-queue-policy.md) — OCR/review approval rules
+- [`docs/league-ops-lifecycle.md`](docs/league-ops-lifecycle.md) — season lifecycle doctrine
+- [`docs/adr/`](docs/adr/) — architecture decisions
 
-```bash
-# Requires DIRECT_URL set to Supabase Session-mode connection string (port 5432)
-npx prisma migrate deploy
-```
+Historical planning and season-specific material remain under `docs/` for context but should not override newer architecture/runbook documents when they conflict.
 
-### Confirm Vercel env vars
+## Security and Data Boundaries
 
-In Vercel > Project > Settings > Environment Variables, verify:
-- `DATABASE_URL` uses port 6543 (pooled/Transaction mode)
-- `DIRECT_URL` uses port 5432 (session/direct mode)
-- Both URLs reference the same Supabase project-ref and password
-
-### Detailed recovery procedures
-
-See `docs/RECOVERY.md` for full recovery documentation including failed migration recovery, re-seeding, and Vercel environment checklists.
-
----
-
-## Discord OAuth Setup
-
-FRH uses Discord OAuth as the primary authentication path for captains and admins. Existing key-based captain links remain as a fallback.
-
-### Prerequisites
-
-1. A Discord application at [Discord Developer Portal](https://discord.com/developers/applications)
-2. A Discord server (guild) with configured roles
-
-### Discord Developer Portal Setup
-
-1. Create a new application (or use existing) at https://discord.com/developers/applications
-2. Go to **OAuth2** tab
-3. Copy the **Client ID** and **Client Secret**
-4. Add redirect URIs:
-   - Local development: `http://localhost:3000/api/auth/discord/callback`
-   - Production: `https://YOUR_VERCEL_DOMAIN/api/auth/discord/callback`
-   - Vercel preview deploys: `https://*.vercel.app/api/auth/discord/callback`
-
-### Discord Server Roles
-
-Create these roles in your Discord server:
-
-| Role | Purpose |
-|------|---------|
-| Admin | Full admin access to FRH dashboard and admin APIs |
-| Captain | Generic captain role (all team captains must have this) |
-| Hospice | Division role for Hospice division captains |
-| Rehabilitation | Division role for Rehabilitation division captains |
-| Per-team roles (10) | One role per team for team-specific authorization |
-
-### Retrieving Discord Role IDs
-
-1. Enable Developer Mode: Discord Settings > Advanced > Developer Mode
-2. Go to Server Settings > Roles
-3. Right-click each role > Copy Role ID
-
-### Environment Variables
-
-Copy `.env.example` to `.env.local` and fill in all Discord values. See the file for detailed comments.
-
-### DISCORD_TEAM_ROLE_MAP_JSON
-
-This maps FRH team IDs to Discord role IDs:
-
-```json
-{
-  "team-galactic-stingers": "DISCORD_ROLE_ID_HERE",
-  "team-caustic-crusaders": "DISCORD_ROLE_ID_HERE",
-  "team-death-dealers": "DISCORD_ROLE_ID_HERE",
-  "team-wheezys-mafia": "DISCORD_ROLE_ID_HERE",
-  "team-ruined-order": "DISCORD_ROLE_ID_HERE",
-  "team-kappa-corp": "DISCORD_ROLE_ID_HERE",
-  "team-exile-extinction": "DISCORD_ROLE_ID_HERE",
-  "team-valhalla-vikings": "DISCORD_ROLE_ID_HERE",
-  "team-babas-kitchen": "DISCORD_ROLE_ID_HERE",
-  "team-cyberpunk-otters": "DISCORD_ROLE_ID_HERE"
-}
-```
-
-### Vercel Deployment
-
-Set all Discord env vars in Vercel > Project Settings > Environment Variables:
-- DISCORD_CLIENT_ID
-- DISCORD_CLIENT_SECRET
-- DISCORD_GUILD_ID
-- DISCORD_SESSION_SECRET
-- DISCORD_ADMIN_ROLE_ID
-- DISCORD_HOSPICE_CAPTAIN_ROLE_ID
-- DISCORD_REHABILITATION_CAPTAIN_ROLE_ID
-- DISCORD_HOSPICE_PLAYER_ROLE_IDS
-- DISCORD_REHABILITATION_PLAYER_ROLE_IDS
-- DISCORD_TEAM_ROLE_MAP_JSON
-- NEXTAUTH_URL (set to your production domain)
-
-### Auth Behavior
-
-- Discord OAuth is the primary auth path when configured
-- If Discord env vars are missing, OAuth routes return 503 but the app continues to work
-- Existing captain keys (X-Captain-Key header, URL ?key= params) remain as fallback
-- Admin session cookies continue to work alongside Discord admin role
-
-### Routes Supporting Discord OAuth (Captain)
-
-- Match result report/confirm/dispute
-- Match submissions / screenshot upload
-- GodDraft ready, ban, pick
-- PlayerDraft pick submission (restricted to the captain's own team; draft creation/order/completion remain admin-only)
-- Reschedule request creation and response
-- OCR extraction upload
-
-### Routes Remaining Admin-Only
-
-- Admin dashboard
-- GodDraft undo/reset/reopen
-- PlayerDraft lifecycle: creation, pick order, completion (individual pick *submission* already supports Discord-authenticated captains — see "Routes Supporting Discord OAuth" below)
-- Match scheduling/editing/deleting
-- Tournament bracket creation and all admin mutations (`/admin/tournaments`)
-
----
+- Public APIs must never expose admin or captain secrets.
+- Review-queue mutations remain explicitly authorized.
+- OCR output remains staging-only until approved.
+- Discord OAuth is the preferred identity path where configured; fallback credentials should not be expanded casually.
+- Production database changes require migration discipline and environment verification.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js |
-| ORM | Prisma |
-| Database | Supabase PostgreSQL |
-| Realtime | SSE |
-| OCR | Gemini Vision |
-| Hosting | Vercel |
+- Next.js
+- Prisma
+- Supabase PostgreSQL
+- Gemini Vision
+- Discord OAuth
+- Server-Sent Events
+- Vercel
 
----
+## Project Direction
 
-## Historical Context
-
-FRH originally began as a standalone draft-room project.
-
-Season 9 expanded the platform into a full League Ops system with:
-
-- persistent organizations
-- divisions
-- schedules
-- standings
-- OCR ingestion
-- review queues
-- match lifecycle tooling
-
-OCR extraction has two live paths in production, not one: direct in-app extraction via `lib/gemini.js`, and an external ForgeLens worker that submits results back via the HMAC-verified `app/api/forgelens/callback` route (see `docs/LAUNCH_CHECKLIST.md`'s `FORGELENS_URL`/`FORGELENS_API_KEY`/`FORGELENS_HMAC_SECRET` setup). Some older docs describe the ForgeLens path as fully deprecated/historical — that's inaccurate as of this writing; both paths are active.
+FRH began as a draft-room project and evolved into a broader league-operations platform. Current work prioritizes operational reliability, draft integrity, review correctness, standings accuracy, and public league UX over adding unrelated features.
